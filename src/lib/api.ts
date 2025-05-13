@@ -1,7 +1,6 @@
-// API base URL from environment variable
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://192.168.0.157:5000';
 
-// Authentication response types
+export const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
+
 export interface LoginResponse {
   success: boolean;
   message?: string;
@@ -15,7 +14,6 @@ export interface LoginResponse {
   token?: string;
 }
 
-// API request middleware functions
 const middleware = {
   addAuthHeader: (headers: HeadersInit = {}) => {
     const session = typeof window !== 'undefined' ? localStorage.getItem('userSession') : null;
@@ -29,7 +27,7 @@ const middleware = {
   }
 };
 
-// Generic fetch function with error handling
+
 export async function fetchAPI<T = any>(
   endpoint: string, 
   options: RequestInit = {},
@@ -61,12 +59,10 @@ export async function fetchAPI<T = any>(
   }
 }
 
-// Auth-related API calls
 export const authAPI = {
   login: async (username: string, password: string, fcm_token?: string): Promise<LoginResponse> => {
     console.log('Login attempt for:', username, 'with FCM token:', fcm_token ? '✓ Provided' : '✗ Missing');
     
-    // Create request body with or without FCM token
     const requestBody = fcm_token 
       ? { username, password, fcm_token } 
       : { username, password };

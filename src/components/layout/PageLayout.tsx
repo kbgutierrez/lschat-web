@@ -7,13 +7,11 @@ interface PageLayoutProps {
 
 export function PageLayout({ children }: PageLayoutProps) {
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
+    <div className="min-h-screen flex flex-col bg-gradient-to-br from-violet-50 via-white to-indigo-50 dark:from-gray-900 dark:via-gray-950 dark:to-gray-900">
+      <main className="flex-1 flex flex-col items-center justify-center px-4 py-8 sm:px-8">
         {children}
       </main>
-      <div className="row-start-3">
-        <Footer />
-      </div>
+      <Footer />
     </div>
   );
 }

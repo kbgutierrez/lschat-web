@@ -16,7 +16,6 @@ export function useForm<T extends Record<string, any>>(initialValues: T) {
       [name]: fieldValue
     }));
 
-    // Clear error when field is changed
     if (errors[name as keyof T]) {
       setErrors(prev => ({
         ...prev,
