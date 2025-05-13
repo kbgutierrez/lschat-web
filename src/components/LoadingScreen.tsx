@@ -17,10 +17,19 @@ export function LoadingScreen({
   message = "Loading",
   autoHide = false
 }: LoadingScreenProps) {
-  const [visible, setVisible] = useState(isLoading);
+  const [visible, setVisible] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  
+  // Safely handle hydration
+  useEffect(() => {
+    setMounted(true);
+    setVisible(isLoading);
+  }, [isLoading]);
   
   // Auto-hide the loading screen after a few seconds if requested
   useEffect(() => {
+    if (!mounted) return;
+    
     if (autoHide && isLoading) {
       const timer = setTimeout(() => {
         setVisible(false);
@@ -29,11 +38,10 @@ export function LoadingScreen({
       return () => clearTimeout(timer);
     }
     
-    setVisible(isLoading);
-  }, [isLoading, autoHide]);
+  }, [isLoading, autoHide, mounted]);
   
   // Handle visibility separately from isLoading to allow for exit animations
-  if (!visible) return null;
+  if (!mounted || !visible) return null;
   
   return (
     <div 

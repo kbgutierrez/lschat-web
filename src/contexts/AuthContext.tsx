@@ -60,6 +60,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const response = await authAPI.login(username, password, fcm_token);
       
       if (response.success && response.user) {
+        console.log('Login successful:', response.user);
         setUser(response.user);
         localStorage.setItem('userSession', JSON.stringify(response));
         

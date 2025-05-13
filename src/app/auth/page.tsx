@@ -189,17 +189,16 @@ export default function AuthPage() {
         
        
         localStorage.setItem('userSession', JSON.stringify({
-          token: response.token || 'dummy-token', // Use a dummy token if none provided
+          token: response.token || 'dummy-token', 
           user: {
-            id: response.user?.id || response.id,
-            firstName: response.user?.first_name || response.first_name,
-            lastName: response.user?.last_name || response.last_name,
+            user_id: response.user?.user_id || response.user_id,
+            firstName: response.user?.firstName || response.firstName,
+            lastName: response.user?.lastName || response.lastName,
             username: response.user?.username || response.username,
             email: response.user?.email || response.email,
           }
         }));
         
-        // Handle remember me functionality
         if (loginData.rememberMe) {
           localStorage.setItem('rememberedCredentials', JSON.stringify({
             username: loginData.username,

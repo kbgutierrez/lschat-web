@@ -3,40 +3,9 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { Button } from '@/components/ui/Button';
 import { cn } from '@/lib/utils';
-
-// Sample data
-const sampleContacts = [
-  {
-    id: '1',
-    name: 'Juan Dela Cruz',
-    status: 'online',
-    lastSeen: 'Just now',
-    unread: 0
-  },
-  {
-    id: '2',
-    name: 'Tanggol Di Magiba',
-    status: 'offline',
-    lastSeen: '1 hour ago',
-    unread: 3
-  },
-  {
-    id: '3',
-    name: 'Maria Santos',
-    status: 'online',
-    lastSeen: 'Just now',
-    unread: 0
-  },
-  {
-    id: '4',
-    name: 'Roberto Magtanggol',
-    status: 'offline',
-    lastSeen: '3 hours ago',
-    unread: 0
-  }
-];
+import { contactsAPI, ContactListItem } from '@/lib/api';
+import { useIsClient, getUserFromLocalStorage, User } from '@/lib/clientUtils';
 
 // Define message type
 type Message = {
@@ -99,16 +68,24 @@ const getInitials = (name: string): string => {
 };
 
 const getAvatarColor = (name: string): string => {
-  // Return fixed color for all contacts and groups
   return 'bg-blue-500 text-white';
 };
 
 type TabType = 'chats' | 'groups' | 'contacts';
 
+type ContactDetails = {
+  id: string;
+  name: string;
+  status: string;
+  lastSeen: string;
+  unread: number;
+};
+
 export default function Dashboard() {
+  const isClient = useIsClient();
   const router = useRouter();
-  const [selectedContact, setSelectedContact] = useState<string | null>('2');
-  const [selectedContactDetails, setSelectedContactDetails] = useState<any | null>(null);
+  const [selectedContact, setSelectedContact] = useState<string | null>(null);
+  const [selectedContactDetails, setSelectedContactDetails] = useState<ContactDetails | null>(null);
   const [activeTab, setActiveTab] = useState<TabType>('chats');
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [newMessage, setNewMessage] = useState('');
@@ -116,81 +93,71 @@ export default function Dashboard() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
   const messageInputRef = useRef<HTMLInputElement>(null);
-
-  const initialUser = (() => {
-    if (typeof window === 'undefined') return null;
-
-    try {
-      const sessionData = localStorage.getItem('userSession');
-      if (!sessionData) return null;
-
-      const userData = JSON.parse(sessionData);
-
-      if (userData.user) {
-        return userData.user;
-      } else if (userData.first_name || userData.user_id) {
-        return {
-          id: userData.user_id,
-          firstName: userData.first_name,
-          lastName: userData.last_name,
-          username: userData.username,
-          email: userData.email
-        };
-      }
-      return null;
-    } catch {
-      return null;
-    }
-  })();
-
-  const [user, setUser] = useState(initialUser);
-  const [checkingAuth, setCheckingAuth] = useState(!initialUser);
+  const [contacts, setContacts] = useState<ContactListItem[]>([]);
+  const [loadingContacts, setLoadingContacts] = useState(false);
+  const [apiError, setApiError] = useState<string | null>(null);
+  const [user, setUser] = useState<User | null>(null);
+  const [checkingAuth, setCheckingAuth] = useState(true);
 
   useEffect(() => {
-    if (user) {
-      return;
-    }
+    if (!isClient) return;
 
-    const authCheck = async () => {
+    const userData = getUserFromLocalStorage();
+
+    if (userData) {
+      setUser(userData);
+      setCheckingAuth(false);
+    } else {
+      router.push('/auth');
+    }
+  }, [isClient, router]);
+
+  useEffect(() => {
+    if (!isClient || !user) return;
+
+    const fetchContacts = async () => {
       try {
-        const sessionData = localStorage.getItem('userSession');
-        if (!sessionData) {
-          router.push('/auth');
+        setLoadingContacts(true);
+        setApiError(null);
+
+        const userId = user.user_id;
+
+        if (!userId) {
+          console.error("Cannot fetch contacts: User ID is missing");
+          setApiError("User ID is missing. Please log out and log in again.");
+          setLoadingContacts(false);
           return;
         }
 
-        const userData = JSON.parse(sessionData);
+        console.log("Fetching contacts for user ID:", userId);
+        const contactList = await contactsAPI.getContactList(userId);
 
-        if (userData.user) {
-          setUser(userData.user);
-        } else if (userData.first_name || userData.user_id) {
-          setUser({
-            id: userData.user_id,
-            firstName: userData.first_name,
-            lastName: userData.last_name,
-            username: userData.username,
-            email: userData.email
+        setContacts(contactList);
+
+        if (contactList.length > 0 && !selectedContact) {
+          setSelectedContact(contactList[0].contact_id.toString());
+          setSelectedContactDetails({
+            id: contactList[0].contact_id.toString(),
+            name: contactList[0].contact_full_name,
+            status: 'offline',
+            lastSeen: 'Unknown',
+            unread: 0
           });
-        } else {
-          console.error('Invalid user data format', userData);
-          router.push('/auth');
         }
       } catch (error) {
-        console.error('Error checking auth:', error);
-        router.push('/auth');
+        console.error('Error fetching contacts:', error);
+        setApiError(error instanceof Error ? error.message : 'Failed to load contacts');
       } finally {
-        setCheckingAuth(false);
+        setLoadingContacts(false);
       }
     };
 
-    authCheck();
-  }, [router, user]);
+    fetchContacts();
+  }, [user, isClient, selectedContact]);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [selectedContact]);
+    if (!isClient) return;
 
-  useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
         setShowUserMenu(false);
@@ -200,22 +167,37 @@ export default function Dashboard() {
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, []);
+  }, [isClient]);
 
   useEffect(() => {
-    if (selectedContact) {
-      setTimeout(() => messageInputRef.current?.focus(), 300);
+    if (!isClient || !selectedContact) return;
+
+    const contactDetails = contacts.find(contact => contact.contact_id.toString() === selectedContact);
+    if (contactDetails) {
+      setSelectedContactDetails({
+        id: contactDetails.contact_id.toString(),
+        name: contactDetails.contact_full_name,
+        status: 'offline', // Default value
+        lastSeen: 'Unknown',
+        unread: 0
+      });
     }
-  }, [selectedContact]);
+  }, [selectedContact, contacts, isClient]);
 
   useEffect(() => {
-    if (selectedContact) {
-      const contactDetails = sampleContacts.find(contact => contact.id === selectedContact);
-      setSelectedContactDetails(contactDetails);
-    }
-  }, [selectedContact]);
+    if (!isClient) return;
+
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [selectedContact, isClient]);
+
+  useEffect(() => {
+    if (!isClient || !selectedContact) return;
+
+    setTimeout(() => messageInputRef.current?.focus(), 300);
+  }, [selectedContact, isClient]);
 
   const handleLogout = () => {
+    if (!isClient) return;
     try {
       localStorage.removeItem('userSession');
       router.push('/auth');
@@ -226,8 +208,16 @@ export default function Dashboard() {
 
   const handleContactSelect = (id: string) => {
     setSelectedContact(id);
-    const contactDetails = sampleContacts.find(contact => contact.id === id);
-    setSelectedContactDetails(contactDetails);
+    const contactDetails = contacts.find(contact => contact.contact_id.toString() === id);
+    if (contactDetails) {
+      setSelectedContactDetails({
+        id: contactDetails.contact_id.toString(),
+        name: contactDetails.contact_full_name,
+        status: 'offline', // Default value
+        lastSeen: 'Unknown',
+        unread: 0
+      });
+    }
     setIsMobileSidebarOpen(false);
   };
 
@@ -252,7 +242,15 @@ export default function Dashboard() {
     setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
   };
 
-  if (checkingAuth) {
+  const compareMessageTimestamps = (timeA: string, timeB: string): boolean => {
+    try {
+      return timeA !== timeB;
+    } catch (e) {
+      return true;
+    }
+  };
+
+  if (!isClient || checkingAuth) {
     return <div className="min-h-screen bg-white dark:bg-gray-950"></div>;
   }
 
@@ -277,6 +275,7 @@ export default function Dashboard() {
                 src="/images/logo-no-label.png"
                 alt="Logo"
                 fill
+                sizes="40px"
                 className="object-contain"
               />
             </div>
@@ -358,48 +357,61 @@ export default function Dashboard() {
         <div className="flex-1 overflow-y-auto">
           {activeTab === 'chats' && (
             <div className="divide-y divide-gray-100 dark:divide-gray-800">
-              {sampleContacts.map(contact => (
-                <button
-                  key={contact.id}
-                  className={cn(
-                    "w-full flex items-center p-4 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors",
-                    selectedContact === contact.id && "bg-indigo-50 dark:bg-indigo-900/10"
-                  )}
-                  onClick={() => handleContactSelect(contact.id)}
-                >
-                  <div className="relative flex-shrink-0">
-                    <div className={cn(
-                      "w-12 h-12 rounded-full flex items-center justify-center",
-                      getAvatarColor(contact.name)
-                    )}>
-                      <span className="text-base font-medium">{getInitials(contact.name)}</span>
-                    </div>
-                    {contact.status === 'online' && (
-                      <span className="absolute bottom-0.5 right-0.5 w-3 h-3 bg-green-500 border-2 border-white dark:border-gray-900 rounded-full"></span>
+              {loadingContacts ? (
+                <div className="p-4 text-center text-gray-500 dark:text-gray-400">
+                  Loading contacts...
+                </div>
+              ) : apiError ? (
+                <div className="p-4 text-center">
+                  <p className="text-red-500 dark:text-red-400 mb-2">Failed to load contacts</p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">{apiError}</p>
+                  <button 
+                    onClick={() => {
+                      setLoadingContacts(true);
+                      setTimeout(() => window.location.reload(), 500);
+                    }}
+                    className="mt-3 px-3 py-1 text-sm bg-indigo-600 text-white rounded hover:bg-indigo-700"
+                  >
+                    Retry
+                  </button>
+                </div>
+              ) : contacts.length === 0 ? (
+                <div className="p-4 text-center text-gray-500 dark:text-gray-400">
+                  No contacts found. Add some contacts to start chatting.
+                </div>
+              ) : (
+                contacts.map(contact => (
+                  <button
+                    key={contact.contact_id}
+                    className={cn(
+                      "w-full flex items-center p-4 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors",
+                      selectedContact === contact.contact_id.toString() && "bg-indigo-50 dark:bg-indigo-900/10"
                     )}
-                  </div>
-                  <div className="ml-4 flex-1 flex flex-col items-start text-left overflow-hidden">
-                    <div className="flex items-center justify-between w-full">
-                      <span className="font-medium text-gray-900 dark:text-white truncate">
-                        {contact.name}
-                      </span>
-                      <span className="text-xs text-gray-500 dark:text-gray-400 ml-1">
-                        {contact.lastSeen === 'Just now' ? 'Now' : contact.lastSeen}
-                      </span>
+                    onClick={() => handleContactSelect(contact.contact_id.toString())}
+                  >
+                    <div className="relative flex-shrink-0">
+                      <div className={cn(
+                        "w-12 h-12 rounded-full flex items-center justify-center",
+                        getAvatarColor(contact.contact_full_name)
+                      )}>
+                        <span className="text-base font-medium">{getInitials(contact.contact_full_name)}</span>
+                      </div>
                     </div>
-                    <div className="flex items-center justify-between w-full mt-1">
-                      <span className="text-sm text-gray-500 dark:text-gray-400 truncate max-w-[80%]">
-                        {sampleMessages[contact.id]?.[sampleMessages[contact.id].length - 1]?.text || "No messages"}
-                      </span>
-                      {contact.unread > 0 && (
-                        <span className="inline-flex items-center justify-center px-2 py-1 text-xs font-medium rounded-full bg-indigo-600 text-white">
-                          {contact.unread}
+                    <div className="ml-4 flex-1 flex flex-col items-start text-left overflow-hidden">
+                      <div className="flex items-center justify-between w-full">
+                        <span className="font-medium text-gray-900 dark:text-white truncate">
+                          {contact.contact_full_name}
                         </span>
-                      )}
+                      </div>
+                      <div className="flex items-center justify-between w-full mt-1">
+                        <span className="text-sm text-gray-500 dark:text-gray-400 truncate max-w-[80%]">
+                          {contact.contact_mobile_number}
+                        </span>
+                      </div>
                     </div>
-                  </div>
-                </button>
-              ))}
+                  </button>
+                ))
+              )}
             </div>
           )}
 
@@ -449,36 +461,57 @@ export default function Dashboard() {
 
           {activeTab === 'contacts' && (
             <div className="divide-y divide-gray-100 dark:divide-gray-800">
-              {sampleContacts.map(contact => (
-                <button
-                  key={contact.id}
-                  className={cn(
-                    "w-full flex items-center p-4 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors",
-                    selectedContact === contact.id && "bg-indigo-50 dark:bg-indigo-900/10"
-                  )}
-                  onClick={() => handleContactSelect(contact.id)}
-                >
-                  <div className="relative flex-shrink-0">
-                    <div className={cn(
-                      "w-12 h-12 rounded-full flex items-center justify-center",
-                      getAvatarColor(contact.name)
-                    )}>
-                      <span className="text-base font-medium">{getInitials(contact.name)}</span>
-                    </div>
-                    {contact.status === 'online' && (
-                      <span className="absolute bottom-0.5 right-0.5 w-3 h-3 bg-green-500 border-2 border-white dark:border-gray-900 rounded-full"></span>
+              {loadingContacts ? (
+                <div className="p-4 text-center text-gray-500 dark:text-gray-400">
+                  Loading contacts...
+                </div>
+              ) : apiError ? (
+                <div className="p-4 text-center">
+                  <p className="text-red-500 dark:text-red-400 mb-2">Failed to load contacts</p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">{apiError}</p>
+                  <button 
+                    onClick={() => {
+                      setLoadingContacts(true);
+                      setTimeout(() => window.location.reload(), 500);
+                    }}
+                    className="mt-3 px-3 py-1 text-sm bg-indigo-600 text-white rounded hover:bg-indigo-700"
+                  >
+                    Retry
+                  </button>
+                </div>
+              ) : contacts.length === 0 ? (
+                <div className="p-4 text-center text-gray-500 dark:text-gray-400">
+                  No contacts found. Add some contacts to start chatting.
+                </div>
+              ) : (
+                contacts.map(contact => (
+                  <button
+                    key={contact.contact_id}
+                    className={cn(
+                      "w-full flex items-center p-4 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors",
+                      selectedContact === contact.contact_id.toString() && "bg-indigo-50 dark:bg-indigo-900/10"
                     )}
-                  </div>
-                  <div className="ml-4 flex flex-col items-start text-left">
-                    <span className="font-medium text-gray-900 dark:text-white">
-                      {contact.name}
-                    </span>
-                    <span className="text-sm text-gray-500 dark:text-gray-400">
-                      {contact.status === 'online' ? 'Online' : contact.lastSeen}
-                    </span>
-                  </div>
-                </button>
-              ))}
+                    onClick={() => handleContactSelect(contact.contact_id.toString())}
+                  >
+                    <div className="relative flex-shrink-0">
+                      <div className={cn(
+                        "w-12 h-12 rounded-full flex items-center justify-center",
+                        getAvatarColor(contact.contact_full_name)
+                      )}>
+                        <span className="text-base font-medium">{getInitials(contact.contact_full_name)}</span>
+                      </div>
+                    </div>
+                    <div className="ml-4 flex flex-col items-start text-left">
+                      <span className="font-medium text-gray-900 dark:text-white">
+                        {contact.contact_full_name}
+                      </span>
+                      <span className="text-sm text-gray-500 dark:text-gray-400">
+                        {contact.contact_mobile_number}
+                      </span>
+                    </div>
+                  </button>
+                ))
+              )}
             </div>
           )}
         </div>
@@ -613,7 +646,7 @@ export default function Dashboard() {
                       {(index === 0 ||
                         sampleMessages[selectedContact][index - 1].isOwn ||
                         (index > 0 && !sampleMessages[selectedContact][index - 1].isOwn &&
-                          parseInt(message.time) - parseInt(sampleMessages[selectedContact][index - 1].time) > 300000)) && (
+                          compareMessageTimestamps(message.time, sampleMessages[selectedContact][index - 1].time))) && (
                         <div className={cn(
                           "w-8 h-8 rounded-full flex items-center justify-center",
                           getAvatarColor(selectedContactDetails?.name || "")

@@ -1,38 +1,62 @@
-
 export const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 
 export interface LoginResponse {
   success: boolean;
   message?: string;
   user?: {
-    id: string;
+    user_id: string;
     username: string;
     firstName: string;
     lastName: string;
     email: string;
   };
   token?: string;
+  firstName?: string;
+  lastName?: string;
+  user_id?: string;
+  username?: string;
+  email?: string;
+}
+
+export interface ContactListItem {
+  user_id: number;
+  contact_id: number;
+  contact_full_name: string;
+  contact_mobile_number: string;
+  pubnub_channel: string;
+  status: string;
 }
 
 const middleware = {
   addAuthHeader: (headers: HeadersInit = {}) => {
-    const session = typeof window !== 'undefined' ? localStorage.getItem('userSession') : null;
-    if (session) {
-      const { token } = JSON.parse(session);
-      if (token) {
-        return { ...headers, 'Authorization': `Bearer ${token}` };
+    // Safe check for server-side rendering
+    if (typeof window === 'undefined') return headers;
+    
+    try {
+      const session = localStorage.getItem('userSession');
+      if (session) {
+        const { token } = JSON.parse(session);
+        if (token) {
+          return { ...headers, 'Authorization': `Bearer ${token}` };
+        }
       }
+    } catch (error) {
+      console.error('Error accessing localStorage:', error);
     }
     return headers;
   }
 };
-
 
 export async function fetchAPI<T = any>(
   endpoint: string, 
   options: RequestInit = {},
   useAuth = false
 ): Promise<T> {
+  // Don't attempt to fetch during SSR if auth is required
+  if (useAuth && typeof window === 'undefined') {
+    throw new Error('Auth API calls cannot be made during server rendering');
+  }
+
   const url = `${API_BASE_URL}${endpoint}`;
   
   const headers = {
@@ -45,8 +69,10 @@ export async function fetchAPI<T = any>(
     const response = await fetch(url, { ...options, headers });
     const data = await response.json();
     
-    // Simple response logging
-    console.log(`${options.method || 'GET'} ${endpoint}: ${response.status} ${response.ok ? '✓' : '✗'}`);
+    // Simple response logging - only on client
+    if (typeof window !== 'undefined') {
+      console.log(`${options.method || 'GET'} ${endpoint}: ${response.status} ${response.ok ? '✓' : '✗'}`);
+    }
     
     if (!response.ok) {
       throw new Error(data.message || 'Something went wrong');
@@ -76,7 +102,7 @@ export const authAPI = {
       success: response.success,
       hasToken: !!response.token,
       user: response.user ? {
-        id: response.user.id,
+        id: response.user.user_id,
         username: response.user.username,
         name: `${response.user.firstName} ${response.user.lastName}`
       } : null
@@ -104,5 +130,35 @@ export const userAPI = {
       method: 'PUT',
       body: JSON.stringify(profileData)
     }, true);
+  }
+};
+
+export const contactsAPI = {
+  getContactList: async (userId: string | number): Promise<ContactListItem[]> => {
+    if (!userId) {
+      throw new Error('User ID is required to fetch contacts');
+    }
+    
+    console.log(`Attempting to fetch contacts for user ID: ${userId}`);
+    try {
+      
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
+      const response = await fetchAPI<ContactListItem[]>(`/api/fetch-contact-lists/?user_id=${userId}`, {}, true);
+      
+     
+      const filteredContacts = response.filter(contact => contact.contact_id !== Number(userId));
+      
+      console.log('Fetched contacts:', filteredContacts.length);
+      return filteredContacts;
+    } catch (error) {
+      console.error('Contact list fetch error:', error);
+    
+      if (error instanceof Error && error.message.includes('Failed to fetch')) {
+        throw new Error('Cannot connect to the server. Please check your connection and try again.');
+      }
+   
+      throw error;
+    }
   }
 };
