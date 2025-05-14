@@ -1,12 +1,13 @@
 'use client';
 
-import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
+import React, { useEffect, useState, useRef, useCallback, useMemo, memo } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
 import { contactsAPI, ContactListItem, messagesAPI, ChatMessage } from '@/lib/api';
 import { useIsClient, getUserFromLocalStorage, User } from '@/lib/clientUtils';
 import { MessageContent } from '@/components/chat/MessageContent';
+import { MessageInput } from '@/components/chat/MessageInput';
 
 type Message = {
   id: string;
@@ -73,6 +74,15 @@ const getAvatarColor = (name: string): string => {
   return 'bg-blue-500 text-white';
 };
 
+// Add the missing compareMessageTimestamps function
+const compareMessageTimestamps = (timeA: string, timeB: string): boolean => {
+  try {
+    return timeA !== timeB;
+  } catch (e) {
+    return true;
+  }
+};
+
 type TabType = 'chats' | 'groups' | 'contacts';
 
 type ContactDetails = {
@@ -83,6 +93,135 @@ type ContactDetails = {
   unread: number;
 };
 
+// Memoize the message component to prevent re-renders
+const MessageItem = memo(({ message, contactName, isFirst, prevTime }: { 
+  message: Message, 
+  contactName: string,
+  isFirst: boolean,
+  prevTime: string | null
+}) => {
+  const showAvatar = isFirst || 
+    (!message.isOwn && prevTime && compareMessageTimestamps(message.time, prevTime));
+
+  return (
+    <div className={`flex ${message.isOwn ? 'justify-end' : 'justify-start'}`}>
+      {!message.isOwn && (
+        <div className="flex-shrink-0 mr-3">
+          {showAvatar && (
+            <div className={cn(
+              "w-8 h-8 rounded-full flex items-center justify-center",
+              "bg-blue-500 text-white"
+            )}>
+              <span className="text-xs font-medium">{getInitials(contactName)}</span>
+            </div>
+          )}
+        </div>
+      )}
+
+      <div className={cn(
+        "max-w-[75%]",
+        message.isOwn ? "items-end" : "items-start",
+        "flex flex-col"
+      )}>
+        <div className={cn(
+          "px-4 py-2 rounded-2xl relative",
+          message.isOwn
+            ? "bg-violet-600 text-white"
+            : "bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 border border-violet-100 dark:border-gray-700",
+          message.isOwn ? "rounded-tr-none" : "rounded-tl-none"
+        )}>
+          <MessageContent 
+            content={message.text} 
+            className="text-sm"
+          />
+        </div>
+        <span className="text-xs text-gray-400 mt-1 px-1">
+          {message.time}
+          {message.isOwn && message.isRead && (
+            <span className="ml-1 text-gray-400">
+              <svg xmlns="http://www.w3.org/2000/svg" className="inline-block h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+              </svg>
+            </span>
+          )}
+        </span>
+      </div>
+    </div>
+  );
+});
+
+MessageItem.displayName = 'MessageItem';
+
+// Memoize the message list to prevent re-renders
+const MessageList = memo(({ 
+  messages, 
+  contactName, 
+  isLoading, 
+  error, 
+  onRetry, 
+  endRef 
+}: { 
+  messages: Message[], 
+  contactName: string,
+  isLoading: boolean,
+  error: string | null,
+  onRetry: () => void,
+  endRef: React.RefObject<HTMLDivElement | null>
+}) => {
+  if (isLoading) {
+    return (
+      <div className="absolute inset-0 flex items-center justify-center bg-violet-50/80 dark:bg-gray-950/80 backdrop-blur-[1px] z-10">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-violet-700"></div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 
+        rounded-md p-4 text-center text-red-600 dark:text-red-400">
+        <p>{error}</p>
+        <button 
+          onClick={onRetry}
+          className="mt-2 text-sm text-red-600 hover:text-red-800 underline"
+        >
+          Try Again
+        </button>
+      </div>
+    );
+  }
+
+  if (!messages || messages.length === 0) {
+    return (
+      <div className="text-center py-10">
+        <div className="inline-flex items-center justify-center w-16 h-16 bg-violet-100 dark:bg-gray-800 rounded-full mb-4">
+          <svg className="w-8 h-8 text-violet-600 dark:text-violet-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+          </svg>
+        </div>
+        <p className="text-gray-500 dark:text-gray-400">No messages yet. Start the conversation!</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      {messages.map((message, index) => (
+        <MessageItem
+          key={message.id}
+          message={message}
+          contactName={contactName}
+          isFirst={index === 0}
+          prevTime={index > 0 ? messages[index - 1].time : null}
+        />
+      ))}
+      <div ref={endRef} className="h-1" />
+    </div>
+  );
+});
+
+MessageList.displayName = 'MessageList';
+
 export default function Dashboard() {
   const isClient = useIsClient();
   const router = useRouter();
@@ -90,11 +229,9 @@ export default function Dashboard() {
   const [selectedContactDetails, setSelectedContactDetails] = useState<ContactDetails | null>(null);
   const [activeTab, setActiveTab] = useState<TabType>('chats');
   const [showUserMenu, setShowUserMenu] = useState(false);
-  const [newMessage, setNewMessage] = useState('');
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
-  const messageInputRef = useRef<HTMLInputElement>(null);
   const [contacts, setContacts] = useState<ContactListItem[]>([]);
   const [loadingContacts, setLoadingContacts] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
@@ -290,7 +427,7 @@ export default function Dashboard() {
   useEffect(() => {
     if (!isClient || !selectedContact) return;
 
-    setTimeout(() => messageInputRef.current?.focus(), 300);
+    setTimeout(() => {}, 300);
   }, [selectedContact, isClient]);
 
   const handleLogout = () => {
@@ -318,14 +455,14 @@ export default function Dashboard() {
     setIsMobileSidebarOpen(false);
   };
 
-  const handleSendMessage = async () => {
-    if (!newMessage.trim() || !selectedChannel || !user) return;
+  const handleSendMessage = useCallback(async (message: string) => {
+    if (!message.trim() || !selectedChannel || !user) return;
 
     try {
       const optimisticMsg: Message = {
         id: `temp-${Date.now()}`,
         sender: user.user_id?.toString() || 'me',
-        text: newMessage,
+        text: message,
         time: new Date().toLocaleTimeString('en-US', { 
           hour: 'numeric', 
           minute: 'numeric', 
@@ -341,11 +478,9 @@ export default function Dashboard() {
         [selectedChannel]: [...(prev[selectedChannel] || []), optimisticMsg]
       }));
       
-      setNewMessage('');
-      
       setTimeout(scrollToBottom, 100);
 
-      const response = await messagesAPI.sendMessage(selectedChannel, newMessage);
+      const response = await messagesAPI.sendMessage(selectedChannel, message);
       
       setMessages(prev => {
         const updatedChannelMessages = prev[selectedChannel].map(msg => 
@@ -373,15 +508,7 @@ export default function Dashboard() {
     } catch (error) {
       console.error('Failed to send message:', error);
     }
-  };
-
-  const compareMessageTimestamps = (timeA: string, timeB: string): boolean => {
-    try {
-      return timeA !== timeB;
-    } catch (e) {
-      return true;
-    }
-  };
+  }, [selectedChannel, user, scrollToBottom]);
 
   const handleTabChange = useCallback((tab: TabType) => {
     if (tab !== activeTab) {
@@ -394,6 +521,35 @@ export default function Dashboard() {
       }
     }
   }, [activeTab, tabsVisited]);
+
+  const handleRetryLoadMessages = useCallback(() => {
+    if (selectedChannel) {
+      setLoadingMessages(true);
+      setMessageError(null);
+      messagesAPI.getChatMessages(selectedChannel)
+        .then(chatMessages => {
+          if (!isMounted) return;
+          const formattedMessages = chatMessages.map(msg => ({
+            id: msg.message_id.toString(),
+            sender: msg.user_id.toString(),
+            text: msg.message_content,
+            time: new Date(msg.created_at).toLocaleTimeString('en-US', {
+              hour: 'numeric', minute: 'numeric', hour12: true 
+            }),
+            isOwn: msg.user_id.toString() === user?.user_id?.toString(),
+            type: msg.message_type,
+            isRead: msg.is_read
+          }));
+          setMessages(prev => ({...prev, [selectedChannel]: formattedMessages}));
+          setLoadingMessages(false);
+        })
+        .catch(error => {
+          if (!isMounted) return;
+          setMessageError(error.message || 'Failed to load messages');
+          setLoadingMessages(false);
+        });
+    }
+  }, [selectedChannel, isMounted, user]);
 
   const tabButtons = (
     <div className="bg-white/10 dark:bg-gray-800/50 rounded-lg p-1 flex items-center">
@@ -626,10 +782,6 @@ export default function Dashboard() {
     return null;
   }
 
-  const formatMessageTime = (timeString: string) => {
-    return timeString;
-  };
-
   return (
     <div className="h-screen flex bg-violet-50 dark:bg-gray-950 overflow-hidden relative">
       <aside
@@ -741,7 +893,7 @@ export default function Dashboard() {
                 </button>
                 <button className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-violet-100 dark:hover:bg-gray-800 text-black dark:text-gray-400">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 01-2 2z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 00-2 2v8a2 2 01-2 2z" />
                   </svg>
                 </button>
               </div>
@@ -818,158 +970,22 @@ export default function Dashboard() {
                   </div>
 
                   <div className="relative min-h-[200px]">
-                    {loadingMessages && (
-                      <div className="absolute inset-0 flex items-center justify-center bg-violet-50/80 dark:bg-gray-950/80 backdrop-blur-[1px] z-10">
-                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-violet-700"></div>
-                      </div>
-                    )}
-
-                    {messageError && (
-                      <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 
-                        rounded-md p-4 text-center text-red-600 dark:text-red-400">
-                        <p>{messageError}</p>
-                        <button 
-                          onClick={() => {
-                            if (selectedChannel) {
-                              setLoadingMessages(true);
-                              setMessageError(null);
-                              messagesAPI.getChatMessages(selectedChannel)
-                                .then(chatMessages => {
-                                  if (!isMounted) return;
-                                  const formattedMessages = chatMessages.map(msg => ({
-                                    id: msg.message_id.toString(),
-                                    sender: msg.user_id.toString(),
-                                    text: msg.message_content,
-                                    time: new Date(msg.created_at).toLocaleTimeString('en-US', {
-                                      hour: 'numeric', minute: 'numeric', hour12: true 
-                                    }),
-                                    isOwn: msg.user_id.toString() === user.user_id?.toString(),
-                                    type: msg.message_type,
-                                    isRead: msg.is_read
-                                  }));
-                                  setMessages(prev => ({...prev, [selectedChannel]: formattedMessages}));
-                                  setLoadingMessages(false);
-                                })
-                                .catch(error => {
-                                  if (!isMounted) return;
-                                  setMessageError(error.message || 'Failed to load messages');
-                                  setLoadingMessages(false);
-                                });
-                            }
-                          }}
-                          className="mt-2 text-sm text-red-600 hover:text-red-800 underline"
-                        >
-                          Try Again
-                        </button>
-                      </div>
-                    )}
-
-                    {!loadingMessages && !messageError && selectedChannel && (!messages[selectedChannel] || messages[selectedChannel]?.length === 0) && (
-                      <div className="text-center py-10">
-                        <div className="inline-flex items-center justify-center w-16 h-16 bg-violet-100 dark:bg-gray-800 rounded-full mb-4">
-                          <svg className="w-8 h-8 text-violet-600 dark:text-violet-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                          </svg>
-                        </div>
-                        <p className="text-gray-500 dark:text-gray-400">No messages yet. Start the conversation!</p>
-                      </div>
-                    )}
-
-                    {!loadingMessages && selectedChannel && messages[selectedChannel]?.length > 0 && (
-                      <div className="space-y-3">
-                        {messages[selectedChannel].map((message, index) => (
-                          <div
-                            key={message.id}
-                            className={`flex ${message.isOwn ? 'justify-end' : 'justify-start'}`}
-                          >
-                            {!message.isOwn && (
-                              <div className="flex-shrink-0 mr-3">
-                                {(index === 0 ||
-                                  messages[selectedChannel][index - 1].isOwn ||
-                                  (index > 0 && !messages[selectedChannel][index - 1].isOwn &&
-                                    compareMessageTimestamps(message.time, messages[selectedChannel][index - 1].time))) && (
-                                  <div className={cn(
-                                    "w-8 h-8 rounded-full flex items-center justify-center",
-                                    getAvatarColor(selectedContactDetails?.name || "")
-                                  )}>
-                                    <span className="text-xs font-medium">{getInitials(selectedContactDetails?.name || "")}</span>
-                                  </div>
-                                )}
-                              </div>
-                            )}
-
-                            <div className={cn(
-                              "max-w-[75%]",
-                              message.isOwn ? "items-end" : "items-start",
-                              "flex flex-col"
-                            )}>
-                              <div className={cn(
-                                "px-4 py-2 rounded-2xl relative",
-                                message.isOwn
-                                  ? "bg-violet-600 text-white"
-                                  : "bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 border border-violet-100 dark:border-gray-700",
-                                message.isOwn ? "rounded-tr-none" : "rounded-tl-none"
-                              )}>
-                                <MessageContent 
-                                  content={message.text} 
-                                  className="text-sm"
-                                />
-                              </div>
-                              <span className="text-xs text-gray-400 mt-1 px-1">
-                                {formatMessageTime(message.time)}
-                                {message.isOwn && message.isRead && (
-                                  <span className="ml-1 text-gray-400">
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="inline-block h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
-                                    </svg>
-                                  </span>
-                                )}
-                              </span>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                  </div>
-                  <div ref={messagesEndRef} className="h-1" />
-                </div>
-              </div>
-
-              <div className="h-[80px] shrink-0 bg-white dark:bg-gray-900 border-t border-violet-100 dark:border-gray-800 p-4">
-                <div className="flex items-center space-x-2">
-                  <button className="p-2 text-black dark:text-gray-400 hover:bg-violet-50 dark:hover:bg-gray-800 rounded-full">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
-                    </svg>
-                  </button>
-                  <div className="flex-1 relative">
-                    <input
-                      ref={messageInputRef}
-                      type="text"
-                      value={newMessage}
-                      onChange={(e) => setNewMessage(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
-                      placeholder="Type a message"
-                      className="w-full py-3 px-4 bg-violet-50 dark:bg-gray-800 rounded-full border-0 focus:ring-2 focus:ring-violet-500/30 text-gray-900 dark:text-gray-100 placeholder-gray-400"
+                    <MessageList 
+                      messages={selectedChannel ? messages[selectedChannel] || [] : []}
+                      contactName={selectedContactDetails?.name || ''}
+                      isLoading={loadingMessages}
+                      error={messageError}
+                      onRetry={handleRetryLoadMessages}
+                      endRef={messagesEndRef}
                     />
                   </div>
-                  <button
-                    onClick={handleSendMessage}
-                    disabled={!newMessage.trim()}
-                    className={cn(
-                      "p-3 rounded-full text-white",
-                      newMessage.trim()
-                        ? "bg-violet-600 hover:bg-violet-700"
-                        : "bg-gray-300 dark:bg-gray-700 cursor-not-allowed"
-                    )}
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-                    </svg>
-                  </button>
                 </div>
               </div>
+
+              <MessageInput 
+                onSendMessage={handleSendMessage}
+                disabled={!selectedChannel}
+              />
             </div>
           ) : (
             <div className="flex-1 flex flex-col items-center justify-center bg-violet-50 dark:bg-gray-950 p-4 text-center">

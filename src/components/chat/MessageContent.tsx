@@ -51,15 +51,6 @@ export const MessageContent: React.FC<MessageContentProps> = ({ content, classNa
     }
   };
 
-  const handleWheel = (e: React.WheelEvent) => {
-    e.preventDefault();
-    if (e.deltaY < 0) {
-      setScale(prev => Math.min(prev + 0.1, 5));
-    } else {
-      setScale(prev => Math.max(prev - 0.1, 0.1));
-    }
-  };
-
   const handleMouseDown = (e: React.MouseEvent) => {
     if (scale > 0.2) { 
       setDragging(true);
@@ -106,6 +97,26 @@ export const MessageContent: React.FC<MessageContentProps> = ({ content, classNa
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showImageModal]);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container || !showImageModal) return;
+    
+    const handleWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      if (e.deltaY < 0) {
+        setScale(prev => Math.min(prev + 0.1, 5));
+      } else {
+        setScale(prev => Math.max(prev - 0.1, 0.1));
+      }
+    };
+    
+    container.addEventListener('wheel', handleWheel, { passive: false });
+    
+    return () => {
+      container.removeEventListener('wheel', handleWheel);
+    };
   }, [showImageModal]);
 
   let contentRender;
@@ -171,7 +182,7 @@ export const MessageContent: React.FC<MessageContentProps> = ({ content, classNa
               imageLoaded && 'opacity-100'
             )}
           >
-            <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">{fileName}</div>
+            <div className="text-xs text-gray-100 dark:text-gray-100 mb-1">{fileName}</div>
             <div className="relative" onClick={() => imageLoaded && handleImageClick(imageUrl, fileName)}>
               <Image
                 src={imageUrl}
@@ -371,7 +382,6 @@ export const MessageContent: React.FC<MessageContentProps> = ({ content, classNa
             ref={containerRef}
             className="relative w-full h-full flex items-center justify-center overflow-hidden"
             onClick={(e) => e.stopPropagation()}
-            onWheel={handleWheel}
             onMouseDown={handleMouseDown}
             onMouseMove={handleMouseMove}
             onMouseUp={handleMouseUp}
