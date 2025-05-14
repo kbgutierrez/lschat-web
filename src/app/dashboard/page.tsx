@@ -1,10 +1,10 @@
 'use client';
 
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
-import { contactsAPI, ContactListItem } from '@/lib/api';
+import { contactsAPI, ContactListItem, messagesAPI, ChatMessage } from '@/lib/api';
 import { useIsClient, getUserFromLocalStorage, User } from '@/lib/clientUtils';
 
 type Message = {
@@ -13,6 +13,8 @@ type Message = {
   text: string;
   time: string;
   isOwn: boolean;
+  type?: string;
+  isRead?: boolean;
 };
 
 type MessagesCollection = {
@@ -97,6 +99,41 @@ export default function Dashboard() {
   const [apiError, setApiError] = useState<string | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [checkingAuth, setCheckingAuth] = useState(true);
+  const [messages, setMessages] = useState<Record<string, Message[]>>({});
+  const [loadingMessages, setLoadingMessages] = useState(false);
+  const [messageError, setMessageError] = useState<string | null>(null);
+  const [selectedChannel, setSelectedChannel] = useState<string | null>(null);
+  const [isMounted, setIsMounted] = useState(false);
+
+  const [tabsVisited, setTabsVisited] = useState<Record<TabType, boolean>>({
+    chats: true,
+    groups: false,
+    contacts: false
+  });
+
+  const contactsByTab = useMemo(() => {
+    return {
+      chats: contacts,
+      contacts: contacts,
+      groups: [] // Using sample groups instead
+    };
+  }, [contacts]);
+
+  const scrollToBottom = useCallback(() => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ 
+        behavior: "instant",
+        block: 'end'
+      });
+    }
+  }, []);
+
+  useEffect(() => {
+    setIsMounted(true);
+    return () => {
+      setIsMounted(false);
+    };
+  }, []);
 
   useEffect(() => {
     if (!isClient) return;
@@ -180,8 +217,68 @@ export default function Dashboard() {
         lastSeen: 'Unknown',
         unread: 0
       });
+      
+      setSelectedChannel(contactDetails.pubnub_channel);
     }
   }, [selectedContact, contacts, isClient]);
+
+  useEffect(() => {
+    if (!isClient || !selectedChannel || !user || !isMounted) return;
+
+    if (messages[selectedChannel]?.length > 0) {
+      console.log(`Using cached messages for channel: ${selectedChannel}`);
+      setTimeout(scrollToBottom, 100);
+      return;
+    }
+
+    setLoadingMessages(true);
+    setMessageError(null);
+
+    const fetchMessages = async () => {
+      try {
+        console.log(`Fetching messages for channel: ${selectedChannel}`);
+        const chatMessages = await messagesAPI.getChatMessages(selectedChannel);
+
+        if (!isMounted) return;
+
+        const formattedMessages = chatMessages.map(msg => ({
+          id: msg.message_id.toString(),
+          sender: msg.user_id.toString(),
+          text: msg.message_content,
+          time: new Date(msg.created_at).toLocaleTimeString('en-US', { 
+            hour: 'numeric', 
+            minute: 'numeric', 
+            hour12: true 
+          }),
+          isOwn: msg.user_id.toString() === user.user_id?.toString(),
+          type: msg.message_type,
+          isRead: msg.is_read
+        }));
+
+        setMessages(prev => ({
+          ...prev,
+          [selectedChannel]: formattedMessages
+        }));
+
+        setTimeout(scrollToBottom, 100);
+      } catch (error) {
+        if (!isMounted) return;
+
+        console.error('Error fetching messages:', error);
+        setMessageError(
+          error instanceof Error 
+            ? error.message 
+            : 'Failed to load messages'
+        );
+      } finally {
+        if (isMounted) {
+          setLoadingMessages(false);
+        }
+      }
+    };
+
+    fetchMessages();
+  }, [selectedChannel, isClient, user, isMounted, messages, scrollToBottom]);
 
   useEffect(() => {
     if (!isClient) return;
@@ -220,25 +317,61 @@ export default function Dashboard() {
     setIsMobileSidebarOpen(false);
   };
 
-  const handleSendMessage = () => {
-    if (!newMessage.trim() || !selectedContact) return;
+  const handleSendMessage = async () => {
+    if (!newMessage.trim() || !selectedChannel || !user) return;
 
-    const newMsg = {
-      id: `m${Date.now()}`,
-      sender: 'me',
-      text: newMessage,
-      time: new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: 'numeric', hour12: true }),
-      isOwn: true
-    };
+    try {
+      const optimisticMsg: Message = {
+        id: `temp-${Date.now()}`,
+        sender: user.user_id?.toString() || 'me',
+        text: newMessage,
+        time: new Date().toLocaleTimeString('en-US', { 
+          hour: 'numeric', 
+          minute: 'numeric', 
+          hour12: true 
+        }),
+        isOwn: true,
+        type: 'text',
+        isRead: false
+      };
 
-    if (!sampleMessages[selectedContact]) {
-      sampleMessages[selectedContact] = [];
+      setMessages(prev => ({
+        ...prev,
+        [selectedChannel]: [...(prev[selectedChannel] || []), optimisticMsg]
+      }));
+      
+      setNewMessage('');
+      
+      setTimeout(scrollToBottom, 100);
+
+      const response = await messagesAPI.sendMessage(selectedChannel, newMessage);
+      
+      setMessages(prev => {
+        const updatedChannelMessages = prev[selectedChannel].map(msg => 
+          msg.id === optimisticMsg.id ? {
+            id: response.message_id.toString(),
+            sender: response.user_id.toString(),
+            text: response.message_content,
+            time: new Date(response.created_at).toLocaleTimeString('en-US', {
+              hour: 'numeric', 
+              minute: 'numeric', 
+              hour12: true 
+            }),
+            isOwn: true,
+            type: response.message_type,
+            isRead: response.is_read
+          } : msg
+        );
+        
+        return {
+          ...prev,
+          [selectedChannel]: updatedChannelMessages
+        };
+      });
+      
+    } catch (error) {
+      console.error('Failed to send message:', error);
     }
-
-    sampleMessages[selectedContact].push(newMsg);
-
-    setNewMessage('');
-    setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
   };
 
   const compareMessageTimestamps = (timeA: string, timeB: string): boolean => {
@@ -249,16 +382,255 @@ export default function Dashboard() {
     }
   };
 
-  if (!isClient || checkingAuth) {
+  const handleTabChange = useCallback((tab: TabType) => {
+    if (tab !== activeTab) {
+      setActiveTab(tab);
+      if (!tabsVisited[tab]) {
+        setTabsVisited(prev => ({
+          ...prev,
+          [tab]: true
+        }));
+      }
+    }
+  }, [activeTab, tabsVisited]);
+
+  const tabButtons = (
+    <div className="bg-white/10 dark:bg-gray-800/50 rounded-lg p-1 flex items-center">
+      <button
+        className={cn(
+          "flex items-center justify-center space-x-2 py-2 px-3 rounded-md flex-1 text-sm font-medium transition-all duration-200",
+          activeTab === 'chats'
+            ? "bg-white dark:bg-gray-700 text-violet-900 dark:text-violet-400 shadow-sm"
+            : "text-white/90 dark:text-gray-400 hover:bg-white/5 dark:hover:bg-gray-700/30"
+        )}
+        onClick={() => handleTabChange('chats')}
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+        </svg>
+        <span>Chats</span>
+      </button>
+      <button
+        className={cn(
+          "flex items-center justify-center space-x-2 py-2 px-3 rounded-md flex-1 text-sm font-medium transition-all duration-200",
+          activeTab === 'groups'
+            ? "bg-white dark:bg-gray-700 text-violet-900 dark:text-violet-400 shadow-sm"
+            : "text-white/90 dark:text-gray-400 hover:bg-white/5 dark:hover:bg-gray-700/30"
+        )}
+        onClick={() => handleTabChange('groups')}
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+        </svg>
+        <span>Groups</span>
+      </button>
+      <button
+        className={cn(
+          "flex items-center justify-center space-x-2 py-2 px-3 rounded-md flex-1 text-sm font-medium transition-all duration-200",
+          activeTab === 'contacts'
+            ? "bg-white dark:bg-gray-700 text-violet-900 dark:text-violet-400 shadow-sm"
+            : "text-white/90 dark:text-gray-400 hover:bg-white/5 dark:hover:bg-gray-700/30"
+        )}
+        onClick={() => handleTabChange('contacts')}
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+        </svg>
+        <span>Contacts</span>
+      </button>
+    </div>
+  );
+
+  const renderTabContent = useCallback(() => {
+    return (
+      <>
+        <div className={`space-y-1 px-2 ${activeTab === 'chats' ? 'block' : 'hidden'}`}>
+          {/* Chats tab content */}
+          {loadingContacts ? (
+            <div className="p-4 text-center text-white/80 dark:text-gray-400">
+              Loading contacts...
+            </div>
+          ) : apiError ? (
+            <div className="p-4 m-2 text-center bg-red-500/10 rounded-lg">
+              <p className="text-red-300 dark:text-red-400 mb-2 text-sm font-medium">Failed to load contacts</p>
+              <p className="text-xs text-white/80 dark:text-gray-400 mb-3">{apiError}</p>
+              <button 
+                onClick={() => {
+                  setLoadingContacts(true);
+                  setTimeout(() => window.location.reload(), 500);
+                }}
+                className="px-3 py-1.5 text-xs bg-white/10 hover:bg-white/20 text-white rounded-md"
+              >
+                Retry
+              </button>
+            </div>
+          ) : contacts.length === 0 ? (
+            <div className="p-4 text-center text-white/80 dark:text-gray-400">
+              No contacts found. Add some contacts to start chatting.
+            </div>
+          ) : (
+            contacts.map(contact => (
+              <button
+                key={contact.contact_id}
+                className={cn(
+                  "w-full flex items-center p-3 rounded-lg transition-colors duration-200 mb-1",
+                  selectedContact === contact.contact_id.toString() 
+                    ? "bg-white/20 dark:bg-violet-900/30" 
+                    : "hover:bg-white/10 dark:hover:bg-gray-800/50"
+                )}
+                onClick={() => handleContactSelect(contact.contact_id.toString())}
+              >
+                <div className="relative flex-shrink-0">
+                  <div className={cn(
+                    "w-12 h-12 rounded-full flex items-center justify-center bg-blue-500",
+                  )}>
+                    <span className="text-base font-medium text-white">{getInitials(contact.contact_full_name)}</span>
+                  </div>
+                </div>
+                <div className="ml-3 flex-1 flex flex-col items-start text-left overflow-hidden">
+                  <div className="flex items-center justify-between w-full">
+                    <span className="font-medium text-white dark:text-white truncate">
+                      {contact.contact_full_name}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between w-full mt-1">
+                    <span className="text-sm text-white/70 dark:text-gray-400 truncate max-w-[80%]">
+                      {contact.contact_mobile_number}
+                    </span>
+                  </div>
+                </div>
+              </button>
+            ))
+          )}
+        </div>
+      
+        <div className={`space-y-1 px-2 ${activeTab === 'groups' ? 'block' : 'hidden'}`}>
+          {/* Groups tab content */}
+          {sampleGroups.map(group => (
+            <button
+              key={group.id}
+              className={cn(
+                "w-full flex items-center p-3 rounded-lg transition-colors duration-200 mb-1",
+                selectedContact === group.id 
+                  ? "bg-white/20 dark:bg-violet-900/30" 
+                  : "hover:bg-white/10 dark:hover:bg-gray-800/50"
+              )}
+              onClick={() => handleContactSelect(group.id)}
+            >
+              <div className="relative flex-shrink-0">
+                <div className={cn(
+                  "w-12 h-12 rounded-full flex items-center justify-center bg-indigo-500",
+                )}>
+                  <span className="text-base font-medium text-white">{getInitials(group.name)}</span>
+                </div>
+              </div>
+              <div className="ml-3 flex-1 flex flex-col items-start text-left overflow-hidden">
+                <div className="flex items-center justify-between w-full">
+                  <span className="font-medium text-white dark:text-white truncate">
+                    {group.name}
+                  </span>
+                  <span className="text-xs text-white/60 dark:text-gray-400 ml-1">
+                    {group.lastMessageTime}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between w-full mt-1">
+                  <span className="text-sm text-white/70 dark:text-gray-400 truncate max-w-[80%]">
+                    {group.lastMessage}
+                  </span>
+                  {group.unread > 0 && (
+                    <span className="inline-flex items-center justify-center px-2 py-1 text-xs font-medium rounded-full bg-violet-600/80 text-white">
+                      {group.unread}
+                    </span>
+                  )}
+                </div>
+              </div>
+            </button>
+          ))}
+        </div>
+      
+        <div className={`space-y-1 px-2 ${activeTab === 'contacts' ? 'block' : 'hidden'}`}>
+          {/* Contacts tab content */}
+          {loadingContacts ? (
+            <div className="p-4 text-center text-white/80 dark:text-gray-400">
+              Loading contacts...
+            </div>
+          ) : apiError ? (
+            <div className="p-4 m-2 text-center bg-red-500/10 rounded-lg">
+              <p className="text-red-300 dark:text-red-400 mb-2 text-sm font-medium">Failed to load contacts</p>
+              <p className="text-xs text-white/80 dark:text-gray-400 mb-3">{apiError}</p>
+              <button 
+                onClick={() => {
+                  setLoadingContacts(true);
+                  setTimeout(() => window.location.reload(), 500);
+                }}
+                className="px-3 py-1.5 text-xs bg-white/10 hover:bg-white/20 text-white rounded-md"
+              >
+                Retry
+              </button>
+            </div>
+          ) : contacts.length === 0 ? (
+            <div className="p-4 text-center text-white/80 dark:text-gray-400">
+              No contacts found. Add some contacts to start chatting.
+            </div>
+          ) : (
+            contacts.map(contact => (
+              <button
+                key={contact.contact_id}
+                className={cn(
+                  "w-full flex items-center p-3 rounded-lg transition-colors duration-200 mb-1",
+                  selectedContact === contact.contact_id.toString() 
+                    ? "bg-white/20 dark:bg-violet-900/30" 
+                    : "hover:bg-white/10 dark:hover:bg-gray-800/50"
+                )}
+                onClick={() => handleContactSelect(contact.contact_id.toString())}
+              >
+                <div className="relative flex-shrink-0">
+                  <div className={cn(
+                    "w-12 h-12 rounded-full flex items-center justify-center bg-blue-500",
+                  )}>
+                    <span className="text-base  font-medium text-white">{getInitials(contact.contact_full_name)}</span>
+                  </div>
+                </div>
+                <div className="ml-3 flex-1 flex flex-col items-start text-left overflow-hidden">
+                  <div className="flex items-center justify-between w-full">
+                    <span className="font-medium text-white dark:text-white truncate">
+                      {contact.contact_full_name}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between w-full mt-1">
+                    <span className="text-sm text-white/70 dark:text-gray-400 truncate max-w-[80%]">
+                      {contact.contact_mobile_number}
+                    </span>
+                  </div>
+                </div>
+              </button>
+            ))
+          )}
+        </div>
+      </>
+    );
+  }, [activeTab, contacts, loadingContacts, apiError, selectedContact]);
+
+  if (!isClient) {
     return <div className="min-h-screen bg-violet-50 dark:bg-gray-950"></div>;
+  }
+  
+  if (checkingAuth) {
+    return <div className="min-h-screen bg-violet-50 dark:bg-gray-950 flex items-center justify-center">
+      <div className="animate-spin rounded-full h-12 w-12 border-4 border-violet-400 border-t-transparent"></div>
+    </div>;
+  }
+  
+  if (!user) {
+    return null;
   }
 
   const formatMessageTime = (timeString: string) => {
     return timeString;
   };
 
-  return user ? (
-    <div className="h-screen flex bg-violet-50 dark:bg-gray-950 overflow-hidden">
+  return (
+    <div className="h-screen flex bg-violet-50 dark:bg-gray-950 overflow-hidden relative">
       <aside
         className={cn(
           "bg-gradient-to-b from-violet-700 to-violet-900 dark:from-gray-800 dark:to-gray-900 flex flex-col border-r border-violet-600/50 dark:border-gray-800 shadow-lg z-30",
@@ -266,6 +638,7 @@ export default function Dashboard() {
           "fixed inset-0 md:inset-y-0 md:left-0 md:w-80 md:relative md:translate-x-0",
           isMobileSidebarOpen ? "translate-x-0" : "-translate-x-full"
         )}
+        style={{ minHeight: '100%' }}
       >
         <div className="h-16 flex items-center justify-between px-4 border-b border-white/10 dark:border-gray-700/50">
           <div className="flex items-center">
@@ -307,219 +680,11 @@ export default function Dashboard() {
         </div>
 
         <div className="px-3 py-2 mb-2">
-          <div className="bg-white/10 dark:bg-gray-800/50 rounded-lg p-1 flex items-center">
-            <button
-              className={cn(
-                "flex items-center justify-center space-x-2 py-2 px-3 rounded-md flex-1 text-sm font-medium transition-all duration-200",
-                activeTab === 'chats'
-                  ? "bg-white dark:bg-gray-700 text-violet-900 dark:text-violet-400 shadow-sm"
-                  : "text-white/90 dark:text-gray-400 hover:bg-white/5 dark:hover:bg-gray-700/30"
-              )}
-              onClick={() => setActiveTab('chats')}
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-              </svg>
-              <span>Chats</span>
-            </button>
-            <button
-              className={cn(
-                "flex items-center justify-center space-x-2 py-2 px-3 rounded-md flex-1 text-sm font-medium transition-all duration-200",
-                activeTab === 'groups'
-                  ? "bg-white dark:bg-gray-700 text-violet-900 dark:text-violet-400 shadow-sm"
-                  : "text-white/90 dark:text-gray-400 hover:bg-white/5 dark:hover:bg-gray-700/30"
-              )}
-              onClick={() => setActiveTab('groups')}
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-              </svg>
-              <span>Groups</span>
-            </button>
-            <button
-              className={cn(
-                "flex items-center justify-center space-x-2 py-2 px-3 rounded-md flex-1 text-sm font-medium transition-all duration-200",
-                activeTab === 'contacts'
-                  ? "bg-white dark:bg-gray-700 text-violet-900 dark:text-violet-400 shadow-sm"
-                  : "text-white/90 dark:text-gray-400 hover:bg-white/5 dark:hover:bg-gray-700/30"
-              )}
-              onClick={() => setActiveTab('contacts')}
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-              </svg>
-              <span>Contacts</span>
-            </button>
-          </div>
+          {tabButtons}
         </div>
 
         <div className="flex-1 overflow-y-auto">
-          {activeTab === 'chats' && (
-            <div className="space-y-1 px-2">
-              {loadingContacts ? (
-                <div className="p-4 text-center text-white/80 dark:text-gray-400">
-                  Loading contacts...
-                </div>
-              ) : apiError ? (
-                <div className="p-4 m-2 text-center bg-red-500/10 rounded-lg">
-                  <p className="text-red-300 dark:text-red-400 mb-2 text-sm font-medium">Failed to load contacts</p>
-                  <p className="text-xs text-white/80 dark:text-gray-400 mb-3">{apiError}</p>
-                  <button 
-                    onClick={() => {
-                      setLoadingContacts(true);
-                      setTimeout(() => window.location.reload(), 500);
-                    }}
-                    className="px-3 py-1.5 text-xs bg-white/10 hover:bg-white/20 text-white rounded-md"
-                  >
-                    Retry
-                  </button>
-                </div>
-              ) : contacts.length === 0 ? (
-                <div className="p-4 text-center text-white/80 dark:text-gray-400">
-                  No contacts found. Add some contacts to start chatting.
-                </div>
-              ) : (
-                contacts.map(contact => (
-                  <button
-                    key={contact.contact_id}
-                    className={cn(
-                      "w-full flex items-center p-3 rounded-lg transition-colors duration-200 mb-1",
-                      selectedContact === contact.contact_id.toString() 
-                        ? "bg-white/20 dark:bg-violet-900/30" 
-                        : "hover:bg-white/10 dark:hover:bg-gray-800/50"
-                    )}
-                    onClick={() => handleContactSelect(contact.contact_id.toString())}
-                  >
-                    <div className="relative flex-shrink-0">
-                      <div className={cn(
-                        "w-12 h-12 rounded-full flex items-center justify-center bg-blue-500",
-                      )}>
-                        <span className="text-base font-medium text-white">{getInitials(contact.contact_full_name)}</span>
-                      </div>
-                    </div>
-                    <div className="ml-3 flex-1 flex flex-col items-start text-left overflow-hidden">
-                      <div className="flex items-center justify-between w-full">
-                        <span className="font-medium text-white dark:text-white truncate">
-                          {contact.contact_full_name}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between w-full mt-1">
-                        <span className="text-sm text-white/70 dark:text-gray-400 truncate max-w-[80%]">
-                          {contact.contact_mobile_number}
-                        </span>
-                      </div>
-                    </div>
-                  </button>
-                ))
-              )}
-            </div>
-          )}
-
-          {activeTab === 'groups' && (
-            <div className="space-y-1 px-2">
-              {sampleGroups.map(group => (
-                <button
-                  key={group.id}
-                  className={cn(
-                    "w-full flex items-center p-3 rounded-lg transition-colors duration-200 mb-1",
-                    selectedContact === group.id 
-                      ? "bg-white/20 dark:bg-violet-900/30" 
-                      : "hover:bg-white/10 dark:hover:bg-gray-800/50"
-                  )}
-                  onClick={() => handleContactSelect(group.id)}
-                >
-                  <div className="relative flex-shrink-0">
-                    <div className={cn(
-                      "w-12 h-12 rounded-full flex items-center justify-center bg-indigo-500",
-                    )}>
-                      <span className="text-base font-medium text-white">{getInitials(group.name)}</span>
-                    </div>
-                  </div>
-                  <div className="ml-3 flex-1 flex flex-col items-start text-left overflow-hidden">
-                    <div className="flex items-center justify-between w-full">
-                      <span className="font-medium text-white dark:text-white truncate">
-                        {group.name}
-                      </span>
-                      <span className="text-xs text-white/60 dark:text-gray-400 ml-1">
-                        {group.lastMessageTime}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between w-full mt-1">
-                      <span className="text-sm text-white/70 dark:text-gray-400 truncate max-w-[80%]">
-                        {group.lastMessage}
-                      </span>
-                      {group.unread > 0 && (
-                        <span className="inline-flex items-center justify-center px-2 py-1 text-xs font-medium rounded-full bg-violet-600/80 text-white">
-                          {group.unread}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </button>
-              ))}
-            </div>
-          )}
-
-          {activeTab === 'contacts' && (
-            <div className="space-y-1 px-2">
-              {loadingContacts ? (
-                <div className="p-4 text-center text-white/80 dark:text-gray-400">
-                  Loading contacts...
-                </div>
-              ) : apiError ? (
-                <div className="p-4 m-2 text-center bg-red-500/10 rounded-lg">
-                  <p className="text-red-300 dark:text-red-400 mb-2 text-sm font-medium">Failed to load contacts</p>
-                  <p className="text-xs text-white/80 dark:text-gray-400 mb-3">{apiError}</p>
-                  <button 
-                    onClick={() => {
-                      setLoadingContacts(true);
-                      setTimeout(() => window.location.reload(), 500);
-                    }}
-                    className="px-3 py-1.5 text-xs bg-white/10 hover:bg-white/20 text-white rounded-md"
-                  >
-                    Retry
-                  </button>
-                </div>
-              ) : contacts.length === 0 ? (
-                <div className="p-4 text-center text-white/80 dark:text-gray-400">
-                  No contacts found. Add some contacts to start chatting.
-                </div>
-              ) : (
-                contacts.map(contact => (
-                  <button
-                    key={contact.contact_id}
-                    className={cn(
-                      "w-full flex items-center p-3 rounded-lg transition-colors duration-200 mb-1",
-                      selectedContact === contact.contact_id.toString() 
-                        ? "bg-white/20 dark:bg-violet-900/30" 
-                        : "hover:bg-white/10 dark:hover:bg-gray-800/50"
-                    )}
-                    onClick={() => handleContactSelect(contact.contact_id.toString())}
-                  >
-                    <div className="relative flex-shrink-0">
-                      <div className={cn(
-                        "w-12 h-12 rounded-full flex items-center justify-center bg-blue-500",
-                      )}>
-                        <span className="text-base  font-medium text-white">{getInitials(contact.contact_full_name)}</span>
-                      </div>
-                    </div>
-                    <div className="ml-3 flex-1 flex flex-col items-start text-left overflow-hidden">
-                      <div className="flex items-center justify-between w-full">
-                        <span className="font-medium text-white dark:text-white truncate">
-                          {contact.contact_full_name}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between w-full mt-1">
-                        <span className="text-sm text-white/70 dark:text-gray-400 truncate max-w-[80%]">
-                          {contact.contact_mobile_number}
-                        </span>
-                      </div>
-                    </div>
-                  </button>
-                ))
-              )}
-            </div>
-          )}
+          {renderTabContent()}
         </div>
       </aside>
 
@@ -531,7 +696,7 @@ export default function Dashboard() {
       )}
 
       <main className="flex-1 flex flex-col h-full w-full">
-        <header className="h-16 flex items-center justify-between px-4 border-b border-violet-100 dark:border-gray-800 bg-white dark:bg-gray-900">
+        <header className="h-16 flex items-center justify-between px-4 border-b border-violet-100 dark:border-gray-800 bg-white dark:bg-gray-900 z-10">
           <div className="flex items-center space-x-4">
             <button
               className="md:hidden w-10 h-10 flex items-center justify-center rounded-full hover:bg-violet-100 dark:hover:bg-gray-800 text-black"
@@ -633,116 +798,190 @@ export default function Dashboard() {
           </div>
         </header>
 
-        {selectedContact ? (
-          <div className="flex-1 flex flex-col bg-violet-50 dark:bg-gray-950">
-            <div className="flex-1 overflow-y-auto p-4 space-y-3">
-              <div className="flex justify-center my-4">
-                <div className="px-3 py-1 bg-violet-100 dark:bg-gray-800 rounded-full">
-                  <span className="text-xs text-black dark:text-gray-400">Today</span>
-                </div>
-              </div>
-
-              {sampleMessages[selectedContact]?.map((message, index) => (
-                <div
-                  key={message.id}
-                  className={`flex ${message.isOwn ? 'justify-end' : 'justify-start'}`}
-                >
-                  {!message.isOwn && (
-                    <div className="flex-shrink-0 mr-3">
-                      {(index === 0 ||
-                        sampleMessages[selectedContact][index - 1].isOwn ||
-                        (index > 0 && !sampleMessages[selectedContact][index - 1].isOwn &&
-                          compareMessageTimestamps(message.time, sampleMessages[selectedContact][index - 1].time))) && (
-                        <div className={cn(
-                          "w-8 h-8 rounded-full flex items-center justify-center",
-                          getAvatarColor(selectedContactDetails?.name || "")
-                        )}>
-                          <span className="text-xs font-medium">{getInitials(selectedContactDetails?.name || "")}</span>
-                        </div>
-                      )}
+        <div className="flex-1 flex flex-col overflow-hidden relative">
+          {selectedContact ? (
+            <div className="flex-1 flex flex-col bg-violet-50 dark:bg-gray-950 overflow-hidden">
+              <div 
+                className="flex-1 overflow-y-auto" 
+                style={{ 
+                  height: "calc(100% - 80px)", 
+                  display: "flex",
+                  flexDirection: "column"
+                }}
+              >
+                <div className="p-4 space-y-3 flex-1">
+                  <div className="flex justify-center my-4">
+                    <div className="px-3 py-1 bg-violet-100 dark:bg-gray-800 rounded-full">
+                      <span className="text-xs text-black dark:text-gray-400">Today</span>
                     </div>
-                  )}
-
-                  <div className={cn(
-                    "max-w-[75%]",
-                    message.isOwn ? "items-end" : "items-start",
-                    "flex flex-col"
-                  )}>
-                    <div className={cn(
-                      "px-4 py-2 rounded-2xl relative",
-                      message.isOwn
-                        ? "bg-violet-600 text-white"
-                        : "bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 border border-violet-100 dark:border-gray-700",
-                      message.isOwn ? "rounded-tr-none" : "rounded-tl-none"
-                    )}>
-                      <p className="text-sm whitespace-pre-wrap">{message.text}</p>
-                    </div>
-                    <span className="text-xs text-gray-400 mt-1 px-1">
-                      {formatMessageTime(message.time)}
-                      {message.isOwn && (
-                        <span className="ml-1 text-gray-400">
-                          <svg xmlns="http://www.w3.org/2000/svg" className="inline-block h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
-                          </svg>
-                        </span>
-                      )}
-                    </span>
                   </div>
-                </div>
-              ))}
 
-              <div ref={messagesEndRef} />
-            </div>
+                  <div className="relative min-h-[200px]">
+                    {loadingMessages && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-violet-50/80 dark:bg-gray-950/80 backdrop-blur-[1px] z-10">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-violet-700"></div>
+                      </div>
+                    )}
 
-            <div className="p-4 bg-white dark:bg-gray-900 border-t border-violet-100 dark:border-gray-800">
-              <div className="flex items-center space-x-2">
-                <button className="p-2 text-black dark:text-gray-400 hover:bg-violet-50 dark:hover:bg-gray-800 rounded-full">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
-                  </svg>
-                </button>
-                <div className="flex-1 relative">
-                  <input
-                    ref={messageInputRef}
-                    type="text"
-                    value={newMessage}
-                    onChange={(e) => setNewMessage(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
-                    placeholder="Type a message"
-                    className="w-full py-3 px-4 bg-violet-50 dark:bg-gray-800 rounded-full border-0 focus:ring-2 focus:ring-violet-500/30 text-gray-900 dark:text-gray-100 placeholder-gray-400"
-                  />
+                    {messageError && (
+                      <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 
+                        rounded-md p-4 text-center text-red-600 dark:text-red-400">
+                        <p>{messageError}</p>
+                        <button 
+                          onClick={() => {
+                            if (selectedChannel) {
+                              setLoadingMessages(true);
+                              setMessageError(null);
+                              messagesAPI.getChatMessages(selectedChannel)
+                                .then(chatMessages => {
+                                  if (!isMounted) return;
+                                  const formattedMessages = chatMessages.map(msg => ({
+                                    id: msg.message_id.toString(),
+                                    sender: msg.user_id.toString(),
+                                    text: msg.message_content,
+                                    time: new Date(msg.created_at).toLocaleTimeString('en-US', {
+                                      hour: 'numeric', minute: 'numeric', hour12: true 
+                                    }),
+                                    isOwn: msg.user_id.toString() === user.user_id?.toString(),
+                                    type: msg.message_type,
+                                    isRead: msg.is_read
+                                  }));
+                                  setMessages(prev => ({...prev, [selectedChannel]: formattedMessages}));
+                                  setLoadingMessages(false);
+                                })
+                                .catch(error => {
+                                  if (!isMounted) return;
+                                  setMessageError(error.message || 'Failed to load messages');
+                                  setLoadingMessages(false);
+                                });
+                            }
+                          }}
+                          className="mt-2 text-sm text-red-600 hover:text-red-800 underline"
+                        >
+                          Try Again
+                        </button>
+                      </div>
+                    )}
+
+                    {!loadingMessages && !messageError && selectedChannel && (!messages[selectedChannel] || messages[selectedChannel]?.length === 0) && (
+                      <div className="text-center py-10">
+                        <div className="inline-flex items-center justify-center w-16 h-16 bg-violet-100 dark:bg-gray-800 rounded-full mb-4">
+                          <svg className="w-8 h-8 text-violet-600 dark:text-violet-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                          </svg>
+                        </div>
+                        <p className="text-gray-500 dark:text-gray-400">No messages yet. Start the conversation!</p>
+                      </div>
+                    )}
+
+                    {!loadingMessages && selectedChannel && messages[selectedChannel]?.length > 0 && (
+                      <div className="space-y-3">
+                        {messages[selectedChannel].map((message, index) => (
+                          <div
+                            key={message.id}
+                            className={`flex ${message.isOwn ? 'justify-end' : 'justify-start'}`}
+                          >
+                            {!message.isOwn && (
+                              <div className="flex-shrink-0 mr-3">
+                                {(index === 0 ||
+                                  messages[selectedChannel][index - 1].isOwn ||
+                                  (index > 0 && !messages[selectedChannel][index - 1].isOwn &&
+                                    compareMessageTimestamps(message.time, messages[selectedChannel][index - 1].time))) && (
+                                  <div className={cn(
+                                    "w-8 h-8 rounded-full flex items-center justify-center",
+                                    getAvatarColor(selectedContactDetails?.name || "")
+                                  )}>
+                                    <span className="text-xs font-medium">{getInitials(selectedContactDetails?.name || "")}</span>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+
+                            <div className={cn(
+                              "max-w-[75%]",
+                              message.isOwn ? "items-end" : "items-start",
+                              "flex flex-col"
+                            )}>
+                              <div className={cn(
+                                "px-4 py-2 rounded-2xl relative",
+                                message.isOwn
+                                  ? "bg-violet-600 text-white"
+                                  : "bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 border border-violet-100 dark:border-gray-700",
+                                message.isOwn ? "rounded-tr-none" : "rounded-tl-none"
+                              )}>
+                                <p className="text-sm whitespace-pre-wrap">{message.text}</p>
+                              </div>
+                              <span className="text-xs text-gray-400 mt-1 px-1">
+                                {formatMessageTime(message.time)}
+                                {message.isOwn && message.isRead && (
+                                  <span className="ml-1 text-gray-400">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="inline-block h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                                    </svg>
+                                  </span>
+                                )}
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                  </div>
+                  <div ref={messagesEndRef} className="h-1" />
                 </div>
-                <button
-                  onClick={handleSendMessage}
-                  disabled={!newMessage.trim()}
-                  className={cn(
-                    "p-3 rounded-full text-white",
-                    newMessage.trim()
-                      ? "bg-violet-600 hover:bg-violet-700"
-                      : "bg-gray-300 dark:bg-gray-700 cursor-not-allowed"
-                  )}
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-                  </svg>
-                </button>
+              </div>
+
+              <div className="h-[80px] shrink-0 bg-white dark:bg-gray-900 border-t border-violet-100 dark:border-gray-800 p-4">
+                <div className="flex items-center space-x-2">
+                  <button className="p-2 text-black dark:text-gray-400 hover:bg-violet-50 dark:hover:bg-gray-800 rounded-full">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                    </svg>
+                  </button>
+                  <div className="flex-1 relative">
+                    <input
+                      ref={messageInputRef}
+                      type="text"
+                      value={newMessage}
+                      onChange={(e) => setNewMessage(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
+                      placeholder="Type a message"
+                      className="w-full py-3 px-4 bg-violet-50 dark:bg-gray-800 rounded-full border-0 focus:ring-2 focus:ring-violet-500/30 text-gray-900 dark:text-gray-100 placeholder-gray-400"
+                    />
+                  </div>
+                  <button
+                    onClick={handleSendMessage}
+                    disabled={!newMessage.trim()}
+                    className={cn(
+                      "p-3 rounded-full text-white",
+                      newMessage.trim()
+                        ? "bg-violet-600 hover:bg-violet-700"
+                        : "bg-gray-300 dark:bg-gray-700 cursor-not-allowed"
+                    )}
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                    </svg>
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
-        ) : (
-          <div className="flex-1 flex flex-col items-center justify-center bg-violet-50 dark:bg-gray-950 p-4 text-center">
-            <div className="w-20 h-20 bg-violet-100 dark:bg-indigo-900/20 rounded-full flex items-center justify-center mb-4">
-              <svg className="w-10 h-10 text-violet-500 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-              </svg>
+          ) : (
+            <div className="flex-1 flex flex-col items-center justify-center bg-violet-50 dark:bg-gray-950 p-4 text-center">
+              <div className="w-20 h-20 bg-violet-100 dark:bg-indigo-900/20 rounded-full flex items-center justify-center mb-4">
+                <svg className="w-10 h-10 text-violet-500 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 01-2 2h-5l-5 5v-5z" />
+                </svg>
+              </div>
+              <h3 className="text-xl font-medium text-black dark:text-gray-200 mb-2">No conversation selected</h3>
+              <p className="text-black dark:text-gray-400 max-w-sm">
+                Select a conversation from the sidebar to start chatting, or create a new conversation with one of your contacts.
+              </p>
             </div>
-            <h3 className="text-xl font-medium text-black dark:text-gray-200 mb-2">No conversation selected</h3>
-            <p className="text-black dark:text-gray-400 max-w-sm">
-              Select a conversation from the sidebar to start chatting, or create a new conversation with one of your contacts.
-            </p>
-          </div>
-        )}
+          )}
+        </div>
       </main>
     </div>
-  ) : null;
+  );
 }

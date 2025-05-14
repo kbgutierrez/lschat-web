@@ -27,6 +27,15 @@ export interface ContactListItem {
   status: string;
 }
 
+export interface ChatMessage {
+  message_id: number;
+  user_id: number;
+  message_content: string;
+  message_type: string;
+  created_at: string;
+  is_read: boolean;
+}
+
 const middleware = {
   addAuthHeader: (headers: HeadersInit = {}) => {
     if (typeof window === 'undefined') return headers;
@@ -143,7 +152,8 @@ export const contactsAPI = {
       
      
       const filteredContacts = response.filter(contact => contact.contact_id !== Number(userId));
-      
+      console.log('Filtered contacts:', filteredContacts);
+      console.log('pubnub_channel:', filteredContacts.map(contact => contact.pubnub_channel));
       console.log('Fetched contacts:', filteredContacts.length);
       return filteredContacts;
     } catch (error) {
@@ -157,3 +167,49 @@ export const contactsAPI = {
     }
   }
 };
+
+export const messagesAPI = {
+  getChatMessages: async (channelToken: string): Promise<ChatMessage[]> => {
+    if (!channelToken) {
+      throw new Error('Channel token is required to fetch messages');
+    }
+    
+    console.log(`Fetching chat messages for channel: ${channelToken}`);
+    
+    try {
+      const response = await fetchAPI<ChatMessage[]>(`/api/chatMessages/${channelToken}`, {}, true);
+      console.log(`Retrieved ${response.length} messages from channel ${channelToken}`);
+      return response;
+    } catch (error) {
+      console.error('Chat messages fetch error:', error);
+      
+      if (error instanceof Error && error.message.includes('Failed to fetch')) {
+        throw new Error('Cannot connect to the message server. Please check your connection and try again.');
+      }
+      
+      throw error;
+    }
+  },
+  
+  sendMessage: async (channelToken: string, content: string, type: string = 'text'): Promise<ChatMessage> => {
+    if (!channelToken) {
+      throw new Error('Channel token is required to send a message');
+    }
+    
+    try {
+      const response = await fetchAPI<ChatMessage>(`/api/chatMessages/${channelToken}`, {
+        method: 'POST',
+        body: JSON.stringify({
+          message_content: content,
+          message_type: type
+        })
+      }, true);
+      
+      return response;
+    } catch (error) {
+      console.error('Send message error:', error);
+      throw error;
+    }
+  }
+};
+

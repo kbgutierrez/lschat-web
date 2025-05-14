@@ -30,7 +30,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
-  // Check for existing session on mount
   useEffect(() => {
     const checkAuth = () => {
       try {
@@ -60,8 +59,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const response = await authAPI.login(username, password, fcm_token);
       
       if (response.success && response.user) {
-        console.log('Login successful:', response.user);
-        setUser(response.user);
+   
+        setUser(response.user?{
+          user_id: response.user.user_id,
+          username: response.user.username,
+          firstName: response.user.first_name,
+          lastName: response.user.last_name,
+          email: response.user.email
+        } : null);
+             console.log('Login successful:', response.user);
         localStorage.setItem('userSession', JSON.stringify(response));
         
         if (rememberMe) {
