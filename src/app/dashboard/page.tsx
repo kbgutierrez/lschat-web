@@ -6,6 +6,7 @@ import Image from 'next/image';
 import { cn } from '@/lib/utils';
 import { contactsAPI, ContactListItem, messagesAPI, ChatMessage } from '@/lib/api';
 import { useIsClient, getUserFromLocalStorage, User } from '@/lib/clientUtils';
+import { MessageContent } from '@/components/chat/MessageContent';
 
 type Message = {
   id: string;
@@ -909,7 +910,10 @@ export default function Dashboard() {
                                   : "bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 border border-violet-100 dark:border-gray-700",
                                 message.isOwn ? "rounded-tr-none" : "rounded-tl-none"
                               )}>
-                                <p className="text-sm whitespace-pre-wrap">{message.text}</p>
+                                <MessageContent 
+                                  content={message.text} 
+                                  className="text-sm"
+                                />
                               </div>
                               <span className="text-xs text-gray-400 mt-1 px-1">
                                 {formatMessageTime(message.time)}
