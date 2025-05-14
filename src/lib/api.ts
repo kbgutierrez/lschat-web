@@ -6,8 +6,8 @@ export interface LoginResponse {
   user?: {
     user_id: string;
     username: string;
-    firstName: string;
-    lastName: string;
+    first_name: string;
+    last_name: string;
     email: string;
   };
   token?: string;
@@ -29,9 +29,7 @@ export interface ContactListItem {
 
 const middleware = {
   addAuthHeader: (headers: HeadersInit = {}) => {
-    // Safe check for server-side rendering
     if (typeof window === 'undefined') return headers;
-    
     try {
       const session = localStorage.getItem('userSession');
       if (session) {
@@ -52,7 +50,6 @@ export async function fetchAPI<T = any>(
   options: RequestInit = {},
   useAuth = false
 ): Promise<T> {
-  // Don't attempt to fetch during SSR if auth is required
   if (useAuth && typeof window === 'undefined') {
     throw new Error('Auth API calls cannot be made during server rendering');
   }
@@ -68,8 +65,6 @@ export async function fetchAPI<T = any>(
   try {
     const response = await fetch(url, { ...options, headers });
     const data = await response.json();
-    
-    // Simple response logging - only on client
     if (typeof window !== 'undefined') {
       console.log(`${options.method || 'GET'} ${endpoint}: ${response.status} ${response.ok ? '✓' : '✗'}`);
     }
@@ -104,7 +99,7 @@ export const authAPI = {
       user: response.user ? {
         id: response.user.user_id,
         username: response.user.username,
-        name: `${response.user.firstName} ${response.user.lastName}`
+        name: `${response.user.first_name} ${response.user.last_name}`
       } : null
     });
     

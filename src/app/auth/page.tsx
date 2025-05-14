@@ -192,8 +192,8 @@ export default function AuthPage() {
           token: response.token || 'dummy-token', 
           user: {
             user_id: response.user?.user_id || response.user_id,
-            firstName: response.user?.firstName || response.firstName,
-            lastName: response.user?.lastName || response.lastName,
+            firstName: response.user?.first_name || response.firstName,
+            lastName: response.user?.last_name || response.lastName,
             username: response.user?.username || response.username,
             email: response.user?.email || response.email,
           }

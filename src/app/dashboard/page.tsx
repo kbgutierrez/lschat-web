@@ -7,7 +7,6 @@ import { cn } from '@/lib/utils';
 import { contactsAPI, ContactListItem } from '@/lib/api';
 import { useIsClient, getUserFromLocalStorage, User } from '@/lib/clientUtils';
 
-// Define message type
 type Message = {
   id: string;
   sender: string;
@@ -251,7 +250,7 @@ export default function Dashboard() {
   };
 
   if (!isClient || checkingAuth) {
-    return <div className="min-h-screen bg-white dark:bg-gray-950"></div>;
+    return <div className="min-h-screen bg-violet-50 dark:bg-gray-950"></div>;
   }
 
   const formatMessageTime = (timeString: string) => {
@@ -259,17 +258,17 @@ export default function Dashboard() {
   };
 
   return user ? (
-    <div className="h-screen flex bg-gray-50 dark:bg-gray-950 overflow-hidden">
+    <div className="h-screen flex bg-violet-50 dark:bg-gray-950 overflow-hidden">
       <aside
         className={cn(
-          "bg-white dark:bg-gray-900 flex flex-col border-r border-gray-100 dark:border-gray-800 z-30",
+          "bg-gradient-to-b from-violet-700 to-violet-900 dark:from-gray-800 dark:to-gray-900 flex flex-col border-r border-violet-600/50 dark:border-gray-800 shadow-lg z-30",
           "transition-all duration-300 ease-in-out",
           "fixed inset-0 md:inset-y-0 md:left-0 md:w-80 md:relative md:translate-x-0",
           isMobileSidebarOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >
-        <div className="h-16 flex items-center justify-between px-4 border-b border-gray-100 dark:border-gray-800">
-          <div className="flex items-center ">
+        <div className="h-16 flex items-center justify-between px-4 border-b border-white/10 dark:border-gray-700/50">
+          <div className="flex items-center">
             <div className="w-10 h-10 relative">
               <Image
                 src="/images/logo-no-label.png"
@@ -279,13 +278,13 @@ export default function Dashboard() {
                 className="object-contain"
               />
             </div>
-            <h1 className="text-lg font-bold text-gray-800 dark:text-yellow-300">
-              LS<span className="dark:text-white">Chat</span>
-              <span className='dark:text-purple-400'> Web</span>
+            <h1 className="text-lg font-bold text-yellow-300 dark:text-yellow-300 ml-2">
+              LS<span className="text-white dark:text-white">Chat</span>
+              <span className='text-purple-300 dark:text-purple-400'> Web</span>
             </h1>
           </div>
           <button
-            className="md:hidden w-8 h-8 flex items-center justify-center text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300"
+            className="md:hidden w-8 h-8 flex items-center justify-center text-white hover:text-gray-200 dark:text-gray-500 dark:hover:text-gray-300"
             onClick={() => setIsMobileSidebarOpen(false)}
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
@@ -299,22 +298,22 @@ export default function Dashboard() {
             <input
               type="text"
               placeholder="Search messages or contacts"
-              className="w-full h-10 pl-10 pr-4 rounded-md border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-sm text-gray-900 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+              className="w-full h-10 pl-10 pr-4 rounded-lg border-0 bg-white/10 dark:bg-gray-800/50 text-sm text-white dark:text-gray-300 placeholder-white/60 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-white/20 dark:focus:ring-gray-600/50"
             />
-            <svg className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <svg className="absolute left-3 top-2.5 h-5 w-5 text-white/70 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
             </svg>
           </div>
         </div>
 
         <div className="px-3 py-2 mb-2">
-          <div className="bg-gray-100 dark:bg-gray-800 rounded-full p-1 flex items-center">
+          <div className="bg-white/10 dark:bg-gray-800/50 rounded-lg p-1 flex items-center">
             <button
               className={cn(
-                "flex items-center justify-center space-x-2 py-2 px-3 rounded-full flex-1 text-sm font-medium transition-all duration-200",
+                "flex items-center justify-center space-x-2 py-2 px-3 rounded-md flex-1 text-sm font-medium transition-all duration-200",
                 activeTab === 'chats'
-                  ? "bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 shadow-sm"
-                  : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
+                  ? "bg-white dark:bg-gray-700 text-violet-900 dark:text-violet-400 shadow-sm"
+                  : "text-white/90 dark:text-gray-400 hover:bg-white/5 dark:hover:bg-gray-700/30"
               )}
               onClick={() => setActiveTab('chats')}
             >
@@ -325,10 +324,10 @@ export default function Dashboard() {
             </button>
             <button
               className={cn(
-                "flex items-center justify-center space-x-2 py-2 px-3 rounded-full flex-1 text-sm font-medium transition-all duration-200",
+                "flex items-center justify-center space-x-2 py-2 px-3 rounded-md flex-1 text-sm font-medium transition-all duration-200",
                 activeTab === 'groups'
-                  ? "bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 shadow-sm"
-                  : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
+                  ? "bg-white dark:bg-gray-700 text-violet-900 dark:text-violet-400 shadow-sm"
+                  : "text-white/90 dark:text-gray-400 hover:bg-white/5 dark:hover:bg-gray-700/30"
               )}
               onClick={() => setActiveTab('groups')}
             >
@@ -339,10 +338,10 @@ export default function Dashboard() {
             </button>
             <button
               className={cn(
-                "flex items-center justify-center space-x-2 py-2 px-3 rounded-full flex-1 text-sm font-medium transition-all duration-200",
+                "flex items-center justify-center space-x-2 py-2 px-3 rounded-md flex-1 text-sm font-medium transition-all duration-200",
                 activeTab === 'contacts'
-                  ? "bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 shadow-sm"
-                  : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
+                  ? "bg-white dark:bg-gray-700 text-violet-900 dark:text-violet-400 shadow-sm"
+                  : "text-white/90 dark:text-gray-400 hover:bg-white/5 dark:hover:bg-gray-700/30"
               )}
               onClick={() => setActiveTab('contacts')}
             >
@@ -356,27 +355,27 @@ export default function Dashboard() {
 
         <div className="flex-1 overflow-y-auto">
           {activeTab === 'chats' && (
-            <div className="divide-y divide-gray-100 dark:divide-gray-800">
+            <div className="space-y-1 px-2">
               {loadingContacts ? (
-                <div className="p-4 text-center text-gray-500 dark:text-gray-400">
+                <div className="p-4 text-center text-white/80 dark:text-gray-400">
                   Loading contacts...
                 </div>
               ) : apiError ? (
-                <div className="p-4 text-center">
-                  <p className="text-red-500 dark:text-red-400 mb-2">Failed to load contacts</p>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">{apiError}</p>
+                <div className="p-4 m-2 text-center bg-red-500/10 rounded-lg">
+                  <p className="text-red-300 dark:text-red-400 mb-2 text-sm font-medium">Failed to load contacts</p>
+                  <p className="text-xs text-white/80 dark:text-gray-400 mb-3">{apiError}</p>
                   <button 
                     onClick={() => {
                       setLoadingContacts(true);
                       setTimeout(() => window.location.reload(), 500);
                     }}
-                    className="mt-3 px-3 py-1 text-sm bg-indigo-600 text-white rounded hover:bg-indigo-700"
+                    className="px-3 py-1.5 text-xs bg-white/10 hover:bg-white/20 text-white rounded-md"
                   >
                     Retry
                   </button>
                 </div>
               ) : contacts.length === 0 ? (
-                <div className="p-4 text-center text-gray-500 dark:text-gray-400">
+                <div className="p-4 text-center text-white/80 dark:text-gray-400">
                   No contacts found. Add some contacts to start chatting.
                 </div>
               ) : (
@@ -384,27 +383,28 @@ export default function Dashboard() {
                   <button
                     key={contact.contact_id}
                     className={cn(
-                      "w-full flex items-center p-4 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors",
-                      selectedContact === contact.contact_id.toString() && "bg-indigo-50 dark:bg-indigo-900/10"
+                      "w-full flex items-center p-3 rounded-lg transition-colors duration-200 mb-1",
+                      selectedContact === contact.contact_id.toString() 
+                        ? "bg-white/20 dark:bg-violet-900/30" 
+                        : "hover:bg-white/10 dark:hover:bg-gray-800/50"
                     )}
                     onClick={() => handleContactSelect(contact.contact_id.toString())}
                   >
                     <div className="relative flex-shrink-0">
                       <div className={cn(
-                        "w-12 h-12 rounded-full flex items-center justify-center",
-                        getAvatarColor(contact.contact_full_name)
+                        "w-12 h-12 rounded-full flex items-center justify-center bg-blue-500",
                       )}>
-                        <span className="text-base font-medium">{getInitials(contact.contact_full_name)}</span>
+                        <span className="text-base font-medium text-white">{getInitials(contact.contact_full_name)}</span>
                       </div>
                     </div>
-                    <div className="ml-4 flex-1 flex flex-col items-start text-left overflow-hidden">
+                    <div className="ml-3 flex-1 flex flex-col items-start text-left overflow-hidden">
                       <div className="flex items-center justify-between w-full">
-                        <span className="font-medium text-gray-900 dark:text-white truncate">
+                        <span className="font-medium text-white dark:text-white truncate">
                           {contact.contact_full_name}
                         </span>
                       </div>
                       <div className="flex items-center justify-between w-full mt-1">
-                        <span className="text-sm text-gray-500 dark:text-gray-400 truncate max-w-[80%]">
+                        <span className="text-sm text-white/70 dark:text-gray-400 truncate max-w-[80%]">
                           {contact.contact_mobile_number}
                         </span>
                       </div>
@@ -416,39 +416,40 @@ export default function Dashboard() {
           )}
 
           {activeTab === 'groups' && (
-            <div className="divide-y divide-gray-100 dark:divide-gray-800">
+            <div className="space-y-1 px-2">
               {sampleGroups.map(group => (
                 <button
                   key={group.id}
                   className={cn(
-                    "w-full flex items-center p-4 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors",
-                    selectedContact === group.id && "bg-indigo-50 dark:bg-indigo-900/10"
+                    "w-full flex items-center p-3 rounded-lg transition-colors duration-200 mb-1",
+                    selectedContact === group.id 
+                      ? "bg-white/20 dark:bg-violet-900/30" 
+                      : "hover:bg-white/10 dark:hover:bg-gray-800/50"
                   )}
                   onClick={() => handleContactSelect(group.id)}
                 >
                   <div className="relative flex-shrink-0">
                     <div className={cn(
-                      "w-12 h-12 rounded-full flex items-center justify-center",
-                      getAvatarColor(group.name)
+                      "w-12 h-12 rounded-full flex items-center justify-center bg-indigo-500",
                     )}>
-                      <span className="text-base font-medium">{getInitials(group.name)}</span>
+                      <span className="text-base font-medium text-white">{getInitials(group.name)}</span>
                     </div>
                   </div>
-                  <div className="ml-4 flex-1 flex flex-col items-start text-left overflow-hidden">
+                  <div className="ml-3 flex-1 flex flex-col items-start text-left overflow-hidden">
                     <div className="flex items-center justify-between w-full">
-                      <span className="font-medium text-gray-900 dark:text-white truncate">
+                      <span className="font-medium text-white dark:text-white truncate">
                         {group.name}
                       </span>
-                      <span className="text-xs text-gray-500 dark:text-gray-400 ml-1">
+                      <span className="text-xs text-white/60 dark:text-gray-400 ml-1">
                         {group.lastMessageTime}
                       </span>
                     </div>
                     <div className="flex items-center justify-between w-full mt-1">
-                      <span className="text-sm text-gray-500 dark:text-gray-400 truncate max-w-[80%]">
+                      <span className="text-sm text-white/70 dark:text-gray-400 truncate max-w-[80%]">
                         {group.lastMessage}
                       </span>
                       {group.unread > 0 && (
-                        <span className="inline-flex items-center justify-center px-2 py-1 text-xs font-medium rounded-full bg-indigo-600 text-white">
+                        <span className="inline-flex items-center justify-center px-2 py-1 text-xs font-medium rounded-full bg-violet-600/80 text-white">
                           {group.unread}
                         </span>
                       )}
@@ -460,27 +461,27 @@ export default function Dashboard() {
           )}
 
           {activeTab === 'contacts' && (
-            <div className="divide-y divide-gray-100 dark:divide-gray-800">
+            <div className="space-y-1 px-2">
               {loadingContacts ? (
-                <div className="p-4 text-center text-gray-500 dark:text-gray-400">
+                <div className="p-4 text-center text-white/80 dark:text-gray-400">
                   Loading contacts...
                 </div>
               ) : apiError ? (
-                <div className="p-4 text-center">
-                  <p className="text-red-500 dark:text-red-400 mb-2">Failed to load contacts</p>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">{apiError}</p>
+                <div className="p-4 m-2 text-center bg-red-500/10 rounded-lg">
+                  <p className="text-red-300 dark:text-red-400 mb-2 text-sm font-medium">Failed to load contacts</p>
+                  <p className="text-xs text-white/80 dark:text-gray-400 mb-3">{apiError}</p>
                   <button 
                     onClick={() => {
                       setLoadingContacts(true);
                       setTimeout(() => window.location.reload(), 500);
                     }}
-                    className="mt-3 px-3 py-1 text-sm bg-indigo-600 text-white rounded hover:bg-indigo-700"
+                    className="px-3 py-1.5 text-xs bg-white/10 hover:bg-white/20 text-white rounded-md"
                   >
                     Retry
                   </button>
                 </div>
               ) : contacts.length === 0 ? (
-                <div className="p-4 text-center text-gray-500 dark:text-gray-400">
+                <div className="p-4 text-center text-white/80 dark:text-gray-400">
                   No contacts found. Add some contacts to start chatting.
                 </div>
               ) : (
@@ -488,26 +489,31 @@ export default function Dashboard() {
                   <button
                     key={contact.contact_id}
                     className={cn(
-                      "w-full flex items-center p-4 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors",
-                      selectedContact === contact.contact_id.toString() && "bg-indigo-50 dark:bg-indigo-900/10"
+                      "w-full flex items-center p-3 rounded-lg transition-colors duration-200 mb-1",
+                      selectedContact === contact.contact_id.toString() 
+                        ? "bg-white/20 dark:bg-violet-900/30" 
+                        : "hover:bg-white/10 dark:hover:bg-gray-800/50"
                     )}
                     onClick={() => handleContactSelect(contact.contact_id.toString())}
                   >
                     <div className="relative flex-shrink-0">
                       <div className={cn(
-                        "w-12 h-12 rounded-full flex items-center justify-center",
-                        getAvatarColor(contact.contact_full_name)
+                        "w-12 h-12 rounded-full flex items-center justify-center bg-blue-500",
                       )}>
-                        <span className="text-base font-medium">{getInitials(contact.contact_full_name)}</span>
+                        <span className="text-base  font-medium text-white">{getInitials(contact.contact_full_name)}</span>
                       </div>
                     </div>
-                    <div className="ml-4 flex flex-col items-start text-left">
-                      <span className="font-medium text-gray-900 dark:text-white">
-                        {contact.contact_full_name}
-                      </span>
-                      <span className="text-sm text-gray-500 dark:text-gray-400">
-                        {contact.contact_mobile_number}
-                      </span>
+                    <div className="ml-3 flex-1 flex flex-col items-start text-left overflow-hidden">
+                      <div className="flex items-center justify-between w-full">
+                        <span className="font-medium text-white dark:text-white truncate">
+                          {contact.contact_full_name}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between w-full mt-1">
+                        <span className="text-sm text-white/70 dark:text-gray-400 truncate max-w-[80%]">
+                          {contact.contact_mobile_number}
+                        </span>
+                      </div>
                     </div>
                   </button>
                 ))
@@ -519,16 +525,16 @@ export default function Dashboard() {
 
       {isMobileSidebarOpen && (
         <div
-          className="fixed inset-0 bg-black/20 backdrop-blur-sm md:hidden z-20"
+          className="fixed inset-0 bg-violet-900/20 backdrop-blur-sm md:hidden z-20"
           onClick={() => setIsMobileSidebarOpen(false)}
         ></div>
       )}
 
       <main className="flex-1 flex flex-col h-full w-full">
-        <header className="h-16 flex items-center justify-between px-4 border-b border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900">
+        <header className="h-16 flex items-center justify-between px-4 border-b border-violet-100 dark:border-gray-800 bg-white dark:bg-gray-900">
           <div className="flex items-center space-x-4">
             <button
-              className="md:hidden w-10 h-10 flex items-center justify-center rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500"
+              className="md:hidden w-10 h-10 flex items-center justify-center rounded-full hover:bg-violet-100 dark:hover:bg-gray-800 text-black"
               onClick={() => setIsMobileSidebarOpen(true)}
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -551,7 +557,7 @@ export default function Dashboard() {
                 </div>
                 <div className="ml-3">
                   <h2 className="text-sm font-medium text-gray-900 dark:text-white">{selectedContactDetails.name}</h2>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                  <p className="text-xs text-black dark:text-gray-400">
                     {selectedContactDetails.status === 'online' ? 'Online' : `Last seen ${selectedContactDetails.lastSeen}`}
                   </p>
                 </div>
@@ -562,12 +568,12 @@ export default function Dashboard() {
           <div className="flex items-center space-x-3">
             {selectedContactDetails && (
               <div className="hidden sm:flex items-center space-x-2 mr-2">
-                <button className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400">
+                <button className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-violet-100 dark:hover:bg-gray-800 text-black dark:text-gray-400">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
                   </svg>
                 </button>
-                <button className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400">
+                <button className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-violet-100 dark:hover:bg-gray-800 text-black dark:text-gray-400">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 01-2 2z" />
                   </svg>
@@ -575,48 +581,48 @@ export default function Dashboard() {
               </div>
             )}
 
-            <div className="relative border-l border-gray-100 dark:border-gray-800 pl-3" ref={userMenuRef}>
+            <div className="relative border-l border-violet-100 dark:border-gray-800 pl-3" ref={userMenuRef}>
               <div className="flex items-center">
                 <button 
                   onClick={() => setShowUserMenu(!showUserMenu)}
-                  className="flex items-center space-x-2 hover:bg-gray-50 dark:hover:bg-gray-800/50 py-1.5 px-2 rounded-lg group"
+                  className="flex items-center space-x-2 hover:bg-violet-50 dark:hover:bg-gray-800/50 py-1.5 px-2 rounded-lg group"
                 >
-                  <div className="relative w-8 h-8 rounded-full bg-blue-500 text-white overflow-hidden">
+                  <div className="relative w-8 h-8 rounded-full bg-violet-500 text-white overflow-hidden">
                     <div className="absolute inset-0 flex items-center justify-center">
                       <span className="text-sm font-medium select-none" style={{ lineHeight: 1 }}>
-                        {user.firstName ? user.firstName.charAt(0) : user.first_name?.charAt(0)}
+                        {user.firstName?.charAt(0).toUpperCase() || user.first_name?.charAt(0).toUpperCase()}
                       </span>
                     </div>
                   </div>
                   <div className="hidden sm:block">
-                    <p className="text-sm font-medium text-gray-900 dark:text-white text-left group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                    <p className="text-sm font-medium text-gray-900 dark:text-white text-left group-hover:text-black dark:group-hover:text-violet-400 transition-colors">
                       {user.firstName || user.first_name}
                     </p>
                   </div>
-                  <svg className="h-4 w-4 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <svg className="h-4 w-4 text-black dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
                   </svg>
                 </button>
 
                 {showUserMenu && (
-                  <div className="absolute right-0 top-full mt-2 w-48 bg-white dark:bg-gray-900 rounded-md shadow-lg py-1 z-50 border border-gray-100 dark:border-gray-700 animate-fade-in-up">
-                    <div className="px-4 py-2 border-b border-gray-100 dark:border-gray-700">
+                  <div className="absolute right-0 top-full mt-2 w-48 bg-white dark:bg-gray-900 rounded-md shadow-lg py-1 z-50 border border-violet-100 dark:border-gray-700 animate-fade-in-up">
+                    <div className="px-4 py-2 border-b border-violet-100 dark:border-gray-700">
                       <p className="text-sm font-medium text-gray-900 dark:text-white">
                         {user.firstName || user.first_name} {user.lastName || user.last_name}
                       </p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                      <p className="text-xs text-black dark:text-gray-400 truncate">
                         {user.email}
                       </p>
                     </div>
-                    <a href="#" onClick={()=>{alert('')}} className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800">
+                    <a href="#" onClick={()=>{alert('')}} className="block px-4 py-2 text-sm text-black dark:text-gray-300 hover:bg-violet-100 dark:hover:bg-gray-800">
                       Your Profile
                     </a>
-                    <a href="#" className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800">
+                    <a href="#" className="block px-4 py-2 text-sm text-black dark:text-gray-300 hover:bg-violet-100 dark:hover:bg-gray-800">
                       Settings
                     </a>
                     <button
                       onClick={handleLogout}
-                      className="block w-full text-left px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-800 border-t border-gray-100 dark:border-gray-700"
+                      className="block w-full text-left px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-violet-100 dark:hover:bg-gray-800 border-t border-violet-100 dark:border-gray-700"
                     >
                       Sign out
                     </button>
@@ -628,11 +634,11 @@ export default function Dashboard() {
         </header>
 
         {selectedContact ? (
-          <div className="flex-1 flex flex-col bg-gray-50 dark:bg-gray-950">
+          <div className="flex-1 flex flex-col bg-violet-50 dark:bg-gray-950">
             <div className="flex-1 overflow-y-auto p-4 space-y-3">
               <div className="flex justify-center my-4">
-                <div className="px-3 py-1 bg-gray-100 dark:bg-gray-800 rounded-full">
-                  <span className="text-xs text-gray-500 dark:text-gray-400">Today</span>
+                <div className="px-3 py-1 bg-violet-100 dark:bg-gray-800 rounded-full">
+                  <span className="text-xs text-black dark:text-gray-400">Today</span>
                 </div>
               </div>
 
@@ -665,8 +671,8 @@ export default function Dashboard() {
                     <div className={cn(
                       "px-4 py-2 rounded-2xl relative",
                       message.isOwn
-                        ? "bg-indigo-600 text-white"
-                        : "bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 border border-gray-100 dark:border-gray-700",
+                        ? "bg-violet-600 text-white"
+                        : "bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 border border-violet-100 dark:border-gray-700",
                       message.isOwn ? "rounded-tr-none" : "rounded-tl-none"
                     )}>
                       <p className="text-sm whitespace-pre-wrap">{message.text}</p>
@@ -688,9 +694,9 @@ export default function Dashboard() {
               <div ref={messagesEndRef} />
             </div>
 
-            <div className="p-4 bg-white dark:bg-gray-900 border-t border-gray-100 dark:border-gray-800">
+            <div className="p-4 bg-white dark:bg-gray-900 border-t border-violet-100 dark:border-gray-800">
               <div className="flex items-center space-x-2">
-                <button className="p-2 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full">
+                <button className="p-2 text-black dark:text-gray-400 hover:bg-violet-50 dark:hover:bg-gray-800 rounded-full">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
                   </svg>
@@ -703,7 +709,7 @@ export default function Dashboard() {
                     onChange={(e) => setNewMessage(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
                     placeholder="Type a message"
-                    className="w-full py-3 px-4 bg-gray-100 dark:bg-gray-800 rounded-full border-0 focus:ring-2 focus:ring-indigo-500/30 text-gray-900 dark:text-gray-100 placeholder-gray-400"
+                    className="w-full py-3 px-4 bg-violet-50 dark:bg-gray-800 rounded-full border-0 focus:ring-2 focus:ring-violet-500/30 text-gray-900 dark:text-gray-100 placeholder-gray-400"
                   />
                 </div>
                 <button
@@ -712,7 +718,7 @@ export default function Dashboard() {
                   className={cn(
                     "p-3 rounded-full text-white",
                     newMessage.trim()
-                      ? "bg-indigo-600 hover:bg-indigo-700"
+                      ? "bg-violet-600 hover:bg-violet-700"
                       : "bg-gray-300 dark:bg-gray-700 cursor-not-allowed"
                   )}
                 >
@@ -724,14 +730,14 @@ export default function Dashboard() {
             </div>
           </div>
         ) : (
-          <div className="flex-1 flex flex-col items-center justify-center bg-gray-50 dark:bg-gray-950 p-4 text-center">
-            <div className="w-20 h-20 bg-indigo-50 dark:bg-indigo-900/20 rounded-full flex items-center justify-center mb-4">
-              <svg className="w-10 h-10 text-indigo-500 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <div className="flex-1 flex flex-col items-center justify-center bg-violet-50 dark:bg-gray-950 p-4 text-center">
+            <div className="w-20 h-20 bg-violet-100 dark:bg-indigo-900/20 rounded-full flex items-center justify-center mb-4">
+              <svg className="w-10 h-10 text-violet-500 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
               </svg>
             </div>
-            <h3 className="text-xl font-medium text-gray-800 dark:text-gray-200 mb-2">No conversation selected</h3>
-            <p className="text-gray-500 dark:text-gray-400 max-w-sm">
+            <h3 className="text-xl font-medium text-black dark:text-gray-200 mb-2">No conversation selected</h3>
+            <p className="text-black dark:text-gray-400 max-w-sm">
               Select a conversation from the sidebar to start chatting, or create a new conversation with one of your contacts.
             </p>
           </div>

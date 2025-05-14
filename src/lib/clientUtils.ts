@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 
-
 export interface User {
   id: string | number;
   firstName?: string;
@@ -11,7 +10,6 @@ export interface User {
   last_name?: string;
   user_id?: string | number;
 }
-
 
 export function useIsClient() {
   const [isClient, setIsClient] = useState(false);

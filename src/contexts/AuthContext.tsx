@@ -6,7 +6,7 @@ import { authAPI } from '@/lib/api';
 import { getMessagingToken } from '@/lib/firebase';
 
 interface User {
-  id: string;
+  user_id: string;
   username: string;
   firstName: string;
   lastName: string;
