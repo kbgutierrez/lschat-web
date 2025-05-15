@@ -292,7 +292,7 @@ export default function AuthPage() {
         <div className="w-full md:w-1/2 p-8 md:p-12 flex items-center justify-center bg-white dark:bg-gray-800 animate-slide-in-right relative overflow-hidden">
           <div className="absolute inset-0 pointer-events-none overflow-hidden">
             <div className="absolute top-0 right-0 w-64 h-64 bg-blue-50 dark:bg-blue-900/20 rounded-full -translate-y-1/2 -translate-x-1/2 opacity-70"></div>
-            <div className="absolute bottom-0 left-0 w-80 h-80 bg-purple-50 dark:bg-purple-900/20 rounded-full translate-y-1/3 -translate-x-1/3 opacity-70"></div>
+            <div className="absolute light:hidden bottom-0 left-0 w-80 h-80 bg-purple-50 dark:bg-purple-900/20 rounded-full translate-y-1/3 -translate-x-1/3 opacity-70"></div>
             <div className="absolute top-1/2 right-10 w-10 h-10 bg-yellow-100 dark:bg-yellow-600/20 rounded-full animate-pulse-subtle"></div>
             <div className="absolute top-20 left-10 w-6 h-6 bg-green-100 dark:bg-green-600/20 rounded-full animate-float"></div>
             <div className="absolute bottom-20 right-20 w-8 h-8 bg-red-50 dark:bg-red-600/20 rounded-full animate-float-reverse"></div>
