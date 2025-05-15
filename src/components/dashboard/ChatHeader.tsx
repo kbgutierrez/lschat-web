@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
 import { User } from '@/lib/clientUtils';
@@ -34,10 +34,33 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
   lastMessage
 }) => {
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
 
   const toggleUserMenu = () => {
     setShowUserMenu(!showUserMenu);
   };
+
+  // Handle clicks outside the menu
+  useEffect(() => {
+    const handleOutsideClick = (event: MouseEvent) => {
+      if (
+        showUserMenu &&
+        menuRef.current && 
+        buttonRef.current &&
+        !menuRef.current.contains(event.target as Node) &&
+        !buttonRef.current.contains(event.target as Node)
+      ) {
+        setShowUserMenu(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleOutsideClick);
+    
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick);
+    };
+  }, [showUserMenu]);
 
   return (
     <header className="h-16 flex items-center justify-between px-4 border-b border-violet-100 dark:border-gray-800 bg-white dark:bg-gray-900 z-10">
@@ -87,11 +110,12 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
       <div className="flex items-center">
         <div className="relative">
           <button
+            ref={buttonRef}
             onClick={toggleUserMenu}
             className="flex items-center space-x-2 p-1.5 rounded-full hover:bg-violet-50 dark:hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-violet-500"
           >
             {/* Update user avatar to match contact avatar style */}
-            <div className="w-8 h-8 rounded-full bg-violet-200 dark:bg-violet-900 flex items-center justify-center text-violet-700 dark:text-violet-300 text-sm font-medium">
+            <div className="w-9 h-9 pt-0.5 rounded-full bg-violet-200 dark:bg-violet-900 flex items-center justify-center text-violet-700 dark:text-violet-300 text-sm font-medium">
               {getInitials(user.firstName && user.lastName 
                 ? `${user.firstName} ${user.lastName}`
                 : user.username || 'User')}
@@ -108,13 +132,16 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                 </p>
               )}
             </div>
-            <svg className="w-4 h-4 text-gray-500 dark:text-gray-400 hidden md:block" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className="w-4 h-4 hover:cursor-grab text-gray-500 dark:text-gray-400 hidden md:block" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
             </svg>
           </button>
           
           {showUserMenu && (
-            <div className="absolute right-0 top-full mt-1 w-56 bg-white dark:bg-gray-800 shadow-lg rounded-md border border-gray-200 dark:border-gray-700 py-1 z-10">
+            <div 
+              ref={menuRef}
+              className="absolute right-0 top-full mt-1 w-56 bg-white dark:bg-gray-800 shadow-lg rounded-md border border-gray-200 dark:border-gray-700 py-1 z-10"
+            >
               <div className="px-4 py-2 border-b border-gray-200 dark:border-gray-700">
                 <p className="text-sm font-medium text-gray-800 dark:text-gray-200">
                   {user.firstName && user.lastName 
@@ -129,7 +156,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
               </div>
               <button
                 onClick={onLogout}
-                className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center"
+                className="w-full text-left hover:cursor-pointer px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center"
               >
                 <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />

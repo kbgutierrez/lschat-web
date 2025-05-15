@@ -80,14 +80,14 @@ export function MessageList({
   }
 
   return (
-    <div className="space-y-4"> {/* Removed width classes */}
+    <div className="space-y-4"> 
       {messages.map((message, index) => (
         <MessageItem
           key={message.id || index}
           message={message}
           contactName={contactName}
-          showAvatar={true} // Always show avatar
-          isConsecutive={false} // Never mark as consecutive
+          showAvatar={true} 
+          isConsecutive={false}
         />
       ))}
       <div ref={endRef} />
