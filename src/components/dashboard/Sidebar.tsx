@@ -61,7 +61,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               className="object-contain"
             />
           </div>
-          <h1 className="text-lg font-bold text-yellow-300 dark:text-yellow-300 ml-2">
+          <h1 className="text-lg font-bold text-yellow-300 dark:text-yellow-300">
             LS<span className="text-white dark:text-white">Chat</span>
             <span className='text-purple-300 dark:text-purple-400'> Web</span>
           </h1>
