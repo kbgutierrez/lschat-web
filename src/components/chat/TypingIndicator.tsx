@@ -18,7 +18,7 @@ export function TypingIndicator({
   
   return (
     <div className={cn(
-      "flex items-center space-x-2 text-xs text-gray-500 dark:text-gray-400 animate-fade-in",
+      "flex items-center space-x-2 text-xs text-gray-500 dark:text-gray-400 animate-fade-in bg-white/70 dark:bg-gray-800/70 px-3 py-2 rounded-lg", // Removed width constraints
       className
     )}>
       <div className="flex space-x-1">

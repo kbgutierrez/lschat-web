@@ -145,8 +145,15 @@ export function usePubnubTrigger(
           setIsSubscribed(true);
         } else if (statusEvent.category === 'PNDisconnectedCategory') {
           setIsSubscribed(false);
-        } else if (statusEvent.error) {
-          setError('Failed to connect to notification service.');
+        } else if (
+          statusEvent.category === 'PNNetworkIssuesCategory' ||
+          statusEvent.category === 'PNTimeoutCategory' ||
+          statusEvent.category === 'PNBadRequestCategory' ||
+          statusEvent.category === 'PNAccessDeniedCategory' ||
+          statusEvent.category === 'PNUnknownCategory'
+        ) {
+          console.error('PubNub connection issue:', statusEvent.category);
+          setError(`Connection issue: ${statusEvent.category}`);
         }
       }
     };

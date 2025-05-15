@@ -174,8 +174,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <GroupItem
               key={group.id}
               group={group}
-              isSelected={selectedContact === group.id}
-              onSelect={handleContactSelect}
+              isActive={selectedContact === group.id}
+              onClick={handleContactSelect}
             />
           ))}
         </div>

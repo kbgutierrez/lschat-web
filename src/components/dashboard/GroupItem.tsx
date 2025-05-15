@@ -17,6 +17,8 @@ interface GroupItemProps {
   group: GroupData;
   isActive: boolean;
   onClick: (id: string) => void;
+isSelected?: boolean;
+onSelect?: (id: string) => void;
 }
 
 export const GroupItem: React.FC<GroupItemProps> = ({ 

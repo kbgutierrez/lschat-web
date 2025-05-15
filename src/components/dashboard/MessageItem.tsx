@@ -1,91 +1,65 @@
 'use client';
 
-import React, { memo } from 'react';
+import React from 'react';
 import { cn } from '@/lib/utils';
 import { MessageContent } from '@/components/chat/MessageContent';
+import { getInitials } from './ContactItem';
 
-export type Message = {
+export interface Message {
   id: string;
   sender: string;
   text: string;
   time: string;
   isOwn: boolean;
-  type?: string;
-  isRead?: boolean;
-};
+  type: string;
+  isRead: boolean;
+}
 
-const getInitials = (name: string): string => {
-  return name
-    .split(' ')
-    .map(part => part.charAt(0))
-    .join('')
-    .toUpperCase()
-    .substring(0, 2);
-};
+interface MessageItemProps {
+  message: Message;
+  contactName: string;
+  showAvatar: boolean;
+  isConsecutive: boolean;
+}
 
-const compareMessageTimestamps = (timeA: string, timeB: string): boolean => {
-  try {
-    return timeA !== timeB;
-  } catch (e) {
-    return true;
-  }
-};
-
-// Memoize the message component to prevent re-renders
-export const MessageItem = memo(({ message, contactName, isFirst, prevTime }: { 
-  message: Message, 
-  contactName: string,
-  isFirst: boolean,
-  prevTime: string | null
-}) => {
-  const showAvatar = isFirst || 
-    (!message.isOwn && prevTime && compareMessageTimestamps(message.time, prevTime));
+export function MessageItem({ message, contactName, showAvatar, isConsecutive }: MessageItemProps) {
+  const { text, time, isOwn } = message;
 
   return (
-    <div className={`flex ${message.isOwn ? 'justify-end' : 'justify-start'}`}>
-      {!message.isOwn && (
-        <div className="flex-shrink-0 mr-3">
-          {showAvatar && (
-            <div className={cn(
-              "w-8 h-8 rounded-full flex items-center justify-center",
-              "bg-blue-500 text-white"
-            )}>
-              <span className="text-xs font-medium">{getInitials(contactName)}</span>
-            </div>
-          )}
+    <div className={cn(
+      "flex gap-2",
+      isOwn ? "justify-end" : "justify-start",
+    )}>
+      {!isOwn && showAvatar && (
+        <div className="flex-shrink-0 w-8 h-8 rounded-full bg-violet-200 dark:bg-violet-900 flex items-center justify-center text-violet-700 dark:text-violet-300 text-sm font-medium overflow-hidden">
+          {getInitials(contactName)}
         </div>
       )}
 
+      {!isOwn && !showAvatar && <div className="w-8 flex-shrink-0" />}
+
       <div className={cn(
-        "max-w-[85%]  ",
-        message.isOwn ? "items-end" : "items-start",
-        "flex flex-col"
+        "max-w-[75%] flex flex-col", // Reverted from "w-fit max-w-[65%]"
+        isOwn ? "items-end" : "items-start"
       )}>
         <div className={cn(
-          "px-4 py-2 rounded-2xl relative",
-          message.isOwn
-            ? "bg-gray-300 text-gray-800 dark:bg-gray-500 dark:text-gray-200 w-full"
-            : "bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 w-full",
-          message.isOwn ? "rounded-tr-none" : "rounded-tl-none"
+          "px-3 py-2 rounded-lg", // Removed w-fit
+          isOwn 
+            ? "bg-violet-500 dark:bg-violet-600 text-white" 
+            : "bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200"
         )}>
-          <MessageContent 
-            content={message.text} 
-            className="text-sm"
-          />
+          <MessageContent content={text} />
         </div>
-        <span className="text-xs text-gray-400 mt-1 px-1">
-          {message.time}
-          {message.isOwn && message.isRead && (
-            <span className="ml-1 text-gray-400">
-              <svg xmlns="http://www.w3.org/2000/svg" className="inline-block h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
-              </svg>
-            </span>
-          )}
-        </span>
+        <span className="text-xs text-gray-500 dark:text-gray-400 mt-1">{time}</span>
       </div>
+
+      {isOwn && showAvatar && (
+        <div className="flex-shrink-0 w-8 h-8 rounded-full bg-violet-500 flex items-center justify-center text-white text-sm font-medium overflow-hidden">
+          {getInitials("Me")}
+        </div>
+      )}
+
+      {isOwn && !showAvatar && <div className="w-8 flex-shrink-0" />}
     </div>
   );
-});
-
-MessageItem.displayName = 'MessageItem';
+}

@@ -33,25 +33,20 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
 }) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-
-  // Ensure scroll to bottom when messages change with instant behavior
+  
+  // Ensure scroll to bottom when messages change
   useEffect(() => {
     if (!containerRef.current) return;
     
-    // Scroll to bottom immediately without transition
+    // Scroll to bottom immediately
     containerRef.current.scrollTop = containerRef.current.scrollHeight;
     
-    // Also use setTimeout as a fallback
+    // Secondary scroll after all renders and images are loaded
     const timer = setTimeout(() => {
       if (containerRef.current) {
         containerRef.current.scrollTop = containerRef.current.scrollHeight;
       }
-      
-      // Additional direct scroll with the ref as another fallback
-      if (messagesEndRef.current) {
-        messagesEndRef.current.scrollIntoView({ behavior: 'instant' });
-      }
-    }, 10); // Very short delay to ensure it runs after any rendering
+    }, 10);
     
     return () => clearTimeout(timer);
   }, [messages]);
@@ -65,10 +60,10 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
           height: "calc(100% - 80px)", 
           display: "flex",
           flexDirection: "column",
-          scrollBehavior: "auto" // Change from "smooth" to "auto" for instant scrolling
+          scrollBehavior: "auto" // Use instant scrolling
         }}
       >
-        <div className="p-4 space-y-3 flex-1">
+        <div className="p-4 space-y-3 flex-1"> {/* Removed max-width and width classes */}
           <div className="flex justify-center my-4">
             <div className="px-3 py-1 bg-violet-100 dark:bg-gray-800 rounded-full">
               <span className="text-xs text-black dark:text-gray-400">Today</span>
@@ -76,7 +71,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
           </div>
 
           <div className="relative min-h-[200px]">
-            <MessageList
+            <MessageList 
               messages={messages}
               contactName={contactName}
               isLoading={loadingMessages}
@@ -85,23 +80,23 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
               endRef={messagesEndRef}
             />
           </div>
-
-          <TypingIndicator
+          
+          <TypingIndicator 
             isTyping={isTyping}
             contactName={contactName}
             className="px-2 py-1 my-2"
           />
-
+          
           {/* Important: This is the scroll target */}
           <div ref={messagesEndRef} className="h-1" />
         </div>
       </div>
 
-      <MessageInput
+      <MessageInput 
         onSendMessage={handleSendMessage}
         onTypingChange={handleTyping}
         disabled={!selectedChannel}
       />
     </div>
   );
-};
+}
