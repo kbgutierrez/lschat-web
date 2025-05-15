@@ -9,9 +9,13 @@ type MessageContentProps = {
   className?: string;
 };
 
+// Original patterns
 const IMAGE_PATTERN = /\[Image:\s*(https?:\/\/[^\]\s]+)\]/i;
 const IMAGE_FILE_PATTERN = /\[(JPG|PNG|GIF|JPEG) File:\s*([^-\]]+)\s*-\s*(https?:\/\/[^\]\s]+)\]/i;
 const FILE_PATTERN = /\[File:\s*(https?:\/\/[^\|\]\s]+)\|([^\]\s]+)\]/i;
+
+// Fixed pattern with more flexible URL matching at the end
+const FLEXIBLE_IMAGE_PATTERN = /\[(JPG|PNG|GIF|JPEG|Image) (?:File:|Image:)?\s*([^\]]+?)(?:\s+-\s+|\s+-\s*|\s*-\s+|\s*-\s*)(https?:\/\/[^\]\s]+)\]/i;
 
 export const MessageContent: React.FC<MessageContentProps> = ({ content, className }) => {
   const [imageLoaded, setImageLoaded] = useState(false);
@@ -119,13 +123,44 @@ export const MessageContent: React.FC<MessageContentProps> = ({ content, classNa
     };
   }, [showImageModal]);
 
+  // Check if content has multiple lines
+  const hasMultipleLines = content.includes('\n');
+
+  // If content has multiple lines, split it and process each line
+  if (hasMultipleLines) {
+    const lines = content.split('\n');
+    const renderedLines = lines.map((line, index) => {
+      if (FLEXIBLE_IMAGE_PATTERN.test(line) || 
+          IMAGE_FILE_PATTERN.test(line) || 
+          IMAGE_PATTERN.test(line) || 
+          FILE_PATTERN.test(line)) {
+        // If the line contains media, render it with the existing logic
+        return <MessageContent key={index} content={line} className={className} />;
+      } else {
+        // Otherwise render as plain text
+        return <p key={index} className={cn('whitespace-pre-wrap break-words', className)}>{line}</p>;
+      }
+    });
+
+    return <div className="space-y-2">{renderedLines}</div>;
+  }
+
   let contentRender;
 
-  const imageFileMatch = content.match(IMAGE_FILE_PATTERN);
-  if (imageFileMatch && imageFileMatch[3]) {
-    const imageType = imageFileMatch[1].toLowerCase();
-    const fileName = imageFileMatch[2].trim();
-    const imageUrl = imageFileMatch[3];
+  // Try the flexible pattern first, then fall back to specific patterns
+  const flexibleMatch = content.match(FLEXIBLE_IMAGE_PATTERN);
+  
+  if (flexibleMatch && flexibleMatch[3]) {
+    const imageType = flexibleMatch[1].toLowerCase();
+    const fileName = flexibleMatch[2] ? flexibleMatch[2].trim() : 'Image';
+    const imageUrl = flexibleMatch[3];
+
+    // For debugging
+    console.log("Matched image:", { 
+      type: imageType, 
+      fileName, 
+      url: imageUrl 
+    });
 
     contentRender = (
       <div className={cn('relative', className)}>
@@ -190,7 +225,7 @@ export const MessageContent: React.FC<MessageContentProps> = ({ content, classNa
                 width={500}
                 height={300}
                 className="max-w-full rounded-lg object-contain hover:opacity-95"
-                style={{ maxHeight: '300px', width: 'auto' }}
+                style={{ maxHeight: '300px', width: 'auto', height: 'auto' }}
                 onLoad={() => setImageLoaded(true)}
                 onError={() => setImageError(true)}
                 unoptimized
@@ -204,15 +239,19 @@ export const MessageContent: React.FC<MessageContentProps> = ({ content, classNa
       </div>
     );
   } else {
-    const imageMatch = content.match(IMAGE_PATTERN);
-    if (imageMatch && imageMatch[1]) {
-      const imageUrl = imageMatch[1];
+    // Fall back to existing pattern checks
+    const imageFileMatch = content.match(IMAGE_FILE_PATTERN);
+    if (imageFileMatch && imageFileMatch[3]) {
+      const imageType = imageFileMatch[1].toLowerCase();
+      const fileName = imageFileMatch[2].trim();
+      const imageUrl = imageFileMatch[3];
+      
       contentRender = (
         <div className={cn('relative', className)}>
           {!imageLoaded && !imageError && (
-            <div className="bg-gray-100 dark:bg-gray-800 rounded-lg flex items-center justify-center p-4 min-h-[200px] animate-pulse">
+            <div className="bg-gray-100 dark:bg-gray-800 rounded-lg flex flex-col items-center justify-center p-4 min-h-[200px] animate-pulse">
               <svg
-                className="w-8 h-8 text-gray-300 dark:text-gray-600"
+                className="w-8 h-8 text-gray-300 dark:text-gray-600 mb-2"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -224,6 +263,7 @@ export const MessageContent: React.FC<MessageContentProps> = ({ content, classNa
                   d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
                 />
               </svg>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Loading {fileName}...</p>
             </div>
           )}
 
@@ -243,13 +283,14 @@ export const MessageContent: React.FC<MessageContentProps> = ({ content, classNa
                 />
               </svg>
               <p className="text-sm text-red-600 dark:text-red-400">Failed to load image</p>
+              <p className="text-xs text-gray-600 dark:text-gray-400 mb-2">{fileName}</p>
               <a
                 href={imageUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-xs text-blue-600 dark:text-blue-400 hover:underline mt-1 block"
               >
-                Open original
+                Download {imageType.toUpperCase()}
               </a>
             </div>
           ) : (
@@ -259,110 +300,189 @@ export const MessageContent: React.FC<MessageContentProps> = ({ content, classNa
                 !imageLoaded && 'opacity-0',
                 imageLoaded && 'opacity-100'
               )}
-              onClick={() => imageLoaded && handleImageClick(imageUrl, 'Message attachment')}
             >
-              <Image
-                src={imageUrl}
-                alt="Message attachment"
-                width={500}
-                height={300}
-                className="max-w-full rounded-lg object-contain hover:opacity-95"
-                style={{ maxHeight: '300px', width: 'auto' }}
-                onLoad={() => setImageLoaded(true)}
-                onError={() => setImageError(true)}
-                unoptimized
-              />
-              <div className="absolute inset-0 bg-black/5 opacity-0 hover:opacity-100 flex items-center justify-center transition-opacity">
-                <div className="bg-black/50 text-white px-2 py-1 rounded text-xs">Click to view</div>
+              
+              <div className="relative" onClick={() => imageLoaded && handleImageClick(imageUrl, fileName)}>
+                <Image
+                  src={imageUrl}
+                  alt={fileName}
+                  width={500}
+                  height={300}
+                  className="max-w-full rounded-lg object-contain hover:opacity-95"
+                  style={{ maxHeight: '300px', width: 'auto', height: 'auto' }}
+                  onLoad={() => setImageLoaded(true)}
+                  onError={() => setImageError(true)}
+                  unoptimized
+                />
+                <div className="absolute inset-0 bg-black/5 opacity-0 hover:opacity-100 flex items-center justify-center transition-opacity">
+                  <div className="bg-black/50 text-white px-2 py-1 rounded text-xs">Click to view</div>
+                </div>
               </div>
             </div>
           )}
         </div>
       );
     } else {
-      const fileMatch = content.match(FILE_PATTERN);
-      if (fileMatch && fileMatch[1] && fileMatch[2]) {
-        const fileUrl = fileMatch[1];
-        const fileName = fileMatch[2];
-        const fileExt = fileName.split('.').pop()?.toLowerCase() || '';
-
-        const getFileIcon = () => {
-          switch (fileExt) {
-            case 'pdf':
-              return (
-                <svg className="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"
-                  />
-                </svg>
-              );
-            case 'doc':
-            case 'docx':
-              return (
-                <svg className="w-8 h-8 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"
-                  />
-                </svg>
-              );
-            case 'xls':
-            case 'xlsx':
-              return (
-                <svg className="w-8 h-8 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"
-                  />
-                </svg>
-              );
-            default:
-              return (
-                <svg className="w-8 h-8 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"
-                  />
-                </svg>
-              );
-          }
-        };
-
+      const imageMatch = content.match(IMAGE_PATTERN);
+      if (imageMatch && imageMatch[1]) {
+        const imageUrl = imageMatch[1];
         contentRender = (
-          <div className="flex items-center p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700">
-            <div className="mr-3">{getFileIcon()}</div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-gray-900 dark:text-gray-300 truncate">{fileName}</p>
-              <p className="text-xs text-gray-500 dark:text-gray-400">{fileExt.toUpperCase()} File</p>
-            </div>
-            <a
-              href={fileUrl}
-              download={fileName}
-              className="ml-2 p-2 rounded-full bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400 hover:bg-violet-200 dark:hover:bg-violet-900/50"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+          <div className={cn('relative', className)}>
+            {!imageLoaded && !imageError && (
+              <div className="bg-gray-100 dark:bg-gray-800 rounded-lg flex items-center justify-center p-4 min-h-[200px] animate-pulse">
+                <svg
+                  className="w-8 h-8 text-gray-300 dark:text-gray-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                  />
+                </svg>
+              </div>
+            )}
+
+            {imageError ? (
+              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3 text-center">
+                <svg
+                  className="w-6 h-6 text-red-500 mx-auto mb-2"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77-1.333.192 3 1.732 3z"
+                  />
+                </svg>
+                <p className="text-sm text-red-600 dark:text-red-400">Failed to load image</p>
+                <a
+                  href={imageUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs text-blue-600 dark:text-blue-400 hover:underline mt-1 block"
+                >
+                  Open original
+                </a>
+              </div>
+            ) : (
+              <div
+                className={cn(
+                  'overflow-hidden rounded-lg transition-opacity cursor-pointer',
+                  !imageLoaded && 'opacity-0',
+                  imageLoaded && 'opacity-100'
+                )}
+                onClick={() => imageLoaded && handleImageClick(imageUrl, 'Message attachment')}
+              >
+                <Image
+                  src={imageUrl}
+                  alt="Message attachment"
+                  width={500}
+                  height={300}
+                  className="max-w-full rounded-lg object-contain hover:opacity-95"
+                  style={{ maxHeight: '300px', width: 'auto', height: 'auto' }}
+                  onLoad={() => setImageLoaded(true)}
+                  onError={() => setImageError(true)}
+                  unoptimized
                 />
-              </svg>
-            </a>
+                <div className="absolute inset-0 bg-black/5 opacity-0 hover:opacity-100 flex items-center justify-center transition-opacity">
+                  <div className="bg-black/50 text-white px-2 py-1 rounded text-xs">Click to view</div>
+                </div>
+              </div>
+            )}
           </div>
         );
       } else {
-        // Default case: regular text
-        contentRender = <p className={cn('whitespace-pre-wrap break-words', className)}>{content}</p>;
+        const fileMatch = content.match(FILE_PATTERN);
+        if (fileMatch && fileMatch[1] && fileMatch[2]) {
+          const fileUrl = fileMatch[1];
+          const fileName = fileMatch[2];
+          const fileExt = fileName.split('.').pop()?.toLowerCase() || '';
+
+          const getFileIcon = () => {
+            switch (fileExt) {
+              case 'pdf':
+                return (
+                  <svg className="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"
+                    />
+                  </svg>
+                );
+              case 'doc':
+              case 'docx':
+                return (
+                  <svg className="w-8 h-8 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"
+                    />
+                  </svg>
+                );
+              case 'xls':
+              case 'xlsx':
+                return (
+                  <svg className="w-8 h-8 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"
+                    />
+                  </svg>
+                );
+              default:
+                return (
+                  <svg className="w-8 h-8 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"
+                    />
+                  </svg>
+                );
+            }
+          };
+
+          contentRender = (
+            <div className="flex items-center p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700">
+              <div className="mr-3">{getFileIcon()}</div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-gray-900 dark:text-gray-300 truncate">{fileName}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">{fileExt.toUpperCase()} File</p>
+              </div>
+              <a
+                href={fileUrl}
+                download={fileName}
+                className="ml-2 p-2 rounded-full bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400 hover:bg-violet-200 dark:hover:bg-violet-900/50"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+                  />
+                </svg>
+              </a>
+            </div>
+          );
+        } else {
+          // Default case: regular text
+          contentRender = <p className={cn('whitespace-pre-wrap break-words', className)}>{content}</p>;
+        }
       }
     }
   }

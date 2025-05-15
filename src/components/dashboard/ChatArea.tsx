@@ -19,7 +19,8 @@ interface ChatAreaProps {
   isTyping?: boolean;
 }
 
-export const ChatArea: React.FC<ChatAreaProps> = ({
+// Fix the component definition to avoid the "Component is not a function" error
+export function ChatArea({
   selectedContact,
   contactName,
   messages,
@@ -30,25 +31,45 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
   handleTyping,
   selectedChannel,
   isTyping = false,
-}) => {
+}: ChatAreaProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const lastMessagesLengthRef = useRef<number>(0);
   
-  // Ensure scroll to bottom when messages change
+  // Ensure scroll to bottom when messages change, but only if needed
   useEffect(() => {
     if (!containerRef.current) return;
     
-    // Scroll to bottom immediately
-    containerRef.current.scrollTop = containerRef.current.scrollHeight;
+    const shouldScrollToBottom = () => {
+      if (!containerRef.current) return true;
+      
+      const container = containerRef.current;
+      const { scrollTop, scrollHeight, clientHeight } = container;
+      const scrollPosition = scrollTop + clientHeight;
+      
+      // If we're already near bottom or have new messages, scroll to bottom
+      return (
+        scrollHeight - scrollPosition < 100 || 
+        messages.length > lastMessagesLengthRef.current
+      );
+    };
     
-    // Secondary scroll after all renders and images are loaded
-    const timer = setTimeout(() => {
-      if (containerRef.current) {
-        containerRef.current.scrollTop = containerRef.current.scrollHeight;
-      }
-    }, 10);
+    // Store current message count to detect new messages
+    lastMessagesLengthRef.current = messages.length;
     
-    return () => clearTimeout(timer);
+    if (shouldScrollToBottom()) {
+      // Scroll to bottom immediately
+      containerRef.current.scrollTop = containerRef.current.scrollHeight;
+      
+      // Secondary scroll after all renders and images are loaded
+      const timer = setTimeout(() => {
+        if (containerRef.current) {
+          containerRef.current.scrollTop = containerRef.current.scrollHeight;
+        }
+      }, 50);
+      
+      return () => clearTimeout(timer);
+    }
   }, [messages]);
 
   return (
@@ -63,7 +84,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
           scrollBehavior: "auto" // Use instant scrolling
         }}
       >
-        <div className="p-4 space-y-3 flex-1"> {/* Removed max-width and width classes */}
+        <div className="p-4 space-y-3 flex-1"> 
           <div className="flex justify-center my-4">
             <div className="px-3 py-1 bg-violet-100 dark:bg-gray-800 rounded-full">
               <span className="text-xs text-black dark:text-gray-400">Today</span>
@@ -100,3 +121,6 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
     </div>
   );
 }
+
+// Create a memoized version separately if needed
+export const MemoizedChatArea = React.memo(ChatArea);

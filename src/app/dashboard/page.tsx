@@ -302,6 +302,7 @@ export default function Dashboard() {
     
     const presence = getContactPresence(selectedContact);
     
+    // Use a functional state update with a check to prevent unnecessary re-renders
     setSelectedContactDetails(prev => {
       if (!prev) return null;
       
