@@ -10,7 +10,7 @@ interface MessageListProps {
   isLoading: boolean;
   error: string | null;
   onRetry: () => void;
-  endRef?: React.RefObject<HTMLDivElement>;
+  endRef?: React.RefObject<HTMLDivElement | null>;
 }
 
 export function MessageList({
