@@ -55,7 +55,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
     <div className="flex-1 flex flex-col bg-violet-50 dark:bg-gray-950 overflow-hidden">
       <div 
         ref={containerRef}
-        className="chat-messages-container flex-1 overflow-y-auto" 
+        className="chat-messages-container flex-1 overflow-y-auto no-scrollbar" 
         style={{ 
           height: "calc(100% - 80px)", 
           display: "flex",

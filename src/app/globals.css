@@ -366,3 +366,13 @@ input, select, textarea {
   scroll-behavior: auto !important; /* Force instant scrolling */
 }
 
+/* Hide scrollbar but maintain scrollability */
+.no-scrollbar {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;     /* Firefox */
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;             /* Chrome, Safari, Opera */
+}
+
