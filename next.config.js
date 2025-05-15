@@ -1,10 +1,11 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  swcMinify: true,
+  // Moved from experimental and renamed according to the warning
+  serverExternalPackages: ['formidable', 'superagent'],
+  // Removed deprecated swcMinify option
   experimental: {
-    // List all CommonJS modules that use dynamic require statements
-    serverComponentsExternalPackages: ['formidable', 'superagent']
+    // Empty but kept for future experimental options
   },
   // Add webpack configuration to handle dynamic imports
   webpack: (config, { isServer }) => {
