@@ -22,7 +22,9 @@ export default function RootLayout({children}: Readonly<{children: React.ReactNo
 {
   return (
     <html lang="en" suppressHydrationWarning>
-      <head />
+      <head>
+        <Script src="https://cdn.pubnub.com/sdk/javascript/pubnub.7.4.5.min.js" strategy="afterInteractive" />
+      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased hydration-fix`}
         suppressHydrationWarning

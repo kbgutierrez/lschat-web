@@ -21,19 +21,16 @@ export default function AuthPage() {
   const [loadingProgress, setLoadingProgress] = useState(100);
   const [animating, setAnimating] = useState(false);
 
-
   useEffect(() => {
-
     if (document.referrer && document.referrer.includes(window.location.origin)) {
       setShowInitialLoader(false);
       return;
     }
-    
+
     setShowInitialLoader(true);
   }, []);
 
   useEffect(() => {
-  
     const loadSavedCredentials = () => {
       try {
         const savedCredentials = localStorage.getItem('rememberedCredentials');
@@ -50,10 +47,9 @@ export default function AuthPage() {
         console.error('Error loading saved credentials:', error);
       }
     };
-    
+
     loadSavedCredentials();
-   
- 
+
     const mode = searchParams.get('mode');
     if (mode === 'signup') {
       setIsLogin(false);
@@ -173,23 +169,21 @@ export default function AuthPage() {
     if (!validateLogin()) return;
 
     setIsLoading(true);
-    
+
     try {
-     
       const fcm_token = '';
-    
+
       const response = await authAPI.login(
         loginData.username,
         loginData.password,
         fcm_token
       );
-      
+
       if (response.success) {
         console.log('Login successful:', response);
-        
-       
+
         localStorage.setItem('userSession', JSON.stringify({
-          token: response.token || 'dummy-token', 
+          token: response.token || 'dummy-token',
           user: {
             user_id: response.user?.user_id || response.user_id,
             firstName: response.user?.first_name || response.firstName,
@@ -198,7 +192,7 @@ export default function AuthPage() {
             email: response.user?.email || response.email,
           }
         }));
-        
+
         if (loginData.rememberMe) {
           localStorage.setItem('rememberedCredentials', JSON.stringify({
             username: loginData.username,
@@ -207,7 +201,7 @@ export default function AuthPage() {
         } else {
           localStorage.removeItem('rememberedCredentials');
         }
-        
+
         router.push('/dashboard');
       } else {
         setLoginErrors({ form: response.message || 'Invalid username or password' });
@@ -215,8 +209,8 @@ export default function AuthPage() {
       }
     } catch (error: any) {
       console.error('Login failed:', error);
-      setLoginErrors({ 
-        form: error.message || 'Network error. Please try again later.' 
+      setLoginErrors({
+        form: error.message || 'Network error. Please try again later.'
       });
       setIsLoading(false);
     }
@@ -259,9 +253,9 @@ export default function AuthPage() {
     <>
       {/* Only show LoadingScreen on initial page load, not for auth operations */}
       {showInitialLoader && (
-        <LoadingScreen 
+        <LoadingScreen
           isLoading={true}
-          progress={100} 
+          progress={100}
           message="Loading LS Chat"
           autoHide={true}
         />
@@ -278,8 +272,8 @@ export default function AuthPage() {
 
         <div className="hidden md:flex md:w-1/2 flex-col items-center justify-center bg-transparent -mt-[200px] animate-fade-in">
           <div className="transform hover:scale-105 transition-transform duration-500">
-            <Image 
-              src="/images/lschat-logo.png" 
+            <Image
+              src="/images/lschat-logo.png"
               alt="LS Chat Logo"
               width={880}
               height={880}
@@ -288,23 +282,24 @@ export default function AuthPage() {
             />
           </div>
         </div>
-        
-        <div className="w-full md:w-1/2 p-8 md:p-12 flex items-center justify-center bg-white dark:bg-gray-800 animate-slide-in-right relative overflow-hidden">
+
+        <div className="w-full md:w-1/2 p-8 md:p-12 flex items-center justify-center bg-white/95 dark:bg-gray-800 animate-slide-in-right relative overflow-hidden">
           <div className="absolute inset-0 pointer-events-none overflow-hidden">
-            <div className="absolute top-0 right-0 w-64 h-64 bg-blue-50 dark:bg-blue-900/20 rounded-full -translate-y-1/2 -translate-x-1/2 opacity-70"></div>
-            <div className="absolute light:hidden bottom-0 left-0 w-80 h-80 bg-purple-50 dark:bg-purple-900/20 rounded-full translate-y-1/3 -translate-x-1/3 opacity-70"></div>
-            <div className="absolute top-1/2 right-10 w-10 h-10 bg-yellow-100 dark:bg-yellow-600/20 rounded-full animate-pulse-subtle"></div>
-            <div className="absolute top-20 left-10 w-6 h-6 bg-green-100 dark:bg-green-600/20 rounded-full animate-float"></div>
-            <div className="absolute bottom-20 right-20 w-8 h-8 bg-red-50 dark:bg-red-600/20 rounded-full animate-float-reverse"></div>
-            <div className="hidden md:block absolute inset-0 bg-gradient-to-br from-transparent via-transparent to-blue-50/50 dark:to-blue-900/10"></div>
-            <div className="absolute w-full h-[1px] bg-gradient-to-r from-transparent via-gray-200 dark:via-gray-700 to-transparent top-10 left-0"></div>
-            <div className="absolute w-full h-[1px] bg-gradient-to-r from-transparent via-gray-200 dark:via-gray-700 to-transparent bottom-10 left-0"></div>
+            {/* Hide decorative elements in light mode */}
+            <div className="absolute top-0 right-0 w-64 h-64 hidden dark:block dark:bg-blue-900/20 rounded-full -translate-y-1/2 -translate-x-1/2 opacity-70"></div>
+            <div className="absolute bottom-0 left-0 w-80 h-80 hidden dark:block dark:bg-purple-900/20 rounded-full translate-y-1/3 -translate-x-1/3 opacity-70"></div>
+            <div className="absolute top-1/2 right-10 w-10 h-10 hidden dark:block dark:bg-yellow-600/20 rounded-full animate-pulse-subtle"></div>
+            <div className="absolute top-20 left-10 w-6 h-6 hidden dark:block dark:bg-green-600/20 rounded-full animate-float"></div>
+            <div className="absolute bottom-20 right-20 w-8 h-8 hidden dark:block dark:bg-red-600/20 rounded-full animate-float-reverse"></div>
+            <div className="hidden md:block absolute inset-0 bg-gradient-to-br from-white/70 to-white/90 dark:from-transparent dark:via-transparent dark:to-blue-900/10"></div>
+            <div className="absolute w-full h-[1px] bg-gradient-to-r from-transparent via-gray-300 dark:via-gray-700 to-transparent top-10 left-0"></div>
+            <div className="absolute w-full h-[1px] bg-gradient-to-r from-transparent via-gray-300 dark:via-gray-700 to-transparent bottom-10 left-0"></div>
           </div>
-          
+
           <div className="w-full max-w-lg relative z-10">
             <div className="flex justify-center md:hidden mb-8 animate-bounce-subtle">
-              <Image 
-                src="/images/lschat-logo.png" 
+              <Image
+                src="/images/lschat-logo.png"
                 alt="LS Chat Logo"
                 width={320}
                 height={320}
@@ -313,20 +308,20 @@ export default function AuthPage() {
               />
             </div>
 
-            <h2 className="text-3xl font-bold mb-2 text-gray-900 dark:text-white animate-fade-in-up">
+            <h2 className="text-3xl font-bold mb-2 text-gray-800 dark:text-white animate-fade-in-up">
               {isLogin ? 'Sign in to your account' : 'Create a new account'}
             </h2>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-8 animate-fade-in-up delay-100">
+            <p className="text-sm text-gray-700 dark:text-gray-400 mb-8 animate-fade-in-up delay-100">
               {isLogin ? 'Welcome to LS Chat' : 'Join LS Chat today'}
             </p>
-            
+
             <div className="flex border border-gray-200 dark:border-gray-700 rounded-lg p-1 mb-8 shadow-sm animate-fade-in-up delay-200">
               <button
                 type="button"
                 className={cn(
                   "flex-1 py-2 px-4 text-sm font-medium rounded-md transition-all duration-300",
-                  isLogin 
-                    ? "bg-blue-600 text-white shadow-md transform-gpu -translate-y-0.5" 
+                  isLogin
+                    ? "bg-blue-600 text-white shadow-md transform-gpu -translate-y-0.5"
                     : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50"
                 )}
                 onClick={() => !isLogin && toggleAuthMode()}
@@ -338,8 +333,8 @@ export default function AuthPage() {
                 type="button"
                 className={cn(
                   "flex-1 py-2 px-4 text-sm font-medium rounded-md transition-all duration-300",
-                  !isLogin 
-                    ? "bg-blue-600 text-white shadow-md transform-gpu -translate-y-0.5" 
+                  !isLogin
+                    ? "bg-blue-600 text-white shadow-md transform-gpu -translate-y-0.5"
                     : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50"
                 )}
                 onClick={() => isLogin && toggleAuthMode()}
@@ -348,13 +343,13 @@ export default function AuthPage() {
                 Sign Up
               </button>
             </div>
-            
+
             <div className="relative w-full overflow-visible animate-fade-in-up delay-300">
-              <div 
+              <div
                 className="transition-all duration-500 ease-in-out transform"
-                style={{ 
-                  transform: isLogin 
-                    ? 'translateX(0) rotateY(0)' 
+                style={{
+                  transform: isLogin
+                    ? 'translateX(0) rotateY(0)'
                     : 'translateX(-105%) rotateY(-5deg)',
                   position: isLogin ? 'relative' : 'absolute',
                   width: '100%',
@@ -407,8 +402,8 @@ export default function AuthPage() {
                     />
 
                     <div className="text-sm">
-                      <Link 
-                        href="/forgot-password" 
+                      <Link
+                        href="/forgot-password"
                         className="font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300"
                       >
                         Forgot password?
@@ -417,7 +412,7 @@ export default function AuthPage() {
                   </div>
 
                   <div className="pt-2">
-                    <button 
+                    <button
                       type="submit"
                       className="w-full rounded-full font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 transition-all duration-300 flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed disabled:transform-none"
                       disabled={isLoading}
@@ -433,11 +428,11 @@ export default function AuthPage() {
                 </form>
               </div>
 
-              <div 
+              <div
                 className="transition-all duration-500 ease-in-out transform"
-                style={{ 
-                  transform: isLogin 
-                    ? 'translateX(105%) rotateY(5deg)' 
+                style={{
+                  transform: isLogin
+                    ? 'translateX(105%) rotateY(5deg)'
                     : 'translateX(0) rotateY(0)',
                   position: isLogin ? 'absolute' : 'relative',
                   width: '100%',
@@ -564,7 +559,7 @@ export default function AuthPage() {
                         <div className="ml-3 text-sm">
                           <label htmlFor="privacy" className="text-gray-600 dark:text-gray-400">
                             By signing up for an account, you acknowledge and accept our
-                            <button 
+                            <button
                               type="button"
                               onClick={() => setShowPrivacyModal(true)}
                               className="text-blue-600 underline font-medium ml-1 hover:text-blue-700 dark:hover:text-blue-300 transition-colors"
@@ -581,7 +576,7 @@ export default function AuthPage() {
                   </div>
 
                   <div className="pt-2">
-                    <button 
+                    <button
                       type="submit"
                       className="w-full rounded-full font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 transition-all duration-300 flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed disabled:transform-none"
                       disabled={isLoading}
@@ -597,32 +592,32 @@ export default function AuthPage() {
                 </form>
               </div>
             </div>
-            
+
             <div className="mt-8 flex justify-center space-x-2">
-              <div 
+              <div
                 className={cn(
-                  "w-2 h-2 rounded-full transition-all duration-300", 
-                  isLogin 
-                    ? "bg-blue-600 scale-110" 
+                  "w-2 h-2 rounded-full transition-all duration-300",
+                  isLogin
+                    ? "bg-blue-600 scale-110"
                     : "bg-gray-300 dark:bg-gray-600"
                 )}
               ></div>
-              <div 
+              <div
                 className={cn(
-                  "w-2 h-2 rounded-full transition-all duration-300", 
-                  !isLogin 
-                    ? "bg-blue-600 scale-110" 
+                  "w-2 h-2 rounded-full transition-all duration-300",
+                  !isLogin
+                    ? "bg-blue-600 scale-110"
                     : "bg-gray-300 dark:bg-gray-600"
                 )}
               ></div>
             </div>
           </div>
         </div>
-      </div> 
+      </div>
 
       {showPrivacyModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
-          <div 
+          <div
             className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full max-h-[80vh] overflow-auto animate-scale-in"
             onClick={(e) => e.stopPropagation()}
           >
@@ -632,16 +627,16 @@ export default function AuthPage() {
                 <p className="text-sm leading-6">
                   In compliance with the requirements of Data Privacy Act of 2012, we would like to ask your consent to collect, store, retain, disclose, dispose and process your personal information. Your information will be used to receive authentication to access LSBIZ and others that require authentication. Furthermore, it will be utilized for future messaging applications developed by the ICT Department.
                 </p>
-                
+
                 <p className="text-sm leading-6">
                   Please be aware that your data will be kept secure and will not be shared with third parties. In case the personnformation collected is no longer needed, an official procedure will be followed to dispose of the given data.
                 </p>
-                                <p className="text-sm leading-6">
+                <p className="text-sm leading-6">
                   You have the right to request access, correct, update, or withdw your consent for the use of your personal data.t contact our Data Protection Officer via email <a href="mailto:dpo@lemonsquare.comh" className="text-blue-600 hover:underline">dpo@tsquare.com.ph</a> or call (02) 8-983-9417 to 19 local 121
                 </p>
               </div>
               <div className="mt-6 flex justify-end">
-                <button 
+                <button
                   type="button"
                   onClick={() => setShowPrivacyModal(false)}
                   className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors duration-200 hover:shadow-md active:scale-95"

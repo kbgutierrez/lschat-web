@@ -182,7 +182,7 @@ export const MessageContent: React.FC<MessageContentProps> = ({ content, classNa
               imageLoaded && 'opacity-100'
             )}
           >
-            <div className="text-xs text-gray-100 dark:text-gray-100 mb-1">{fileName}</div>
+            
             <div className="relative" onClick={() => imageLoaded && handleImageClick(imageUrl, fileName)}>
               <Image
                 src={imageUrl}
@@ -341,7 +341,7 @@ export const MessageContent: React.FC<MessageContentProps> = ({ content, classNa
           <div className="flex items-center p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700">
             <div className="mr-3">{getFileIcon()}</div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{fileName}</p>
+              <p className="text-sm font-medium text-gray-900 dark:text-gray-300 truncate">{fileName}</p>
               <p className="text-xs text-gray-500 dark:text-gray-400">{fileExt.toUpperCase()} File</p>
             </div>
             <a

@@ -1,16 +1,23 @@
 'use client';
 
-import React, { useState, useRef, memo } from 'react';
+import React, { useState, useRef, memo, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 
 interface MessageInputProps {
   onSendMessage: (message: string) => void;
+  onTypingChange?: (isTyping: boolean) => void;
   disabled?: boolean;
 }
 
-export const MessageInput = memo(function MessageInput({ onSendMessage, disabled = false }: MessageInputProps) {
+export const MessageInput = memo(function MessageInput({ 
+  onSendMessage, 
+  onTypingChange,
+  disabled = false 
+}: MessageInputProps) {
   const [message, setMessage] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [isTyping, setIsTyping] = useState(false);
 
   const handleSubmit = () => {
     if (!message.trim() || disabled) return;
@@ -18,11 +25,53 @@ export const MessageInput = memo(function MessageInput({ onSendMessage, disabled
     onSendMessage(message);
     setMessage('');
     
+    // Clear typing indicator when sending a message
+    if (onTypingChange && isTyping) {
+      setIsTyping(false);
+      onTypingChange(false);
+    }
+    
     // Keep focus on input after sending
     setTimeout(() => {
       inputRef.current?.focus();
     }, 0);
   };
+  
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setMessage(value);
+    
+    // Handle typing indicator
+    if (onTypingChange) {
+      // If user wasn't typing before, trigger typing start
+      if (!isTyping && value.trim()) {
+        setIsTyping(true);
+        onTypingChange(true);
+      }
+      
+      // Reset typing timeout
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+      
+      // Set timeout to stop typing indicator after 2 seconds of inactivity
+      typingTimeoutRef.current = setTimeout(() => {
+        if (isTyping) {
+          setIsTyping(false);
+          onTypingChange(false);
+        }
+      }, 2000);
+    }
+  };
+  
+  // Clear timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+    };
+  }, []);
 
   return (
     <div className="h-[80px] shrink-0 bg-white dark:bg-gray-900 border-t border-violet-100 dark:border-gray-800 p-4">
@@ -37,7 +86,7 @@ export const MessageInput = memo(function MessageInput({ onSendMessage, disabled
             ref={inputRef}
             type="text"
             value={message}
-            onChange={(e) => setMessage(e.target.value)}
+            onChange={handleChange}
             onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
             placeholder="Type a message"
             className="w-full py-3 px-4 bg-violet-50 dark:bg-gray-800 rounded-full border-0 focus:ring-2 focus:ring-violet-500/30 text-gray-900 dark:text-gray-100 placeholder-gray-400"

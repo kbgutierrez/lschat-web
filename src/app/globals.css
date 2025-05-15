@@ -360,3 +360,9 @@ input, select, textarea {
   transition-timing-function: cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
+/* Add this to ensure ChatArea scroll behavior is consistently instant */
+.chat-messages-container {
+  -webkit-overflow-scrolling: touch; /* Smoother on iOS */
+  scroll-behavior: auto !important; /* Force instant scrolling */
+}
+

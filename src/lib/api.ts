@@ -168,6 +168,8 @@ export const contactsAPI = {
   }
 };
 
+import { publishMessage, formatMessageForPubNub } from './pubnub';
+
 export const messagesAPI = {
   getChatMessages: async (channelToken: string): Promise<ChatMessage[]> => {
     if (!channelToken) {
@@ -197,6 +199,7 @@ export const messagesAPI = {
     }
     
     try {
+      // Send via API
       const response = await fetchAPI<ChatMessage>(`/api/chatMessages/${channelToken}`, {
         method: 'POST',
         body: JSON.stringify({
@@ -204,6 +207,30 @@ export const messagesAPI = {
           message_type: type
         })
       }, true);
+      
+      // After successful API call, publish to PubNub to notify other clients
+      try {
+        const userData = typeof window !== 'undefined' ? 
+          JSON.parse(localStorage.getItem('userSession') || '{}').user : null;
+        
+        const userId = userData?.user_id || 'unknown';
+        
+        // Send a small notification message - enough to trigger refresh
+        await publishMessage(
+          channelToken, 
+          {
+            action: 'new_message',
+            sender: userId,
+            timestamp: new Date().toISOString()
+          },
+          userId.toString()
+        );
+        
+        console.log('PubNub notification sent for new message');
+      } catch (pubnubError) {
+        // Just log the error - API already succeeded
+        console.error('Failed to send PubNub notification:', pubnubError);
+      }
       
       return response;
     } catch (error) {

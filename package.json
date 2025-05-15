@@ -3,23 +3,34 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --turbopack",
+    "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint"
   },
   "dependencies": {
     "firebase": "^11.6.1",
+    "formidable": "^2.1.2",
     "next": "15.3.0",
+    "pubnub": "^7.6.3",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "superagent": "^7.1.1",
+    "uuid": "^9.0.1"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@types/formidable": "^2.0.6",
     "@types/node": "^20",
+    "@types/pubnub": "^7.4.2",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/uuid": "^10.0.0",
+    "string-replace-loader": "^3.1.0",
     "tailwindcss": "^4",
     "typescript": "^5"
+  },
+  "resolutions": {
+    "**/formidable": "^2.1.2"
   }
 }
