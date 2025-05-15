@@ -13,7 +13,7 @@ interface ChatAreaProps {
   loadingMessages: boolean;
   messageError: string | null;
   handleRetryLoadMessages: () => void;
-  handleSendMessage: (message: string) => void;
+  handleSendMessage: (message: string, file?: File) => void;
   handleTyping?: (isTyping: boolean) => void;
   selectedChannel: string | null;
   isTyping?: boolean;

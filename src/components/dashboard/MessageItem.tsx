@@ -24,6 +24,34 @@ interface MessageItemProps {
 
 export function MessageItem({ message, contactName, showAvatar, isConsecutive }: MessageItemProps) {
   const { text, time, isOwn } = message;
+  
+  // Get user name for initials
+  const getUserInitials = () => {
+    // Try to get user data from localStorage
+    try {
+      const userData = localStorage.getItem('userSession');
+      if (userData) {
+        const parsed = JSON.parse(userData);
+        const user = parsed.user || parsed;
+        
+        // Handle different ways user name might be stored
+        const firstName = user.firstName || user.first_name || '';
+        const lastName = user.lastName || user.last_name || '';
+        
+        if (firstName || lastName) {
+          return getInitials(`${firstName} ${lastName}`.trim());
+        }
+        
+        if (user.username) {
+          return getInitials(user.username);
+        }
+      }
+    } catch (e) {
+      // Silently fail and use default
+    }
+    
+    return "Me";
+  };
 
   return (
     <div className={cn(
@@ -46,7 +74,7 @@ export function MessageItem({ message, contactName, showAvatar, isConsecutive }:
         <div className={cn(
           "px-3 py-2 rounded-lg", 
           isOwn 
-            ? "bg-violet-500 dark:bg-violet-600 text-white" 
+            ? "bg-violet-200 dark:bg-violet-600 text-gray-800 dark:text-white" 
             : "bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200"
         )}>
           <MessageContent content={text} />
@@ -55,8 +83,8 @@ export function MessageItem({ message, contactName, showAvatar, isConsecutive }:
       </div>
 
       {isOwn && showAvatar && (
-        <div className="flex-shrink-0 w-8 h-8 rounded-full bg-violet-500 flex items-center justify-center text-white text-sm font-medium overflow-hidden">
-          {getInitials("Me")}
+        <div className="flex-shrink-0 w-8 h-8 pt-0.5 rounded-full bg-violet-500 flex items-center justify-center text-white text-sm font-medium overflow-hidden">
+          {getUserInitials()}
         </div>
       )}
 

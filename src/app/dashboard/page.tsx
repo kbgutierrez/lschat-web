@@ -391,21 +391,21 @@ export default function Dashboard() {
     setIsMobileSidebarOpen(false);
   };
 
-  const handleSendMessage = useCallback(async (message: string) => {
-    if (!message.trim() || !selectedChannel || !user) return;
+  const handleSendMessage = useCallback(async (message: string, file?: File) => {
+    if ((!message.trim() && !file) || !selectedChannel || !user) return;
 
     try {
       const optimisticMsg: Message = {
         id: `temp-${Date.now()}`,
         sender: user.user_id?.toString() || 'me',
-        text: message,
+        text: file ? `Sending ${file.name}...` : message,
         time: new Date().toLocaleTimeString('en-US', { 
           hour: 'numeric', 
           minute: 'numeric', 
           hour12: true 
         }),
         isOwn: true,
-        type: 'text',
+        type: file ? 'file' : 'text',
         isRead: false
       };
 
@@ -416,7 +416,7 @@ export default function Dashboard() {
       
       setTimeout(scrollToBottom, 100);
 
-      const response = await messagesAPI.sendMessage(selectedChannel, message);
+      const response = await messagesAPI.sendMessage(selectedChannel, message, file);
       
       setMessages(prev => {
         const updatedChannelMessages = prev[selectedChannel].map(msg => 
@@ -443,8 +443,26 @@ export default function Dashboard() {
       
     } catch (error) {
       console.error('Failed to send message:', error);
+      
+      // Update the optimistic message to show error state
+      if (isClient) {
+        setMessages(prev => {
+          const updatedChannelMessages = prev[selectedChannel].map(msg => 
+            msg.id.startsWith('temp-') ? {
+              ...msg,
+              text: `Failed to send message${file ? ` (${file.name})` : ''}: ${error instanceof Error ? error.message : 'Unknown error'}`,
+              type: 'error'
+            } : msg
+          );
+          
+          return {
+            ...prev,
+            [selectedChannel]: updatedChannelMessages
+          };
+        });
+      }
     }
-  }, [selectedChannel, user, scrollToBottom]);
+  }, [selectedChannel, user, scrollToBottom, isClient]);
 
   const handleTabChange = useCallback((tab: TabType) => {
     if (tab !== activeTab) {

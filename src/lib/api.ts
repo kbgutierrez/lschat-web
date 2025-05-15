@@ -193,28 +193,48 @@ export const messagesAPI = {
     }
   },
   
-  sendMessage: async (channelToken: string, content: string, type: string = 'text'): Promise<ChatMessage> => {
+  sendMessage: async (channelToken: string, content: string, file?: File): Promise<ChatMessage> => {
     if (!channelToken) {
       throw new Error('Channel token is required to send a message');
     }
     
     try {
-      // Send via API
-      const response = await fetchAPI<ChatMessage>(`/api/chatMessages/${channelToken}`, {
+      const userData = typeof window !== 'undefined' ? 
+        JSON.parse(localStorage.getItem('userSession') || '{}').user : null;
+      
+      const userId = userData?.user_id || 'unknown';
+      
+      // Create FormData for multipart/form-data request (required for file uploads)
+      const formData = new FormData();
+      formData.append('user_id', userId.toString());
+      formData.append('message_content', content);
+      formData.append('token', channelToken);
+      
+      // Add file if it exists
+      if (file) {
+        formData.append('file', file);
+      }
+      
+      // Prepare headers - don't set Content-Type as it will be automatically set with boundary
+      const headers: HeadersInit = middleware.addAuthHeader({});
+      
+      // Send request to backend
+      const url = `${API_BASE_URL}/api/sendMessage`;
+      const response = await fetch(url, {
         method: 'POST',
-        body: JSON.stringify({
-          message_content: content,
-          message_type: type
-        })
-      }, true);
+        headers,
+        body: formData
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to send message');
+      }
+      
+      const data = await response.json();
       
       // After successful API call, publish to PubNub to notify other clients
       try {
-        const userData = typeof window !== 'undefined' ? 
-          JSON.parse(localStorage.getItem('userSession') || '{}').user : null;
-        
-        const userId = userData?.user_id || 'unknown';
-        
         // Send a small notification message - enough to trigger refresh
         await publishMessage(
           channelToken, 
@@ -225,14 +245,19 @@ export const messagesAPI = {
           },
           userId.toString()
         );
-        
-        console.log('PubNub notification sent for new message');
       } catch (pubnubError) {
         // Just log the error - API already succeeded
         console.error('Failed to send PubNub notification:', pubnubError);
       }
       
-      return response;
+      return {
+        message_id: data.messageId,
+        user_id: parseInt(userId),
+        message_content: content,
+        message_type: file ? 'file' : 'text',
+        created_at: new Date().toISOString(),
+        is_read: false
+      };
     } catch (error) {
       console.error('Send message error:', error);
       throw error;
