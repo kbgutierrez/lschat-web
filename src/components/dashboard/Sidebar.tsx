@@ -43,7 +43,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   return (
     <aside
       className={cn(
-        "bg-gradient-to-b from-violet-700 to-violet-900 dark:from-gray-800 dark:to-gray-900 flex flex-col border-r border-violet-600/50 dark:border-gray-800 shadow-lg z-30",
+        "bg-gradient-to-b from-violet-900 to-violet-900/95 dark:from-gray-800 dark:to-gray-900 flex flex-col border-r border-violet-600/50 dark:border-gray-800 shadow-lg z-30",
+        
         "transition-all duration-300 ease-in-out",
         "fixed inset-0 md:inset-y-0 md:left-0 md:w-80 md:relative md:translate-x-0",
         isOpen ? "translate-x-0" : "-translate-x-full"
@@ -51,7 +52,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       style={{ minHeight: '100%' }}
     >
       <div className="h-16 flex items-center justify-between px-4 border-b border-white/10 dark:border-gray-700/50">
-        <div className="flex items-center">
+        <div className="flex items-center p-2 border-s-fuchsia-300 border-y-teal-800  border-l-4 border-b-2 rounded-lg">
           <div className="w-10 h-10 relative">
             <Image
               src="/images/logo-no-label.png"
