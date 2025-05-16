@@ -299,7 +299,7 @@ export function usePubnubTrigger(
       
       if (subscriptionRef.current) {
         try {
-          pubnub.removeAllListeners();
+          pubnub.removeListener(listener);
           pubnub.unsubscribeAll();
         } catch (err) {
           console.error('Error cleaning up previous subscription:', err);

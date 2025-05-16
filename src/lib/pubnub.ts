@@ -40,11 +40,11 @@ export function getPubNub(userId?: string): PubNub {
       suppressLeaveEvents: false,
       requestMessageCountThreshold: 100,
       restore: true,
-      maximumCacheSize: 100,
-      fileMessagePublishRetryLimit: 5,
+      // maximumCacheEntries is not a valid property in PubnubConfig
+      // fileMessagePublishRetryLimit is not a valid property in PubnubConfig
       retryConfiguration: {
         maximumRetry: 5,
-        retryInterval: 2
+        delay: 2000
       }
     });
     
@@ -158,10 +158,8 @@ export function subscribeToChannels(
   pubnub.subscribe({
     channels: newChannels,
     withPresence: true,
-    withTimetoken: true,
-    
-    filterExpression: "uuid != '" + (userId || 'none') + "'",
-    subscribeRequestTimeout: 10,
+    channelGroups: [],
+    timetoken: 0
   });
 }
 
