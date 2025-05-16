@@ -86,6 +86,7 @@ export default function Dashboard() {
   const [isContactTyping, setIsContactTyping] = useState(false);
   const [typingUserId, setTypingUserId] = useState<string | null>(null);
   const typingTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const fetchTimestampRef = useRef<Record<string, number>>({});
 
   // Make scroll to bottom instant instead of smooth
   const scrollToBottom = useCallback(() => {
@@ -198,7 +199,19 @@ export default function Dashboard() {
       setLastPubnubMessage(messageData);
     }
 
-    if (!skipCache && messages[selectedChannel]?.length > 0) {
+    // Add a timestamp-based check to prevent frequent refetching
+    const now = Date.now();
+    const lastFetch = fetchTimestampRef.current[selectedChannel] || 0;
+    const minInterval = 5000; // 5 seconds minimum between fetches for the same channel
+
+    // Check if we've recently fetched messages for this channel (unless skipCache is true)
+    if (!skipCache && (now - lastFetch < minInterval)) {
+      console.log(`Skipping fetch for ${selectedChannel} - last fetch was ${(now - lastFetch) / 1000}s ago`);
+      return;
+    }
+
+    // Even empty arrays should be cached to prevent refetching
+    if (!skipCache && messages[selectedChannel] !== undefined) {
       setTimeout(scrollToBottom, 100);
       return;
     }
@@ -207,6 +220,9 @@ export default function Dashboard() {
     setMessageError(null);
 
     try {
+      // Store the timestamp of this fetch
+      fetchTimestampRef.current[selectedChannel] = now;
+      
       const chatMessages = await messagesAPI.getChatMessages(selectedChannel);
       
       if (!isMounted) return;
@@ -229,6 +245,7 @@ export default function Dashboard() {
         isRead: msg.is_read
       }));
       
+      // Always store even empty arrays to prevent refetching
       setMessages(prev => ({
         ...prev,
         [selectedChannel]: formattedMessages
@@ -357,10 +374,18 @@ export default function Dashboard() {
     }
   }, [selectedChannel, isSubscribed]);
 
+  // Fix the useEffect that triggers the initial message fetch
   useEffect(() => {
     if (!isClient || !selectedChannel) return;
-    fetchMessagesFromApi(false);
-  }, [selectedChannel, fetchMessagesFromApi, isClient]);
+    
+    // Only fetch messages if we haven't cached them yet (even empty arrays)
+    if (messages[selectedChannel] === undefined) {
+      fetchMessagesFromApi(false);
+    } else {
+      // Still scroll to bottom if messages exist
+      setTimeout(scrollToBottom, 100);
+    }
+  }, [selectedChannel, fetchMessagesFromApi, isClient, messages, scrollToBottom]);
 
   useEffect(() => {
     if (!isClient) return;

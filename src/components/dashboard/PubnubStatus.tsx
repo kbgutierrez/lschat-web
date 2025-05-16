@@ -115,25 +115,26 @@ export const PubnubStatus = memo(function PubnubStatus({
   if (!showStatus) return null;
   
   return (
-    <div 
-      className={cn(
-        "px-3 py-1 rounded-full text-xs font-medium transition-all duration-300",
-        isConnected && isStable
-          ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
-          : "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400",
-        isConnected && !isStable ? "animate-pulse" : "",
-        className
-      )}
-    >
-      <span className="flex items-center gap-1.5">
-        <span className={cn(
-          "w-2 h-2 rounded-full transition-colors duration-500",
-          isConnected && isStable 
-            ? "bg-green-500 dark:bg-green-400" 
-            : "bg-yellow-500 dark:bg-yellow-400"
-        )}></span>
-        {statusText}
-      </span>
-    </div>
+    <></>
+    // <div 
+    //   className={cn(
+    //     "px-3 py-1 rounded-full text-xs font-medium transition-all duration-300",
+    //     isConnected && isStable
+    //       ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
+    //       : "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400",
+    //     isConnected && !isStable ? "animate-pulse" : "",
+    //     className
+    //   )}
+    // >
+    //   <span className="flex items-center gap-1.5">
+    //     <span className={cn(
+    //       "w-2 h-2 rounded-full transition-colors duration-500",
+    //       isConnected && isStable 
+    //         ? "bg-green-500 dark:bg-green-400" 
+    //         : "bg-yellow-500 dark:bg-yellow-400"
+    //     )}></span>
+    //     {statusText}
+    //   </span>
+    // </div>
   );
 });

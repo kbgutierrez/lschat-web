@@ -168,13 +168,17 @@ export function usePubnubTrigger(
             return;
           }
           
-          if (message.type === 'NEW_MESSAGE') {
+          // Only trigger message refresh if it's an actual new message notification
+          if (message.action === 'new_message' || message.type === 'NEW_MESSAGE') {
             handlerRef.current(message);
             return;
           }
         }
         
-        handlerRef.current(message);
+        // For other message types, don't automatically trigger a fetch
+        if (message && typeof message !== 'object') {
+          handlerRef.current(message);
+        }
       },
       presence: function(presenceEvent: PubNub.PresenceEvent) {
         if (!presenceEvent.uuid) return;

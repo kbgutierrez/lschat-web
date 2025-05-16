@@ -170,10 +170,22 @@ export const contactsAPI = {
 
 import { publishMessage, formatMessageForPubNub } from './pubnub';
 
+// Add a simple in-memory cache for chat messages
+const messageCache: Record<string, {data: ChatMessage[], timestamp: number}> = {};
+const MESSAGE_CACHE_TTL = 30000; // 30 seconds cache TTL
+
 export const messagesAPI = {
   getChatMessages: async (channelToken: string): Promise<ChatMessage[]> => {
     if (!channelToken) {
       throw new Error('Channel token is required to fetch messages');
+    }
+    
+    // Check if we have a valid cache
+    const now = Date.now();
+    const cachedData = messageCache[channelToken];
+    if (cachedData && now - cachedData.timestamp < MESSAGE_CACHE_TTL) {
+      console.log(`Using cached messages for channel ${channelToken}`);
+      return cachedData.data;
     }
     
     console.log(`Fetching chat messages for channel: ${channelToken}`);
@@ -181,6 +193,13 @@ export const messagesAPI = {
     try {
       const response = await fetchAPI<ChatMessage[]>(`/api/chatMessages/${channelToken}`, {}, true);
       console.log(`Retrieved ${response.length} messages from channel ${channelToken}`);
+      
+      // Cache the result for future calls
+      messageCache[channelToken] = {
+        data: response,
+        timestamp: now
+      };
+      
       return response;
     } catch (error) {
       console.error('Chat messages fetch error:', error);
