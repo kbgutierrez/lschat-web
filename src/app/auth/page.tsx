@@ -7,7 +7,6 @@ import { Checkbox } from '@/components/ui/Checkbox';
 import Link from 'next/link';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
-import { LoadingScreen } from '@/components/LoadingScreen';
 import { authAPI } from '@/lib/api';
 
 export default function AuthPage() {
@@ -251,15 +250,7 @@ export default function AuthPage() {
 
   return (
     <>
-      {/* Only show LoadingScreen on initial page load, not for auth operations */}
-      {showInitialLoader && (
-        <LoadingScreen
-          isLoading={true}
-          progress={100}
-          message="Loading LS Chat"
-          autoHide={true}
-        />
-      )}
+    
 
       <div className={cn(
         "min-h-screen flex items-stretch bg-auth relative overflow-hidden"
@@ -618,7 +609,7 @@ export default function AuthPage() {
       {showPrivacyModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
           <div
-            className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full max-h-[80vh] overflow-auto animate-scale-in"
+            className="bg-white dark:bg-gray-800 rounded-md shadow-xl max-w-xl w-full max-h-[90vh] overflow-auto animate-scale-in"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="p-6">

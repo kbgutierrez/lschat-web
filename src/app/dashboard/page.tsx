@@ -15,7 +15,6 @@ import { usePubnubTrigger } from '@/hooks/usePubnubTrigger';
 import { PubnubStatus } from '@/components/dashboard/PubnubStatus';
 import { publishTypingIndicator } from '@/lib/pubnub';
 
-// Sample groups data
 const sampleGroups: GroupData[] = [
   {
     id: 'g1',
@@ -58,7 +57,6 @@ export default function Dashboard() {
   const router = useRouter();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
-  // State
   const [selectedContact, setSelectedContact] = useState<string | null>(null);
   const [selectedContactDetails, setSelectedContactDetails] = useState<ContactDetails | null>(null);
   const [activeTab, setActiveTab] = useState<TabType>('chats');
@@ -88,7 +86,6 @@ export default function Dashboard() {
   const typingTimerRef = useRef<NodeJS.Timeout | null>(null);
   const fetchTimestampRef = useRef<Record<string, number>>({});
 
-  // Make scroll to bottom instant instead of smooth
   const scrollToBottom = useCallback(() => {
     if (!messagesEndRef.current) return;
     
@@ -103,11 +100,9 @@ export default function Dashboard() {
         chatContainer.scrollTop = chatContainer.scrollHeight;
       }
     } catch (err) {
-      // Keep error handling but remove logging
     }
   }, []);
 
-  // Component mount
   useEffect(() => {
     setIsMounted(true);
     return () => {
@@ -115,7 +110,6 @@ export default function Dashboard() {
     };
   }, []);
 
-  // Auth check
   useEffect(() => {
     if (!isClient) return;
 
@@ -129,7 +123,6 @@ export default function Dashboard() {
     }
   }, [isClient, router]);
 
-  // Fetch contacts
   useEffect(() => {
     if (!isClient || !user) return;
 
@@ -173,7 +166,6 @@ export default function Dashboard() {
     fetchContacts();
   }, [user, isClient, selectedContact]);
 
-  // Set contact details and channel when contact is selected
   useEffect(() => {
     if (!isClient || !selectedContact) return;
 
@@ -182,7 +174,7 @@ export default function Dashboard() {
       setSelectedContactDetails({
         id: contactDetails.contact_id.toString(),
         name: contactDetails.contact_full_name,
-        status: 'offline', // Default value
+        status: 'offline',
         lastSeen: 'Unknown',
         unread: 0
       });
@@ -191,7 +183,6 @@ export default function Dashboard() {
     }
   }, [selectedContact, contacts, isClient]);
 
-  // Function to fetch messages from API - used by both initial load and PubNub
   const fetchMessagesFromApi = useCallback(async (skipCache = false, messageData?: any) => {
     if (!selectedChannel || !user || !isMounted) return;
 
@@ -199,18 +190,15 @@ export default function Dashboard() {
       setLastPubnubMessage(messageData);
     }
 
-    // Add a timestamp-based check to prevent frequent refetching
     const now = Date.now();
     const lastFetch = fetchTimestampRef.current[selectedChannel] || 0;
-    const minInterval = 5000; // 5 seconds minimum between fetches for the same channel
+    const minInterval = 5000;
 
-    // Check if we've recently fetched messages for this channel (unless skipCache is true)
     if (!skipCache && (now - lastFetch < minInterval)) {
       console.log(`Skipping fetch for ${selectedChannel} - last fetch was ${(now - lastFetch) / 1000}s ago`);
       return;
     }
 
-    // Even empty arrays should be cached to prevent refetching
     if (!skipCache && messages[selectedChannel] !== undefined) {
       setTimeout(scrollToBottom, 100);
       return;
@@ -220,7 +208,6 @@ export default function Dashboard() {
     setMessageError(null);
 
     try {
-      // Store the timestamp of this fetch
       fetchTimestampRef.current[selectedChannel] = now;
       
       const chatMessages = await messagesAPI.getChatMessages(selectedChannel);
@@ -245,7 +232,6 @@ export default function Dashboard() {
         isRead: msg.is_read
       }));
       
-      // Always store even empty arrays to prevent refetching
       setMessages(prev => ({
         ...prev,
         [selectedChannel]: formattedMessages
@@ -266,7 +252,6 @@ export default function Dashboard() {
     }
   }, [selectedChannel, user, isMounted, scrollToBottom, messages]);
 
-  // Use a more aggressive approach to ensure scrolling happens immediately
   useEffect(() => {
     if (!selectedChannel || !messages[selectedChannel]) return;
     
@@ -282,7 +267,6 @@ export default function Dashboard() {
     return () => clearTimeout(scrollTimer);
   }, [selectedChannel, messages, scrollToBottom]);
 
-  // Function to handle typing indicators received from PubNub
   const handleTypingIndicator = useCallback((typingData: { userId: string, isTyping: boolean, timestamp: number }) => {
     if (typingData.userId === user?.user_id?.toString()) return;
     
@@ -300,7 +284,6 @@ export default function Dashboard() {
     }
   }, [user?.user_id]);
 
-  // Connect to PubNub for real-time updates
   const { 
     isSubscribed, 
     error: pubnubError, 
@@ -313,17 +296,14 @@ export default function Dashboard() {
     handleTypingIndicator
   );
 
-  // Update the contact status from presence data - FIX INFINITE LOOP
   useEffect(() => {
     if (!selectedContact) return;
     
     const presence = getContactPresence(selectedContact);
     
-    // Use a functional state update with a check to prevent unnecessary re-renders
     setSelectedContactDetails(prev => {
       if (!prev) return null;
       
-      // Only update if values actually changed to prevent unnecessary re-renders
       if (prev.status === (presence.isOnline ? 'online' : 'offline') && 
           prev.lastSeen === presence.lastSeen) {
         return prev;
@@ -337,7 +317,6 @@ export default function Dashboard() {
     });
   }, [selectedContact, getContactPresence]);
 
-  // Handler for sending typing indicators
   const handleTypingChange = useCallback((isTyping: boolean) => {
     if (!selectedChannel || !user?.user_id) return;
     
@@ -352,14 +331,12 @@ export default function Dashboard() {
     }
   }, [selectedChannel, user?.user_id]);
 
-  // Update last message when we receive a new one
   useEffect(() => {
     if (lastMessage) {
       setLastPubnubMessage(lastMessage);
     }
   }, [lastMessage]);
 
-  // Log PubNub errors but don't show status log spam
   useEffect(() => {
     if (pubnubError) {
       console.error('PubNub error:', pubnubError);
@@ -374,15 +351,12 @@ export default function Dashboard() {
     }
   }, [selectedChannel, isSubscribed]);
 
-  // Fix the useEffect that triggers the initial message fetch
   useEffect(() => {
     if (!isClient || !selectedChannel) return;
     
-    // Only fetch messages if we haven't cached them yet (even empty arrays)
     if (messages[selectedChannel] === undefined) {
       fetchMessagesFromApi(false);
     } else {
-      // Still scroll to bottom if messages exist
       setTimeout(scrollToBottom, 100);
     }
   }, [selectedChannel, fetchMessagesFromApi, isClient, messages, scrollToBottom]);
@@ -470,7 +444,6 @@ export default function Dashboard() {
     } catch (error) {
       console.error('Failed to send message:', error);
       
-      // Update the optimistic message to show error state
       if (isClient) {
         setMessages(prev => {
           const updatedChannelMessages = prev[selectedChannel].map(msg => 
