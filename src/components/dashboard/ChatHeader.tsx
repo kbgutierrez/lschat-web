@@ -112,7 +112,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
           <button
             ref={buttonRef}
             onClick={toggleUserMenu}
-            className="flex items-center space-x-2 p-1.5 rounded-full hover:bg-violet-50 dark:hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-violet-500"
+            className="flex items-center hover:cursor-pointer space-x-2 p-1.5 rounded-full hover:bg-violet-50 dark:hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-violet-500"
           >
             {/* Update user avatar to match contact avatar style */}
             <div className="w-9 h-9 pt-0.5 rounded-full bg-violet-200 dark:bg-violet-900 flex items-center justify-center text-violet-700 dark:text-violet-300 text-sm font-medium">
@@ -132,7 +132,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                 </p>
               )}
             </div>
-            <svg className="w-4 h-4 hover:cursor-grab text-gray-500 dark:text-gray-400 hidden md:block" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className="w-4 h-4  text-gray-500 dark:text-gray-400 hidden md:block" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
             </svg>
           </button>
