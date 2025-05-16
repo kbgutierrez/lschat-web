@@ -52,7 +52,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       style={{ minHeight: '100%' }}
     >
       <div className="h-16 flex items-center justify-between px-4 border-b border-white/10 dark:border-gray-700/50">
-        <div className="flex items-center p-2 border-s-fuchsia-300 border-y-teal-800  border-l-4 border-b-2 rounded-lg">
+        <div className="flex items-center">
           <div className="w-10 h-10 relative">
             <Image
               src="/images/logo-no-label.png"
