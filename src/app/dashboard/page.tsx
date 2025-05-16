@@ -186,30 +186,41 @@ export default function Dashboard() {
   const fetchMessagesFromApi = useCallback(async (skipCache = false, messageData?: any) => {
     if (!selectedChannel || !user || !isMounted) return;
 
-    if (messageData) {
-      setLastPubnubMessage(messageData);
-    }
-
     const now = Date.now();
     const lastFetch = fetchTimestampRef.current[selectedChannel] || 0;
-    const minInterval = 5000;
-
-    if (!skipCache && (now - lastFetch < minInterval)) {
-      console.log(`Skipping fetch for ${selectedChannel} - last fetch was ${(now - lastFetch) / 1000}s ago`);
-      return;
-    }
-
-    if (!skipCache && messages[selectedChannel] !== undefined) {
-      setTimeout(scrollToBottom, 100);
-      return;
-    }
+    const timeSinceLastFetch = now - lastFetch;
     
-    setLoadingMessages(true);
+    const isMessageNotification = messageData && 
+      typeof messageData === 'object' && 
+      (messageData.type === 'NEW_MESSAGE' || messageData.type === 'new_message' || 
+       messageData.action === 'new_message');
+    
+    console.log(`[Message Check] Channel: ${selectedChannel}, Is notification: ${isMessageNotification}, ` + 
+      `Last fetch: ${timeSinceLastFetch}ms ago, Skip cache: ${skipCache}`);
+    
+    if (isMessageNotification) {
+      console.log('🔥 Notification received - FORCING message fetch');
+      
+      if (messagesAPI.invalidateCache) {
+        messagesAPI.invalidateCache(selectedChannel);
+      }
+      
+    } 
+    else if (!skipCache && timeSinceLastFetch < 1000) {
+      console.log(`Throttling regular fetch - last fetch was ${timeSinceLastFetch}ms ago`);
+      return;
+    }
+
+    const hasExistingMessages = messages[selectedChannel]?.length > 0;
+    if (!hasExistingMessages) {
+      setLoadingMessages(true);
+    }
     setMessageError(null);
 
     try {
       fetchTimestampRef.current[selectedChannel] = now;
       
+      console.log(`📥 Fetching messages for channel: ${selectedChannel}`);
       const chatMessages = await messagesAPI.getChatMessages(selectedChannel);
       
       if (!isMounted) return;
@@ -232,12 +243,21 @@ export default function Dashboard() {
         isRead: msg.is_read
       }));
       
-      setMessages(prev => ({
-        ...prev,
-        [selectedChannel]: formattedMessages
-      }));
+      const currentMessages = messages[selectedChannel] || [];
+      if (currentMessages.length !== formattedMessages.length || 
+          JSON.stringify(currentMessages.map(m => m.id)) !== 
+          JSON.stringify(formattedMessages.map(m => m.id))) {
+        
+        console.log(`📨 Received ${formattedMessages.length} messages, updating state`);
+        setMessages(prev => ({
+          ...prev,
+          [selectedChannel]: formattedMessages
+        }));
 
-      setTimeout(scrollToBottom, 100);
+        setTimeout(scrollToBottom, 100);
+      } else {
+        console.log('📊 No new messages detected, skipping update');
+      }
     } catch (error) {
       if (!isMounted) return;
       setMessageError(
@@ -295,6 +315,25 @@ export default function Dashboard() {
     fetchMessagesFromApi,
     handleTypingIndicator
   );
+
+  useEffect(() => {
+    if (lastMessage && selectedChannel) {
+      console.log('PubNub message received in dashboard:', lastMessage);
+      
+      const isMessageNotification = 
+        typeof lastMessage === 'object' && 
+        (lastMessage.type === 'NEW_MESSAGE' || lastMessage.type === 'new_message' || 
+         lastMessage.action === 'new_message');
+      
+      if (isMessageNotification) {
+        console.log('⚡ IMPORTANT: Message notification received - triggering immediate fetch');
+        
+        if (isMounted) {
+          fetchMessagesFromApi(true, lastMessage);
+        }
+      }
+    }
+  }, [lastMessage, selectedChannel, fetchMessagesFromApi, isMounted]);
 
   useEffect(() => {
     if (!selectedContact) return;

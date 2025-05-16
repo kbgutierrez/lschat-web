@@ -123,11 +123,9 @@ export const authAPI = {
   }
 };
 
-// User-related API calls
 export const userAPI = {
   getProfile: (): Promise<any> => {
-    return fetchAPI('/api/userProfile', {}, true); // true enables auth header
-  },
+    return fetchAPI('/api/userProfile', {}, true);  },
   
   updateProfile: (profileData: any): Promise<any> => {
     return fetchAPI('/api/userProfile', {
@@ -170,9 +168,13 @@ export const contactsAPI = {
 
 import { publishMessage, formatMessageForPubNub } from './pubnub';
 
-// Add a simple in-memory cache for chat messages
-const messageCache: Record<string, {data: ChatMessage[], timestamp: number}> = {};
-const MESSAGE_CACHE_TTL = 30000; // 30 seconds cache TTL
+const messageCache: Record<string, {
+  data: ChatMessage[],
+  timestamp: number,
+  messageIds: Set<number | string>
+}> = {};
+
+const MESSAGE_CACHE_TTL = 5000;
 
 export const messagesAPI = {
   getChatMessages: async (channelToken: string): Promise<ChatMessage[]> => {
@@ -180,24 +182,36 @@ export const messagesAPI = {
       throw new Error('Channel token is required to fetch messages');
     }
     
-    // Check if we have a valid cache
     const now = Date.now();
     const cachedData = messageCache[channelToken];
+    
     if (cachedData && now - cachedData.timestamp < MESSAGE_CACHE_TTL) {
-      console.log(`Using cached messages for channel ${channelToken}`);
+      console.log(`Using cached messages for channel ${channelToken} - ` + 
+        `cache age: ${Math.round((now - cachedData.timestamp)/1000)}s`);
       return cachedData.data;
     }
     
-    console.log(`Fetching chat messages for channel: ${channelToken}`);
+    console.log(`🌐 Fetching chat messages for channel: ${channelToken}`);
     
     try {
       const response = await fetchAPI<ChatMessage[]>(`/api/chatMessages/${channelToken}`, {}, true);
-      console.log(`Retrieved ${response.length} messages from channel ${channelToken}`);
+      console.log(`📥 Retrieved ${response.length} messages from channel ${channelToken}`);
       
-      // Cache the result for future calls
+      let hasNewMessages = true;
+      if (cachedData) {
+        const newMessageIds = new Set(response.map(msg => msg.message_id));
+        hasNewMessages = newMessageIds.size !== cachedData.messageIds.size ||
+          response.some(msg => !cachedData.messageIds.has(msg.message_id));
+      }
+      
+      if (hasNewMessages) {
+        console.log(`💬 New messages detected in channel ${channelToken}`);
+      }
+      
       messageCache[channelToken] = {
         data: response,
-        timestamp: now
+        timestamp: now,
+        messageIds: new Set(response.map(msg => msg.message_id))
       };
       
       return response;
@@ -212,6 +226,13 @@ export const messagesAPI = {
     }
   },
   
+  invalidateCache: (channelToken: string): void => {
+    if (channelToken && messageCache[channelToken]) {
+      delete messageCache[channelToken];
+      console.log(`Cache invalidated for channel ${channelToken}`);
+    }
+  },
+  
   sendMessage: async (channelToken: string, content: string, file?: File): Promise<ChatMessage> => {
     if (!channelToken) {
       throw new Error('Channel token is required to send a message');
@@ -223,21 +244,17 @@ export const messagesAPI = {
       
       const userId = userData?.user_id || 'unknown';
       
-      // Create FormData for multipart/form-data request (required for file uploads)
       const formData = new FormData();
       formData.append('user_id', userId.toString());
       formData.append('message_content', content);
       formData.append('token', channelToken);
       
-      // Add file if it exists
       if (file) {
         formData.append('file', file);
       }
       
-      // Prepare headers - don't set Content-Type as it will be automatically set with boundary
       const headers: HeadersInit = middleware.addAuthHeader({});
       
-      // Send request to backend
       const url = `${API_BASE_URL}/api/sendMessage`;
       const response = await fetch(url, {
         method: 'POST',
@@ -252,20 +269,24 @@ export const messagesAPI = {
       
       const data = await response.json();
       
-      // After successful API call, publish to PubNub to notify other clients
       try {
-        // Send a small notification message - enough to trigger refresh
+        const uniqueId = `${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+        
         await publishMessage(
           channelToken, 
           {
+            type: 'NEW_MESSAGE',
             action: 'new_message',
             sender: userId,
-            timestamp: new Date().toISOString()
+            timestamp: Date.now(),
+            notification_id: uniqueId
           },
           userId.toString()
         );
+        
+        messagesAPI.invalidateCache(channelToken);
+        
       } catch (pubnubError) {
-        // Just log the error - API already succeeded
         console.error('Failed to send PubNub notification:', pubnubError);
       }
       

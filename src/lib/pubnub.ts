@@ -33,13 +33,34 @@ export function getPubNub(userId?: string): PubNub {
       publishKey: pubnubConfig.publishKey as string,
       subscribeKey: pubnubConfig.subscribeKey as string, 
       userId: userId || `user-${uuidv4()}`,
-      logVerbosity: false,
-      heartbeatInterval: 30,
-      presenceTimeout: 60,
+      logVerbosity: true,
+      heartbeatInterval: 10,
+      presenceTimeout: 30,
       keepAlive: true,
       suppressLeaveEvents: false,
+      requestMessageCountThreshold: 100,
+      restore: true,
+      maximumCacheSize: 100,
+      fileMessagePublishRetryLimit: 5,
+      retryConfiguration: {
+        maximumRetry: 5,
+        retryInterval: 2
+      }
     });
+    
+    pubnubInstance.addListener({
+      status: (status) => {
+        if (status.category === 'PNNetworkIssuesCategory' || 
+            status.category === 'PNNetworkDownCategory') {
+          console.error('PubNub network issue detected:', status);
+        }
+      },
+      message: () => {},
+    });
+    
+    console.log('PubNub initialized with ID:', userId || 'default');
   } else if (userId && pubnubInstance.getUUID() !== userId) {
+    console.log('Updating PubNub userId to:', userId);
     pubnubInstance.setUUID(userId);
   }
 
@@ -54,15 +75,25 @@ export async function publishMessage(
   const pubnub = getPubNub(userId);
   
   try {
+    const enhancedMessage = {
+      ...message,
+      _id: `${Date.now()}_${Math.random().toString(36).slice(2, 11)}`,
+      _timestamp: Date.now()
+    };
+    
+    console.log(`📤 Publishing to channel ${channel}:`, enhancedMessage);
+    
     return await pubnub.publish({
       channel,
-      message,
+      message: enhancedMessage,
+      ttl: 360,
       meta: {
         sender_id: userId || 'anonymous',
         timestamp: new Date().toISOString(),
       }
     });
   } catch (error) {
+    console.error(`Error publishing message to channel ${channel}:`, error);
     throw error;
   }
 }
@@ -105,11 +136,32 @@ export function subscribeToChannels(
   
   newChannels.forEach(channel => subscribedChannels.add(channel));
   
-  pubnub.addListener(listener);
+  const enhancedListener: PubNub.ListenerParameters = {
+    ...listener,
+    status: (statusEvent) => {
+      console.log(`[PubNub Status] ${statusEvent.category} on channels:`, 
+                 statusEvent.affectedChannels || 'all');
+      
+      if (statusEvent.category === 'PNNetworkDownCategory' || 
+          statusEvent.category === 'PNTimeoutCategory' ||
+          statusEvent.category === 'PNNetworkIssuesCategory') {
+        console.error('PubNub connection issue, will attempt reconnection');
+      }
+      
+      if (listener.status) listener.status(statusEvent);
+    }
+  };
   
+  pubnub.addListener(enhancedListener);
+  
+  console.log(`Subscribing to channels with URGENCY:`, newChannels);
   pubnub.subscribe({
     channels: newChannels,
     withPresence: true,
+    withTimetoken: true,
+    
+    filterExpression: "uuid != '" + (userId || 'none') + "'",
+    subscribeRequestTimeout: 10,
   });
 }
 
@@ -191,9 +243,6 @@ export function formatMessageForPubNub(
   };
 }
 
-/**
- * Format the last seen timestamp into a human-readable format
- */
 export function formatLastSeen(timestamp: string | null | undefined): string {
   if (!timestamp) return 'Unknown';
   
