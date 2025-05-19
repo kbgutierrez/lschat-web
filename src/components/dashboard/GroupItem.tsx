@@ -52,9 +52,7 @@ export const GroupItem: React.FC<GroupItemProps> = ({
               </span>
             )}
           </span>
-          <span className="text-xs text-white/70 dark:text-gray-400 ml-1 whitespace-nowrap">
-            {group.lastMessageTime || new Date(group.created_at).toLocaleDateString()}
-          </span>
+     
         </div>
         <div className="flex items-center justify-between w-full mt-1">
           <span className="text-sm text-white/70 dark:text-gray-400 truncate max-w-[95%]">

@@ -3,7 +3,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { User } from '@/lib/clientUtils';
-import { getInitials } from './ContactItem'; 
+import { getInitials } from '@/utils/initials';
+import { Group } from '@/lib/groupsApi';
 
 type ContactDetails = {
   id: string;
@@ -16,9 +17,10 @@ type ContactDetails = {
 interface ChatHeaderProps {
   user: User;
   contactDetails: ContactDetails | null;
+  groupDetails: Group | null;  // Add this line
   onToggleSidebar: () => void;
   onLogout: () => void;
-  onOpenProfileModal: () => void; // Add this new prop
+  onOpenProfileModal: () => void;
   channelId?: string | null;
   pubnubConnected?: boolean;
   lastMessage?: any;
@@ -26,10 +28,11 @@ interface ChatHeaderProps {
 
 export const ChatHeader: React.FC<ChatHeaderProps> = ({ 
   user, 
-  contactDetails, 
+  contactDetails,
+  groupDetails,  // Add this line
   onToggleSidebar, 
   onLogout,
-  onOpenProfileModal, // Add this new prop
+  onOpenProfileModal,
   channelId,
   pubnubConnected,
   lastMessage
@@ -65,7 +68,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
 
   return (
     <header className="h-16 flex items-center justify-between px-4 border-b border-violet-100 dark:border-gray-800 bg-white dark:bg-gray-900 z-10">
-      {/* Left side - Contact info */}
+      {/* Left side - Contact/Group info */}
       <div className="flex items-center space-x-3">
         <button 
           className="md:hidden p-2 rounded-md hover:bg-violet-50 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300"
@@ -93,6 +96,26 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                 {contactDetails.status === 'online' 
                   ? 'Online now' 
                   : `Last seen ${contactDetails.lastSeen}`}
+              </p>
+            </div>
+          </div>
+        ) : groupDetails ? (
+          <div className="flex items-center space-x-3">
+            <div className="relative">
+              <div className="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center text-white text-lg font-bold">
+                {getInitials(groupDetails.name)}
+              </div>
+              {/* Removed the misleading online status indicator for groups */}
+            </div>
+            <div>
+              <h2 className="text-base font-semibold text-gray-900 dark:text-white flex items-center">
+                {groupDetails.name}
+                {groupDetails.role === 'admin' && (
+                  <span className="ml-2 text-xs bg-blue-500 text-white px-2 py-0.5 rounded">Admin</span>
+                )}
+              </h2>
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                {groupDetails.description || 'Group Chat'}
               </p>
             </div>
           </div>

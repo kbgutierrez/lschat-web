@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { contactsAPI, ContactListItem, messagesAPI } from '@/lib/api';
-import { groupsAPI, Group } from '@/lib/groupsApi';
+import { Group, GroupMessage, groupsAPI } from '@/lib/groupsApi';
 import { useIsClient, getUserFromLocalStorage, User } from '@/lib/clientUtils';
 import { Sidebar } from '@/components/dashboard/Sidebar';
 import { ChatHeader } from '@/components/dashboard/ChatHeader';
@@ -15,6 +15,8 @@ import { usePubnubTrigger } from '@/hooks/usePubnubTrigger';
 import { PubnubStatus } from '@/components/dashboard/PubnubStatus';
 import { publishTypingIndicator } from '@/lib/pubnub';
 import ProfileManagementModal from '@/components/dashboard/ProfileManagementModal';
+import { GroupMessageList } from '@/components/dashboard/GroupMessageList';
+import { MessageInput } from '@/components/chat/MessageInput';
 
 type TabType = 'chats' | 'groups' | 'contacts';
 
@@ -30,6 +32,7 @@ export default function Dashboard() {
   const isClient = useIsClient();
   const router = useRouter();
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   
   const [selectedContact, setSelectedContact] = useState<string | null>(null);
   const [selectedContactDetails, setSelectedContactDetails] = useState<ContactDetails | null>(null);
@@ -67,6 +70,10 @@ export default function Dashboard() {
   const [groupError, setGroupError] = useState<string | null>(null);
 
   const [selectedGroup, setSelectedGroup] = useState<number | null>(null);
+  const [groupMessages, setGroupMessages] = useState<Record<number, GroupMessage[]>>({});
+  const [loadingGroupMessages, setLoadingGroupMessages] = useState(false);
+  const [groupMessageError, setGroupMessageError] = useState<string | null>(null);
+  const [selectedGroupDetails, setSelectedGroupDetails] = useState<Group | null>(null);
 
   const scrollToBottom = useCallback(() => {
     if (!messagesEndRef.current) return;
@@ -127,7 +134,8 @@ export default function Dashboard() {
 
         setContacts(contactList);
 
-        if (contactList.length > 0 && !selectedContact) {
+        // Only auto-select a contact if no contact is selected AND no group is selected
+        if (contactList.length > 0 && !selectedContact && !selectedGroup) {
           setSelectedContact(contactList[0].contact_id.toString());
           setSelectedContactDetails({
             id: contactList[0].contact_id.toString(),
@@ -146,7 +154,7 @@ export default function Dashboard() {
     };
 
     fetchContacts();
-  }, [user, isClient, selectedContact]);
+  }, [user, isClient, selectedContact, selectedGroup]); // Add selectedGroup as a dependency
 
   useEffect(() => {
     if (!isClient || !selectedContact) return;
@@ -402,6 +410,7 @@ export default function Dashboard() {
 
   const handleContactSelect = (id: string) => {
     setSelectedContact(id);
+    setSelectedGroup(null); // Clear selected group when a contact is selected
     const contactDetails = contacts.find(contact => contact.contact_id.toString() === id);
     if (contactDetails) {
       setSelectedContactDetails({
@@ -417,9 +426,117 @@ export default function Dashboard() {
 
   const handleGroupSelect = (id: number) => {
     setSelectedGroup(id);
-    // Add any additional logic for when a group is selected
+    setSelectedContact(null); // Clear selected contact when a group is selected
+    setSelectedChannel(null); // Clear selected channel to prevent PubNub issues
     setIsMobileSidebarOpen(false);
   };
+
+  const fetchGroupMessagesFromApi = useCallback(async (skipCache = false) => {
+    if (!selectedGroup || !user || !isMounted) return;
+
+    const now = Date.now();
+    const lastFetch = fetchTimestampRef.current[`group-${selectedGroup}`] || 0;
+    const timeSinceLastFetch = now - lastFetch;
+    
+    if (!skipCache && timeSinceLastFetch < 1000) {
+      console.log(`Throttling group messages fetch - last fetch was ${timeSinceLastFetch}ms ago`);
+      return;
+    }
+
+    const hasExistingMessages = groupMessages[selectedGroup]?.length > 0;
+    if (!hasExistingMessages) {
+      setLoadingGroupMessages(true);
+    }
+    setGroupMessageError(null);
+
+    try {
+      fetchTimestampRef.current[`group-${selectedGroup}`] = now;
+      
+      console.log(`📥 Fetching messages for group: ${selectedGroup}`);
+      const messages = await groupsAPI.getGroupMessages(selectedGroup);
+      
+      if (!isMounted) return;
+      
+      setGroupMessages(prev => ({
+        ...prev,
+        [selectedGroup]: messages
+      }));
+
+      setTimeout(scrollToBottom, 100);
+    } catch (error) {
+      if (!isMounted) return;
+      setGroupMessageError(
+        error instanceof Error 
+          ? error.message 
+          : 'Failed to load group messages'
+      );
+    } finally {
+      if (isMounted) {
+        setLoadingGroupMessages(false);
+      }
+    }
+  }, [selectedGroup, user, isMounted, scrollToBottom]);
+
+  useEffect(() => {
+    if (!isClient || !selectedGroup) return;
+    
+    // Find the selected group details
+    const groupDetails = groups.find(g => g.group_id === selectedGroup);
+    if (groupDetails) {
+      setSelectedGroupDetails(groupDetails);
+    }
+    
+    if (groupMessages[selectedGroup] === undefined) {
+      fetchGroupMessagesFromApi(false);
+    } else {
+      setTimeout(scrollToBottom, 100);
+    }
+  }, [selectedGroup, fetchGroupMessagesFromApi, isClient, groups, groupMessages, scrollToBottom]);
+
+  const handleRetryLoadGroupMessages = useCallback(() => {
+    if (selectedGroup) {
+      fetchGroupMessagesFromApi(true);
+    }
+  }, [selectedGroup, fetchGroupMessagesFromApi]);
+
+  const handleSendGroupMessage = useCallback(async (message: string, file?: File) => {
+    if ((!message.trim() && !file) || !selectedGroup || !user) return;
+
+    try {
+      const optimisticMsg: GroupMessage = {
+        id: Date.now(), // Temporary ID
+        sender_id: Number(user.user_id),
+        sender_name: `${user.firstName} ${user.lastName}`.trim() || user.username || 'Me',
+        message: message,
+        created_at: new Date().toISOString()
+      };
+
+      setGroupMessages(prev => ({
+        ...prev,
+        [selectedGroup]: [...(prev[selectedGroup] || []), optimisticMsg]
+      }));
+      
+      setTimeout(scrollToBottom, 100);
+
+      // Send the actual message
+     
+
+      // Update with the server response
+      setGroupMessages(prev => {
+        const messages = [...(prev[selectedGroup] || [])];
+        const index = messages.findIndex(m => m.id === optimisticMsg.id);
+   
+        return {
+          ...prev,
+          [selectedGroup]: messages
+        };
+      });
+      
+    } catch (error) {
+      console.error('Failed to send group message:', error);
+      // Handle the error if needed
+    }
+  }, [selectedGroup, user, scrollToBottom]);
 
   const handleSendMessage = useCallback(async (message: string, file?: File) => {
     if ((!message.trim() && !file) || !selectedChannel || !user) return;
@@ -496,6 +613,20 @@ export default function Dashboard() {
   const handleTabChange = useCallback((tab: TabType) => {
     if (tab !== activeTab) {
       setActiveTab(tab);
+      
+      // When switching tabs, ensure the appropriate content is shown
+      if (tab === 'chats') {
+        // When switching to chats tab, select first contact if available
+        if (contacts.length > 0) {
+          handleContactSelect(contacts[0].contact_id.toString());
+        }
+      } else if (tab === 'groups') {
+        // When switching to groups tab, select first group if available
+        if (groups.length > 0) {
+          handleGroupSelect(groups[0].group_id);
+        }
+      }
+      
       if (!tabsVisited[tab]) {
         setTabsVisited(prev => ({
           ...prev,
@@ -503,7 +634,7 @@ export default function Dashboard() {
         }));
       }
     }
-  }, [activeTab, tabsVisited]);
+  }, [activeTab, tabsVisited, contacts, groups, handleContactSelect, handleGroupSelect]);
 
   const handleRetryLoadMessages = useCallback(() => {
     if (selectedChannel) {
@@ -593,7 +724,8 @@ export default function Dashboard() {
       <main className="flex-1 flex flex-col h-full w-full">
         <ChatHeader 
           user={user}
-          contactDetails={selectedContactDetails}
+          contactDetails={selectedContact ? selectedContactDetails : null}
+          groupDetails={selectedGroup ? selectedGroupDetails : null}
           onToggleSidebar={() => setIsMobileSidebarOpen(true)}
           onLogout={handleLogout}
           onOpenProfileModal={handleOpenProfileModal}
@@ -627,6 +759,48 @@ export default function Dashboard() {
               selectedChannel={selectedChannel}
               isTyping={isContactTyping}
             />
+          ) : selectedGroup ? (
+            <div className="flex-1 flex flex-col bg-violet-50 dark:bg-gray-950 overflow-hidden">
+              <div 
+                ref={containerRef}
+                className="chat-messages-container flex-1 overflow-y-auto no-scrollbar" 
+                style={{ 
+                  height: "calc(100% - 80px)", 
+                  display: "flex",
+                  flexDirection: "column",
+                  scrollBehavior: "auto"
+                }}
+              >
+                <div className="p-4 space-y-3 flex-1"> 
+                  <div className="flex justify-center my-4">
+                    <div className="px-3 py-1 bg-violet-100 dark:bg-gray-800 rounded-full">
+                      <span className="text-xs text-black dark:text-gray-400">
+                        {selectedGroupDetails?.name || 'Group Chat'}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="relative min-h-[200px]">
+                    <GroupMessageList 
+                      messages={groupMessages[selectedGroup] || []}
+                      groupName={selectedGroupDetails?.name || 'Group'}
+                      isLoading={loadingGroupMessages}
+                      error={groupMessageError}
+                      onRetry={handleRetryLoadGroupMessages}
+                      endRef={messagesEndRef}
+                      currentUserId={user?.user_id}
+                    />
+                  </div>
+                  
+                  <div ref={messagesEndRef} className="h-1" />
+                </div>
+              </div>
+
+              <MessageInput 
+                onSendMessage={handleSendGroupMessage}
+                disabled={!selectedGroup}
+              />
+            </div>
           ) : (
             <EmptyState />
           )}
