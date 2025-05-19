@@ -22,6 +22,8 @@ interface SidebarProps {
   apiError: string | null;
   loadingGroups: boolean;
   groupError: string | null;
+  selectedGroup: number | null;
+  handleGroupSelect: (id: number) => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -36,7 +38,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
   loadingContacts,
   apiError,
   loadingGroups,
-  groupError
+  groupError,
+  selectedGroup,
+  handleGroupSelect
 }) => {
   const handleTabChange = useCallback((tab: TabType) => {
     if (tab !== activeTab) {
@@ -174,51 +178,49 @@ export const Sidebar: React.FC<SidebarProps> = ({
           )}
         </div>
       
-        {activeTab === 'groups' && (
-          <div className="flex-1 overflow-y-auto">
-            {loadingGroups ? (
-              <div className="p-4 space-y-3">
-                {[...Array(3)].map((_, i) => (
-                  <div key={i} className="flex items-center animate-pulse">
-                    <div className="w-12 h-12 rounded-full bg-gray-200 dark:bg-gray-700 mr-3"></div>
-                    <div className="flex-1">
-                      <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4 mb-2"></div>
-                      <div className="h-3 bg-gray-100 dark:bg-gray-800 rounded w-1/2"></div>
-                    </div>
+        <div className={`space-y-1 px-2 ${activeTab === 'groups' ? 'block' : 'hidden'}`}>
+          {loadingGroups ? (
+            <div className="p-4 space-y-3">
+              {[...Array(3)].map((_, i) => (
+                <div key={i} className="flex items-center animate-pulse">
+                  <div className="w-12 h-12 rounded-full bg-gray-200 dark:bg-gray-700 mr-3"></div>
+                  <div className="flex-1">
+                    <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4 mb-2"></div>
+                    <div className="h-3 bg-gray-100 dark:bg-gray-800 rounded w-1/2"></div>
                   </div>
-                ))}
-              </div>
-            ) : groupError ? (
-              <div className="p-4 text-center">
-                <div className="text-red-500 mb-2">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
                 </div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">{groupError}</p>
-                <button 
-                  className="mt-2 text-xs text-violet-600 hover:text-violet-700 dark:text-violet-400 dark:hover:text-violet-300"
-                  onClick={() => window.location.reload()}
-                >
-                  Try again
-                </button>
+              ))}
+            </div>
+          ) : groupError ? (
+            <div className="p-4 text-center">
+              <div className="text-red-500 mb-2">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
               </div>
-            ) : groups.length === 0 ? (
-              <div className="p-4 text-center text-gray-500 dark:text-gray-400 text-sm">
-                No groups found
-              </div>
-            ) : (
-              groups.map((group) => (
-                <GroupItem 
-                  key={group.group_id}
-                  group={group}
-                  isActive={false} // You'll need to add group selection state logic
-                  onClick={() => console.log('Group clicked:', group.group_id)} // Add your group selection handler
-                />
-              ))
-            )}
-          </div>
-        )}
+              <p className="text-sm text-gray-600 dark:text-gray-400">{groupError}</p>
+              <button 
+                className="mt-2 text-xs text-violet-600 hover:text-violet-700 dark:text-violet-400 dark:hover:text-violet-300"
+                onClick={() => window.location.reload()}
+              >
+                Try again
+              </button>
+            </div>
+          ) : groups.length === 0 ? (
+            <div className="p-4 text-center text-gray-500 dark:text-gray-400 text-sm">
+              No groups found
+            </div>
+          ) : (
+            groups.map((group) => (
+              <GroupItem 
+                key={group.group_id}
+                group={group}
+                isSelected={selectedGroup === group.group_id}
+                onSelect={handleGroupSelect}
+              />
+            ))
+          )}
+        </div>
       
         <div className={`space-y-1 px-2 ${activeTab === 'contacts' ? 'block' : 'hidden'}`}>
           {loadingContacts ? (

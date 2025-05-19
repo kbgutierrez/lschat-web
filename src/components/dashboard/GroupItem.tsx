@@ -17,49 +17,51 @@ export interface GroupData {
 
 interface GroupItemProps {
   group: GroupData;
-  isActive: boolean;
-  onClick: (id: number) => void;
-  isSelected?: boolean;
-  onSelect?: (id: number) => void;
+  isSelected: boolean; // Changed from isActive to isSelected
+  onSelect: (id: number) => void; // Changed from onClick to onSelect
 }
 
 export const GroupItem: React.FC<GroupItemProps> = ({ 
   group, 
-  isActive, 
-  onClick 
+  isSelected, // Changed from isActive to isSelected
+  onSelect  // Changed from onClick to onSelect
 }) => {
   return (
-    <div
+    <button
       className={cn(
-        "flex items-center p-3 cursor-pointer transition-colors",
-        isActive ? "bg-violet-100 dark:bg-gray-800" : "hover:bg-violet-50 dark:hover:bg-gray-800/50"
+        "w-full flex items-center p-3 rounded-lg transition-colors duration-200 mb-1",
+        isSelected  // Changed from isActive to isSelected
+          ? "bg-white/20 dark:bg-violet-900/30" 
+          : "hover:bg-white/10 dark:hover:bg-gray-800/50"
       )}
-      onClick={() => onClick(group.group_id)}
+      onClick={() => onSelect(group.group_id)} // Changed from onClick to onSelect
     >
-      <div className="relative mr-3">
-        <div className="w-12 h-12 rounded-full bg-violet-200 dark:bg-violet-900 flex items-center justify-center text-violet-700 dark:text-violet-300 text-lg font-bold">
-          {getInitials(group.name)}
+      <div className="relative flex-shrink-0">
+        <div className="w-12 h-12 rounded-full flex items-center justify-center bg-blue-500">
+          <span className="text-base font-medium text-white">{getInitials(group.name)}</span>
         </div>
       </div>
       
-      <div className="flex-1 min-w-0">
-        <div className="flex justify-between items-baseline">
-          <h3 className="font-medium text-gray-900 dark:text-white truncate">
+      <div className="ml-3 flex-1 flex flex-col items-start text-left overflow-hidden">
+        <div className="flex items-center justify-between w-full">
+          <span className="font-medium text-white dark:text-white truncate">
             {group.name}
             {group.role === 'admin' && (
-              <span className="ml-1 text-xs bg-violet-100 dark:bg-violet-900/50 text-violet-800 dark:text-violet-300 px-1.5 py-0.5 rounded">
+              <span className="ml-1 text-xs bg-blue-600/30 dark:bg-blue-900/50 text-blue-100 dark:text-blue-300 px-1.5 py-0.5 rounded">
                 Admin
               </span>
             )}
-          </h3>
-          <span className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap ml-1">
+          </span>
+          <span className="text-xs text-white/70 dark:text-gray-400 ml-1 whitespace-nowrap">
             {group.lastMessageTime || new Date(group.created_at).toLocaleDateString()}
           </span>
         </div>
-        <p className="text-sm text-gray-500 dark:text-gray-400 truncate">
-          {group.lastMessage || group.description || 'No description'}
-        </p>
+        <div className="flex items-center justify-between w-full mt-1">
+          <span className="text-sm text-white/70 dark:text-gray-400 truncate max-w-[95%]">
+            {group.lastMessage || group.description || 'No description'}
+          </span>
+        </div>
       </div>
-    </div>
+    </button>
   );
 };

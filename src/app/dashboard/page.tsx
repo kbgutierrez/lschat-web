@@ -66,6 +66,8 @@ export default function Dashboard() {
   const [loadingGroups, setLoadingGroups] = useState(false);
   const [groupError, setGroupError] = useState<string | null>(null);
 
+  const [selectedGroup, setSelectedGroup] = useState<number | null>(null);
+
   const scrollToBottom = useCallback(() => {
     if (!messagesEndRef.current) return;
     
@@ -413,6 +415,12 @@ export default function Dashboard() {
     setIsMobileSidebarOpen(false);
   };
 
+  const handleGroupSelect = (id: number) => {
+    setSelectedGroup(id);
+    // Add any additional logic for when a group is selected
+    setIsMobileSidebarOpen(false);
+  };
+
   const handleSendMessage = useCallback(async (message: string, file?: File) => {
     if ((!message.trim() && !file) || !selectedChannel || !user) return;
 
@@ -566,7 +574,9 @@ export default function Dashboard() {
         activeTab={activeTab}
         setActiveTab={handleTabChange}
         selectedContact={selectedContact}
+        selectedGroup={selectedGroup}
         handleContactSelect={handleContactSelect}
+        handleGroupSelect={handleGroupSelect}
         loadingContacts={loadingContacts}
         loadingGroups={loadingGroups}
         apiError={apiError}
