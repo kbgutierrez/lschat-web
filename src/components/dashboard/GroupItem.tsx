@@ -17,24 +17,24 @@ export interface GroupData {
 
 interface GroupItemProps {
   group: GroupData;
-  isSelected: boolean; // Changed from isActive to isSelected
-  onSelect: (id: number) => void; // Changed from onClick to onSelect
+  isSelected: boolean;
+  onSelect: (id: number) => void;
 }
 
 export const GroupItem: React.FC<GroupItemProps> = ({ 
   group, 
-  isSelected, // Changed from isActive to isSelected
-  onSelect  // Changed from onClick to onSelect
+  isSelected,
+  onSelect
 }) => {
   return (
     <button
       className={cn(
         "w-full flex items-center p-3 rounded-lg transition-colors duration-200 mb-1",
-        isSelected  // Changed from isActive to isSelected
+        isSelected
           ? "bg-white/20 dark:bg-violet-900/30" 
           : "hover:bg-white/10 dark:hover:bg-gray-800/50"
       )}
-      onClick={() => onSelect(group.group_id)} // Changed from onClick to onSelect
+      onClick={() => onSelect(group.group_id)}
     >
       <div className="relative flex-shrink-0">
         <div className="w-12 h-12 rounded-full flex items-center justify-center bg-blue-500">

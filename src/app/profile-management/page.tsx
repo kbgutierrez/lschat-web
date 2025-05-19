@@ -31,12 +31,8 @@ export default function ProfileManagement() {
         if (userSessionStr) {
           const userSession = JSON.parse(userSessionStr);
           
-          console.log('User session data:', userSession);
-          console.log('User object:', userSession.user);
-          
           setCurrentUser(userSession.user);
           
-        
           setProfileData({
             firstName: userSession.user.firstName || '',
             middleName: userSession.user.middleName || '', 
@@ -48,10 +44,7 @@ export default function ProfileManagement() {
             confirmPassword: '',
           });
 
-         
-          console.log('Available user fields:', Object.keys(userSession.user));
         } else {
-          // If no user session, redirect to login
           router.push('/auth');
         }
       } catch (error) {
@@ -78,7 +71,6 @@ export default function ProfileManagement() {
   const validateProfile = () => {
     const errors: Record<string, string> = {};
 
-    // Basic validations
     if (!profileData.firstName.trim()) {
       errors.firstName = 'First name is required';
     }
@@ -103,7 +95,6 @@ export default function ProfileManagement() {
       errors.mobileNumber = 'Mobile number is invalid';
     }
 
-    // Password validation - only if password field is not empty
     if (profileData.password) {
       if (profileData.password.length < 6) {
         errors.password = 'Password must be at least 6 characters';
@@ -123,7 +114,6 @@ export default function ProfileManagement() {
 
     if (!validateProfile()) return;
     if (!currentUser?.user_id) {
-      console.log('Current user data:', currentUser); // Log the current user data to see what's missing
       setProfileErrors({ form: 'User ID not found. Please login again.' });
       return;
     }
@@ -131,7 +121,6 @@ export default function ProfileManagement() {
     setIsLoading(true);
 
     try {
-      // Get current password from session if needed
       const userSessionStr = localStorage.getItem('userSession');
       let currentPassword = '';
       
@@ -140,7 +129,6 @@ export default function ProfileManagement() {
         currentPassword = userSession.user.password || '';
       }
       
-      // Use current password from session if no new password is provided
       const dataToSubmit = {
         ...profileData,
         password: profileData.password || currentPassword
@@ -152,10 +140,8 @@ export default function ProfileManagement() {
       );
 
       if (response.success) {
-        // Show success message
         setShowSuccessMessage(true);
         
-        // Update local storage with new user data to keep it in sync
         const userSessionStr = localStorage.getItem('userSession');
         if (userSessionStr) {
           const userSession = JSON.parse(userSessionStr);
@@ -168,25 +154,21 @@ export default function ProfileManagement() {
               lastName: profileData.lastName,
               username: profileData.username,
               email: profileData.email,
-              mobileNumber: profileData.mobileNumber, // Update the session with the new values
-              // Don't update password in session if it wasn't changed
+              mobileNumber: profileData.mobileNumber,
               password: profileData.password || userSession.user.password
             }
           };
           localStorage.setItem('userSession', JSON.stringify(updatedUserSession));
           
-          // Also update our current state
           setCurrentUser(updatedUserSession.user);
         }
         
-        // Clear password fields
         setProfileData(prev => ({
           ...prev,
           password: '',
           confirmPassword: ''
         }));
         
-        // Hide success message after a delay
         setTimeout(() => {
           setShowSuccessMessage(false);
         }, 5000);
@@ -259,12 +241,12 @@ export default function ProfileManagement() {
               id="username"
               name="username"
               label="Username"
-                placeholder="juandelacruz"
-                value={profileData.username}
-                onChange={handleProfileChange}
-                error={profileErrors.username}
-                required
-              />
+              placeholder="juandelacruz"
+              value={profileData.username}
+              onChange={handleProfileChange}
+              error={profileErrors.username}
+              required
+            />
             
             <Input
               id="email"

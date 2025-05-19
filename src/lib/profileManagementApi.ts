@@ -31,8 +31,7 @@ export const profileManagementAPI = {
                 mobile_number: userData.mobileNumber,
                 password: userData.password
             };
-            console.log('Request Data:', requestData);
-            console.log('API URL:', url);
+            
             const response = await fetch(url, {
                 method: 'PUT',
                 headers: {
@@ -67,7 +66,6 @@ export const profileManagementAPI = {
     }
 };
 
-// Helper function to get auth token from local storage
 function getAuthToken(): string {
     if (typeof window !== 'undefined') {
         const userSession = localStorage.getItem('userSession');

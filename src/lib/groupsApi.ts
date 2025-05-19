@@ -33,7 +33,6 @@ export const groupsAPI = {
       throw new Error('User ID is required to fetch groups');
     }
     
-    console.log(`Attempting to fetch groups for user ID: ${userId}`);
     try {
       const headers = middleware.addAuthHeader({
         'Content-Type': 'application/json',
@@ -48,7 +47,6 @@ export const groupsAPI = {
       }
       
       const groups: Group[] = await response.json();
-      console.log(`Fetched ${groups.length} groups for user ${userId}`);
       
       return groups;
     } catch (error) {
