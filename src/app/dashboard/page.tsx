@@ -13,6 +13,7 @@ import { GroupData } from '@/components/dashboard/GroupItem';
 import { usePubnubTrigger } from '@/hooks/usePubnubTrigger';
 import { PubnubStatus } from '@/components/dashboard/PubnubStatus';
 import { publishTypingIndicator } from '@/lib/pubnub';
+import ProfileManagementModal from '@/components/dashboard/ProfileManagementModal';
 
 const sampleGroups: GroupData[] = [
   {
@@ -84,6 +85,8 @@ export default function Dashboard() {
   const [typingUserId, setTypingUserId] = useState<string | null>(null);
   const typingTimerRef = useRef<NodeJS.Timeout | null>(null);
   const fetchTimestampRef = useRef<Record<string, number>>({});
+
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
 
   const scrollToBottom = useCallback(() => {
     if (!messagesEndRef.current) return;
@@ -317,7 +320,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (lastMessage && selectedChannel) {
-      console.log('PubNub message received in dashboard:', lastMessage);
+    
       
       const isMessageNotification = 
         typeof lastMessage === 'object' && 
@@ -385,7 +388,6 @@ export default function Dashboard() {
   useEffect(() => {
     if (selectedChannel && prevSubscribedRef.current !== isSubscribed) {
       prevSubscribedRef.current = isSubscribed;
-      console.log(`PubNub is now ${isSubscribed ? 'connected' : 'disconnected'} to channel: ${selectedChannel}`);
     }
   }, [selectedChannel, isSubscribed]);
 
@@ -412,6 +414,10 @@ export default function Dashboard() {
     } catch (error) {
       console.error('Error during logout:', error);
     }
+  };
+
+  const handleOpenProfileModal = () => {
+    setIsProfileModalOpen(true);
   };
 
   const handleContactSelect = (id: string) => {
@@ -561,6 +567,7 @@ export default function Dashboard() {
           contactDetails={selectedContactDetails}
           onToggleSidebar={() => setIsMobileSidebarOpen(true)}
           onLogout={handleLogout}
+          onOpenProfileModal={handleOpenProfileModal}
           channelId={selectedChannel}
           pubnubConnected={isSubscribed}
           lastMessage={lastPubnubMessage}
@@ -596,6 +603,12 @@ export default function Dashboard() {
           )}
         </div>
       </main>
+      
+      {/* Profile Management Modal */}
+      <ProfileManagementModal 
+        isOpen={isProfileModalOpen}
+        onClose={() => setIsProfileModalOpen(false)}
+      />
     </div>
   );
 }

@@ -155,13 +155,6 @@ export const MessageContent: React.FC<MessageContentProps> = ({ content, classNa
     const fileName = flexibleMatch[2] ? flexibleMatch[2].trim() : 'Image';
     const imageUrl = flexibleMatch[3];
 
-    // For debugging
-    console.log("Matched image:", { 
-      type: imageType, 
-      fileName, 
-      url: imageUrl 
-    });
-
     contentRender = (
       <div className={cn('relative', className)}>
         {!imageLoaded && !imageError && (

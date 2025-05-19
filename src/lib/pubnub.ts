@@ -58,9 +58,9 @@ export function getPubNub(userId?: string): PubNub {
       message: () => {},
     });
     
-    console.log('PubNub initialized with ID:', userId || 'default');
+
   } else if (userId && pubnubInstance.getUUID() !== userId) {
-    console.log('Updating PubNub userId to:', userId);
+
     pubnubInstance.setUUID(userId);
   }
 
@@ -81,7 +81,7 @@ export async function publishMessage(
       _timestamp: Date.now()
     };
     
-    console.log(`📤 Publishing to channel ${channel}:`, enhancedMessage);
+
     
     return await pubnub.publish({
       channel,
@@ -139,8 +139,7 @@ export function subscribeToChannels(
   const enhancedListener: PubNub.ListenerParameters = {
     ...listener,
     status: (statusEvent) => {
-      console.log(`[PubNub Status] ${statusEvent.category} on channels:`, 
-                 statusEvent.affectedChannels || 'all');
+   
       
       if (statusEvent.category === 'PNNetworkDownCategory' || 
           statusEvent.category === 'PNTimeoutCategory' ||
@@ -154,7 +153,7 @@ export function subscribeToChannels(
   
   pubnub.addListener(enhancedListener);
   
-  console.log(`Subscribing to channels with URGENCY:`, newChannels);
+
   pubnub.subscribe({
     channels: newChannels,
     withPresence: true,

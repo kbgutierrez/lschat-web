@@ -18,6 +18,7 @@ interface ChatHeaderProps {
   contactDetails: ContactDetails | null;
   onToggleSidebar: () => void;
   onLogout: () => void;
+  onOpenProfileModal: () => void; // Add this new prop
   channelId?: string | null;
   pubnubConnected?: boolean;
   lastMessage?: any;
@@ -28,6 +29,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
   contactDetails, 
   onToggleSidebar, 
   onLogout,
+  onOpenProfileModal, // Add this new prop
   channelId,
   pubnubConnected,
   lastMessage
@@ -157,7 +159,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                 className='w-full text-left hover:cursor-pointer px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center'
                 onClick={() => {
                   setShowUserMenu(false);
-                  window.location.href = '/profile-management';
+                  onOpenProfileModal(); // Use modal instead of navigation
                 }}
                 >
                 <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">

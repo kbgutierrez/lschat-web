@@ -7,11 +7,15 @@ export interface LoginResponse {
     user_id: string;
     username: string;
     first_name: string;
+    middle_name: string;
+    mobile_number: string;
     last_name: string;
     email: string;
   };
   token?: string;
   firstName?: string;
+  middleName?: string;
+  mobileNumber?: string;
   lastName?: string;
   user_id?: string;
   username?: string;
@@ -79,7 +83,10 @@ export async function fetchAPI<T = any>(
     }
     
     if (!response.ok) {
-      throw new Error(data.message || 'Something went wrong');
+      console.log('response:', response);
+      const errorMessage = data.message || data.error || 
+        (response.status === 401 ? 'Invalid username or password' : 'Something went wrong');
+      console.log(errorMessage);
     }
     
     return data;

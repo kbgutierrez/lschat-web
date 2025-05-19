@@ -106,7 +106,7 @@ export function usePubnubTrigger(
        messageData.action === 'new_message');
     
     if (isNotification) {
-      console.log('🔴 Important: Processing notification message:', messageData);
+
       
       if (fetchDebounceTimerRef.current) {
         clearTimeout(fetchDebounceTimerRef.current);
@@ -240,7 +240,7 @@ export function usePubnubTrigger(
         
         presence: (event) => {
           if (['join', 'leave'].includes(event.action)) {
-            console.log(`PubNub presence event on ${event.channel}: ${event.action} for ${event.uuid}`);
+            
           }
           
           if (event.uuid === userId) return;
@@ -254,7 +254,7 @@ export function usePubnubTrigger(
         
         status: (status) => {
           if (status.category === 'PNConnectedCategory') {
-            console.log('PubNub connected:', status.affectedChannels);
+  
             setState(prev => {
               if (!prev.isSubscribed) {
                 return { ...prev, isSubscribed: true, error: null };
@@ -265,7 +265,7 @@ export function usePubnubTrigger(
           }
           else if (status.category === 'PNNetworkDownCategory' || 
                    status.category === 'PNNetworkIssuesCategory') {
-            console.log('PubNub network down:', status);
+    
             setState(prev => {
               if (prev.isSubscribed) {
                 return { ...prev, isSubscribed: false, error: 'Network connection lost' };
@@ -275,7 +275,7 @@ export function usePubnubTrigger(
             stableConnectionRef.current = false;
           }
           else if (status.category === 'PNReconnectedCategory') {
-            console.log('PubNub reconnected:', status.affectedChannels);
+          
             setState(prev => {
               if (!prev.isSubscribed) {
                 return { ...prev, isSubscribed: true, error: null };
@@ -285,7 +285,7 @@ export function usePubnubTrigger(
             stableConnectionRef.current = true;
           }
           else if (status.category === 'PNConnectionError') {
-            console.log('PubNub connection error:', status);
+          
             setState(prev => {
               if (prev.isSubscribed || prev.error !== 'Connection error') {
                 return { ...prev, isSubscribed: false, error: 'Connection error' };
@@ -310,7 +310,7 @@ export function usePubnubTrigger(
       subscriptionRef.current = true;
       
       return () => {
-        console.log(`Cleaning up PubNub subscription for channel: ${channel}`);
+      
         unsubscribeFromChannels(channel, listener, userId);
         subscriptionRef.current = false;
         
