@@ -2,7 +2,6 @@
 
 import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { cn } from '@/lib/utils';
 import { contactsAPI, ContactListItem, messagesAPI } from '@/lib/api';
 import { useIsClient, getUserFromLocalStorage, User } from '@/lib/clientUtils';
 import { Sidebar } from '@/components/dashboard/Sidebar';

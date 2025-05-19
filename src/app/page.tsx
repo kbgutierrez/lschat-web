@@ -9,16 +9,19 @@ export default function Home() {
   const [isClient, setIsClient] = useState(false);
   const [progress, setProgress] = useState(0);
   const [loadingMessage, setLoadingMessage] = useState("Initializing...");
-  
+  const [redirecting, setRedirecting] = useState(false);
   
   useEffect(() => {
     setIsClient(true);
+    console.log("Home page mounted, starting animation");
     
-   
+    // Track if component is mounted to prevent state updates after unmounting
+    let isMounted = true;
     let startTime: number;
     const duration = 2000; 
     
     const animateProgress = (timestamp: number) => {
+      if (!isMounted) return;
       if (!startTime) startTime = timestamp;
       const elapsedTime = timestamp - startTime;
       const progressPercentage = Math.min(elapsedTime / duration * 100, 100);
@@ -38,20 +41,34 @@ export default function Home() {
       if (progressPercentage < 100) {
         requestAnimationFrame(animateProgress);
       } else {
-      
-        setTimeout(() => {
-          router.push('/auth?mode=login');
-        }, 3000);
+        console.log("Animation completed, preparing to redirect");
+        // Only redirect once when animation completes
+        if (!redirecting && isMounted) {
+          setRedirecting(true);
+          console.log("Redirecting to auth page in 800ms");
+          setTimeout(() => {
+            if (isMounted) {
+              console.log("Executing router.push to /auth");
+              try {
+                router.push('/auth');
+              } catch (error) {
+                console.error("Navigation error:", error);
+              }
+            }
+          }, 800); // Short delay after animation completes
+        }
       }
     };
-  
-    requestAnimationFrame(animateProgress);
- 
-    const redirectTimeout = setTimeout(() => {
-      router.push('/auth?mode=login');
-    }, 3000);
+
+    // Start the animation
+    const animationId = requestAnimationFrame(animateProgress);
     
-    return () => clearTimeout(redirectTimeout);
+    // Cleanup function
+    return () => {
+      console.log("Home page unmounting");
+      isMounted = false;
+      cancelAnimationFrame(animationId);
+    };
   }, [router]);
 
   return (
@@ -94,6 +111,7 @@ export default function Home() {
           
           <p className="text-center text-sm text-white/70 mt-4 animate-pulse">
             {loadingMessage}
+            {redirecting}
           </p>
         </div>
       </div>

@@ -2,12 +2,10 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Input } from '@/components/ui/Input';
-import { Checkbox } from '@/components/ui/Checkbox';
-import Link from 'next/link';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
-import { authAPI } from '@/lib/api';
+import { Login } from '@/components/auth/login';
+import { Signup } from '@/components/auth/signup';
 
 export default function AuthPage() {
   const router = useRouter();
@@ -17,8 +15,8 @@ export default function AuthPage() {
 
   const [isLoading, setIsLoading] = useState(false);
   const [showInitialLoader, setShowInitialLoader] = useState(false);
-  const [loadingProgress, setLoadingProgress] = useState(100);
   const [animating, setAnimating] = useState(false);
+  const [signupSuccess, setSignupSuccess] = useState(false);
 
   useEffect(() => {
     if (document.referrer && document.referrer.includes(window.location.origin)) {
@@ -30,209 +28,19 @@ export default function AuthPage() {
   }, []);
 
   useEffect(() => {
-    const loadSavedCredentials = () => {
-      try {
-        const savedCredentials = localStorage.getItem('rememberedCredentials');
-        if (savedCredentials) {
-          const { username, password } = JSON.parse(savedCredentials);
-          setLoginData(prev => ({
-            ...prev,
-            username,
-            password,
-            rememberMe: true
-          }));
-        }
-      } catch (error) {
-        console.error('Error loading saved credentials:', error);
-      }
-    };
-
-    loadSavedCredentials();
-
     const mode = searchParams.get('mode');
     if (mode === 'signup') {
       setIsLogin(false);
     }
+
+    const signup = searchParams.get('signup');
+    if (signup === 'success') {
+      setIsLogin(true);
+      setSignupSuccess(true);
+
+      setTimeout(() => setSignupSuccess(false), 5000);
+    }
   }, [searchParams]);
-
-  const [loginData, setLoginData] = useState({
-    username: '',
-    password: '',
-    rememberMe: false
-  });
-
-  const [registerData, setRegisterData] = useState({
-    firstName: '',
-    middleName: '',
-    lastName: '',
-    username: '',
-    email: '',
-    mobileNumber: '',
-    password: '',
-    confirmPassword: '',
-    agreeToPrivacy: false
-  });
-
-  const [loginErrors, setLoginErrors] = useState<Record<string, string>>({});
-  const [registerErrors, setRegisterErrors] = useState<Record<string, string>>({});
-
-  const handleLoginChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value, type, checked } = e.target;
-    setLoginData(prev => ({
-      ...prev,
-      [name]: type === 'checkbox' ? checked : value
-    }));
-
-    if (loginErrors[name]) {
-      setLoginErrors(prev => ({ ...prev, [name]: '' }));
-    }
-  };
-
-  const handleRegisterChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value, type, checked } = e.target;
-    setRegisterData(prev => ({
-      ...prev,
-      [name]: type === 'checkbox' ? checked : value
-    }));
-
-    if (registerErrors[name]) {
-      setRegisterErrors(prev => ({ ...prev, [name]: '' }));
-    }
-  };
-
-  const validateLogin = () => {
-    const errors: Record<string, string> = {};
-
-    if (!loginData.username.trim()) {
-      errors.username = 'Username is required';
-    }
-
-    if (!loginData.password) {
-      errors.password = 'Password is required';
-    } else if (loginData.password.length < 6) {
-      errors.password = 'Password must be at least 6 characters';
-    }
-
-    setLoginErrors(errors);
-    return Object.keys(errors).length === 0;
-  };
-
-  const validateRegister = () => {
-    const errors: Record<string, string> = {};
-
-    if (!registerData.firstName.trim()) {
-      errors.firstName = 'First name is required';
-    }
-
-    if (!registerData.lastName.trim()) {
-      errors.lastName = 'Last name is required';
-    }
-
-    if (!registerData.username.trim()) {
-      errors.username = 'Username is required';
-    }
-
-    if (!registerData.email.trim()) {
-      errors.email = 'Email is required';
-    } else if (!/\S+@\S+\.\S+/.test(registerData.email)) {
-      errors.email = 'Email is invalid';
-    }
-
-    if (!registerData.mobileNumber.trim()) {
-      errors.mobileNumber = 'Mobile number is required';
-    } else if (!/^\d{10,15}$/.test(registerData.mobileNumber.replace(/[-()\s]/g, ''))) {
-      errors.mobileNumber = 'Mobile number is invalid';
-    }
-
-    if (!registerData.password) {
-      errors.password = 'Password is required';
-    } else if (registerData.password.length < 6) {
-      errors.password = 'Password must be at least 6 characters';
-    }
-
-    if (registerData.password !== registerData.confirmPassword) {
-      errors.confirmPassword = 'Passwords do not match';
-    }
-
-    if (!registerData.agreeToPrivacy) {
-      errors.agreeToPrivacy = 'You must agree to the Data Privacy Statement';
-    }
-
-    setRegisterErrors(errors);
-    return Object.keys(errors).length === 0;
-  };
-
-  const handleLoginSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!validateLogin()) return;
-
-    setIsLoading(true);
-
-    try {
-      const fcm_token = '';
-
-      const response = await authAPI.login(
-        loginData.username,
-        loginData.password,
-        fcm_token
-      );
-
-      if (response.success) {
-        console.log('Login successful:', response);
-
-        localStorage.setItem('userSession', JSON.stringify({
-          token: response.token || 'dummy-token',
-          user: {
-            user_id: response.user?.user_id || response.user_id,
-            firstName: response.user?.first_name || response.firstName,
-            lastName: response.user?.last_name || response.lastName,
-            username: response.user?.username || response.username,
-            email: response.user?.email || response.email,
-          }
-        }));
-
-        if (loginData.rememberMe) {
-          localStorage.setItem('rememberedCredentials', JSON.stringify({
-            username: loginData.username,
-            password: loginData.password
-          }));
-        } else {
-          localStorage.removeItem('rememberedCredentials');
-        }
-
-        router.push('/dashboard');
-      } else {
-        setLoginErrors({ form: response.message || 'Invalid username or password' });
-        setIsLoading(false);
-      }
-    } catch (error: any) {
-      console.error('Login failed:', error);
-      setLoginErrors({
-        form: error.message || 'Network error. Please try again later.'
-      });
-      setIsLoading(false);
-    }
-  };
-
-  const handleRegisterSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!validateRegister()) return;
-
-    setIsLoading(true);
-
-    try {
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      console.log('Registration submitted:', registerData);
-      router.push('/dashboard');
-    } catch (error) {
-      console.error('Registration failed:', error);
-      setRegisterErrors({ form: 'Registration failed. Please try again.' });
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const toggleAuthMode = () => {
     setAnimating(true);
@@ -244,14 +52,8 @@ export default function AuthPage() {
     }, 200);
   };
 
-  const directToSignup = () => {
-    router.push('/auth?mode=signup');
-  };
-
   return (
     <>
-    
-
       <div className={cn(
         "min-h-screen flex items-stretch bg-auth relative overflow-hidden"
       )}>
@@ -276,7 +78,6 @@ export default function AuthPage() {
 
         <div className="w-full md:w-1/2 p-8 md:p-12 flex items-center justify-center bg-white/95 dark:bg-gray-800 animate-slide-in-right relative overflow-hidden">
           <div className="absolute inset-0 pointer-events-none overflow-hidden">
-            {/* Hide decorative elements in light mode */}
             <div className="absolute top-0 right-0 w-64 h-64 hidden dark:block dark:bg-blue-900/20 rounded-full -translate-y-1/2 -translate-x-1/2 opacity-70"></div>
             <div className="absolute bottom-0 left-0 w-80 h-80 hidden dark:block dark:bg-purple-900/20 rounded-full translate-y-1/3 -translate-x-1/3 opacity-70"></div>
             <div className="absolute top-1/2 right-10 w-10 h-10 hidden dark:block dark:bg-yellow-600/20 rounded-full animate-pulse-subtle"></div>
@@ -335,6 +136,12 @@ export default function AuthPage() {
               </button>
             </div>
 
+            {signupSuccess && (
+              <div className="bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 rounded-md p-3 text-sm text-green-600 dark:text-green-400 mb-4 animate-fade-in">
+                Account created successfully! Please log in with your new credentials.
+              </div>
+            )}
+
             <div className="relative w-full overflow-visible animate-fade-in-up delay-300">
               <div
                 className="transition-all duration-500 ease-in-out transform"
@@ -351,72 +158,7 @@ export default function AuthPage() {
                   padding: '1px'
                 }}
               >
-                {loginErrors.form && (
-                  <div className=" border border-red-200 dark:border-red-800 rounded-md p-3 text-sm text-red-600 dark:text-red-400 mb-4">
-                    {loginErrors.form}
-                  </div>
-                )}
-
-                <form onSubmit={handleLoginSubmit} className="space-y-6">
-                  <div className="space-y-4">
-                    <Input
-                      id="login-username"
-                      name="username"
-                      label="Username"
-                      placeholder="juandelacruz"
-                      value={loginData.username}
-                      onChange={handleLoginChange}
-                      error={loginErrors.username}
-                      required
-                    />
-
-                    <Input
-                      id="login-password"
-                      name="password"
-                      type="password"
-                      label="Password"
-                      placeholder="••••••••"
-                      value={loginData.password}
-                      onChange={handleLoginChange}
-                      error={loginErrors.password}
-                      required
-                    />
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <Checkbox
-                      id="remember-me"
-                      name="rememberMe"
-                      label="Remember me"
-                      checked={loginData.rememberMe}
-                      onChange={handleLoginChange}
-                    />
-
-                    <div className="text-sm">
-                      <Link
-                        href="/forgot-password"
-                        className="font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300"
-                      >
-                        Forgot password?
-                      </Link>
-                    </div>
-                  </div>
-
-                  <div className="pt-2">
-                    <button
-                      type="submit"
-                      className="w-full rounded-full font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 transition-all duration-300 flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed disabled:transform-none"
-                      disabled={isLoading}
-                    >
-                      {isLoading ? (
-                        <>
-                          <span className="animate-spin inline-block h-4 w-4 border-2 border-white border-t-transparent rounded-full mr-2"></span>
-                          Signing in...
-                        </>
-                      ) : 'Sign in'}
-                    </button>
-                  </div>
-                </form>
+                <Login isLoading={isLoading} setIsLoading={setIsLoading} />
               </div>
 
               <div
@@ -435,152 +177,12 @@ export default function AuthPage() {
                   padding: '1px'
                 }}
               >
-                {registerErrors.form && (
-                  <div className="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-md p-3 text-sm text-red-600 dark:text-red-400 mb-4">
-                    {registerErrors.form}
-                  </div>
-                )}
-
-                <form onSubmit={handleRegisterSubmit} className="space-y-6">
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <Input
-                        id="first-name"
-                        name="firstName"
-                        label="First Name"
-                        placeholder="Juan"
-                        value={registerData.firstName}
-                        onChange={handleRegisterChange}
-                        error={registerErrors.firstName}
-                        required
-                      />
-
-                      <Input
-                        id="last-name"
-                        name="lastName"
-                        label="Last Name"
-                        placeholder="Dela Cruz"
-                        value={registerData.lastName}
-                        onChange={handleRegisterChange}
-                        error={registerErrors.lastName}
-                        required
-                      />
-                    </div>
-
-                    <Input
-                      id="middle-name"
-                      name="middleName"
-                      label="Middle Name (Optional)"
-                      placeholder="Santos"
-                      value={registerData.middleName}
-                      onChange={handleRegisterChange}
-                    />
-
-                    <Input
-                      id="register-username"
-                      name="username"
-                      label="Username"
-                      placeholder="juandelacruz"
-                      value={registerData.username}
-                      onChange={handleRegisterChange}
-                      error={registerErrors.username}
-                      required
-                    />
-
-                    <Input
-                      id="email"
-                      name="email"
-                      type="email"
-                      label="Email"
-                      placeholder="juan@example.com"
-                      value={registerData.email}
-                      onChange={handleRegisterChange}
-                      error={registerErrors.email}
-                      required
-                    />
-
-                    <Input
-                      id="mobile-number"
-                      name="mobileNumber"
-                      label="Mobile Number"
-                      placeholder="+63 912 345 6789"
-                      value={registerData.mobileNumber}
-                      onChange={handleRegisterChange}
-                      error={registerErrors.mobileNumber}
-                      required
-                    />
-
-                    <Input
-                      id="register-password"
-                      name="password"
-                      type="password"
-                      label="Password"
-                      placeholder="••••••••"
-                      value={registerData.password}
-                      onChange={handleRegisterChange}
-                      error={registerErrors.password}
-                      required
-                    />
-
-                    <Input
-                      id="confirm-password"
-                      name="confirmPassword"
-                      type="password"
-                      label="Confirm Password"
-                      placeholder="••••••••"
-                      value={registerData.confirmPassword}
-                      onChange={handleRegisterChange}
-                      error={registerErrors.confirmPassword}
-                      required
-                    />
-
-                    <div className="mt-4">
-                      <div className="flex items-start hover:bg-gray-50 dark:hover:bg-gray-700/20 p-2 rounded-md transition-colors duration-200">
-                        <div className="flex items-center h-5">
-                          <input
-                            id="privacy"
-                            name="agreeToPrivacy"
-                            type="checkbox"
-                            className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 transition-colors duration-200"
-                            checked={registerData.agreeToPrivacy}
-                            onChange={handleRegisterChange}
-                            required
-                          />
-                        </div>
-                        <div className="ml-3 text-sm">
-                          <label htmlFor="privacy" className="text-gray-600 dark:text-gray-400">
-                            By signing up for an account, you acknowledge and accept our
-                            <button
-                              type="button"
-                              onClick={() => setShowPrivacyModal(true)}
-                              className="text-blue-600 underline font-medium ml-1 hover:text-blue-700 dark:hover:text-blue-300 transition-colors"
-                            >
-                              Data Privacy Statement.
-                            </button>
-                          </label>
-                          {registerErrors.agreeToPrivacy && (
-                            <p className="mt-1 text-xs text-red-500 animate-pulse">{registerErrors.agreeToPrivacy}</p>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="pt-2">
-                    <button
-                      type="submit"
-                      className="w-full rounded-full font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 transition-all duration-300 flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed disabled:transform-none"
-                      disabled={isLoading}
-                    >
-                      {isLoading ? (
-                        <>
-                          <span className="animate-spin inline-block h-4 w-4 border-2 border-white border-t-transparent rounded-full mr-2"></span>
-                          Creating account...
-                        </>
-                      ) : 'Create account'}
-                    </button>
-                  </div>
-                </form>
+                <Signup 
+                  isLoading={isLoading} 
+                  setIsLoading={setIsLoading} 
+                  showPrivacyModal={showPrivacyModal}
+                  setShowPrivacyModal={setShowPrivacyModal}
+                />
               </div>
             </div>
 
