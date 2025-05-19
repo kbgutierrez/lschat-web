@@ -3,6 +3,7 @@
 import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { contactsAPI, ContactListItem, messagesAPI } from '@/lib/api';
+import { groupsAPI, Group } from '@/lib/groupsApi';
 import { useIsClient, getUserFromLocalStorage, User } from '@/lib/clientUtils';
 import { Sidebar } from '@/components/dashboard/Sidebar';
 import { ChatHeader } from '@/components/dashboard/ChatHeader';
@@ -14,33 +15,6 @@ import { usePubnubTrigger } from '@/hooks/usePubnubTrigger';
 import { PubnubStatus } from '@/components/dashboard/PubnubStatus';
 import { publishTypingIndicator } from '@/lib/pubnub';
 import ProfileManagementModal from '@/components/dashboard/ProfileManagementModal';
-
-const sampleGroups: GroupData[] = [
-  {
-    id: 'g1',
-    name: 'Marketing Team',
-    members: ['1', '3', '4'],
-    lastMessage: 'Let\'s discuss the campaign',
-    lastMessageTime: '1:45 PM',
-    unread: 2
-  },
-  {
-    id: 'g2',
-    name: 'IT Department',
-    members: ['2', '4'],
-    lastMessage: 'Server maintenance scheduled',
-    lastMessageTime: 'Yesterday',
-    unread: 0
-  },
-  {
-    id: 'g3',
-    name: 'Project X',
-    members: ['1', '2', '3'],
-    lastMessage: 'Updated timeline for review',
-    lastMessageTime: 'Monday',
-    unread: 5
-  }
-];
 
 type TabType = 'chats' | 'groups' | 'contacts';
 
@@ -87,6 +61,10 @@ export default function Dashboard() {
   const fetchTimestampRef = useRef<Record<string, number>>({});
 
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+
+  const [groups, setGroups] = useState<GroupData[]>([]);
+  const [loadingGroups, setLoadingGroups] = useState(false);
+  const [groupError, setGroupError] = useState<string | null>(null);
 
   const scrollToBottom = useCallback(() => {
     if (!messagesEndRef.current) return;
@@ -525,6 +503,45 @@ export default function Dashboard() {
     }
   }, [selectedChannel, fetchMessagesFromApi]);
 
+  useEffect(() => {
+    if (!isClient || !user) return;
+
+    const fetchGroups = async () => {
+      try {
+        setLoadingGroups(true);
+        setGroupError(null);
+
+        const userId = user.user_id;
+
+        if (!userId) {
+          console.error("Cannot fetch groups: User ID is missing");
+          setGroupError("User ID is missing. Please log out and log in again.");
+          setLoadingGroups(false);
+          return;
+        }
+
+        console.log("Fetching groups for user ID:", userId);
+        const groupsList = await groupsAPI.getGroups(userId);
+        
+        // Convert API response to match GroupData interface - without unread and memberCount
+        const enhancedGroups: GroupData[] = groupsList.map(group => ({
+          ...group,
+          lastMessage: "",
+          lastMessageTime: new Date(group.created_at).toLocaleDateString()
+        }));
+
+        setGroups(enhancedGroups);
+      } catch (error) {
+        console.error('Error fetching groups:', error);
+        setGroupError(error instanceof Error ? error.message : 'Failed to load groups');
+      } finally {
+        setLoadingGroups(false);
+      }
+    };
+
+    fetchGroups();
+  }, [user, isClient]);
+
   if (!isClient) {
     return <div className="min-h-screen bg-violet-50 dark:bg-gray-950"></div>;
   }
@@ -543,7 +560,7 @@ export default function Dashboard() {
     <div className="h-screen flex bg-violet-50 dark:bg-gray-950 overflow-hidden relative">
       <Sidebar 
         contacts={contacts}
-        groups={sampleGroups}
+        groups={groups}
         isOpen={isMobileSidebarOpen}
         onClose={() => setIsMobileSidebarOpen(false)}
         activeTab={activeTab}
@@ -551,7 +568,9 @@ export default function Dashboard() {
         selectedContact={selectedContact}
         handleContactSelect={handleContactSelect}
         loadingContacts={loadingContacts}
+        loadingGroups={loadingGroups}
         apiError={apiError}
+        groupError={groupError}
       />
 
       {isMobileSidebarOpen && (
