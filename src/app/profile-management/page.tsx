@@ -9,6 +9,7 @@ export default function ProfileManagement() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
+  const [showSaveConfirmation, setShowSaveConfirmation] = useState(false);
   const [currentUser, setCurrentUser] = useState<any>(null);
   
   const [profileData, setProfileData] = useState({
@@ -95,12 +96,18 @@ export default function ProfileManagement() {
       errors.mobileNumber = 'Mobile number is invalid';
     }
 
-    if (profileData.password) {
-      if (profileData.password.length < 6) {
+    // Fixed password validation logic
+    if (profileData.password || profileData.confirmPassword) {
+      // If either field has content, both must be valid
+      if (!profileData.password) {
+        errors.password = 'Password is required when confirmation is provided';
+      } else if (profileData.password.length < 6) {
         errors.password = 'Password must be at least 6 characters';
       }
       
-      if (profileData.password !== profileData.confirmPassword) {
+      if (!profileData.confirmPassword) {
+        errors.confirmPassword = 'Please confirm your password';
+      } else if (profileData.password !== profileData.confirmPassword) {
         errors.confirmPassword = 'Passwords do not match';
       }
     }
@@ -118,6 +125,12 @@ export default function ProfileManagement() {
       return;
     }
 
+    // Show confirmation dialog instead of submitting immediately
+    setShowSaveConfirmation(true);
+  };
+
+  const handleConfirmSave = async () => {
+    setShowSaveConfirmation(false);
     setIsLoading(true);
 
     try {
@@ -326,6 +339,36 @@ export default function ProfileManagement() {
           </div>
         </form>
       </div>
+      
+      {/* Save Confirmation Dialog */}
+      {showSaveConfirmation && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full shadow-xl animate-fade-in-up">
+            <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-3">
+              Save Changes?
+            </h3>
+            <p className="text-gray-600 dark:text-gray-400 mb-5">
+              Are you sure you want to save these changes to your profile?
+            </p>
+            <div className="flex justify-end space-x-3">
+              <button
+                type="button"
+                className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+                onClick={() => setShowSaveConfirmation(false)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                onClick={handleConfirmSave}
+              >
+                Save Changes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

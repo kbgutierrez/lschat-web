@@ -16,6 +16,7 @@ export default function ProfileManagementModal({ isOpen, onClose }: ProfileManag
   const [hasScrollContent, setHasScrollContent] = useState(false);
   const [isAtBottom, setIsAtBottom] = useState(false);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const [showSaveConfirmation, setShowSaveConfirmation] = useState(false);
   
   const [profileData, setProfileData] = useState({
     firstName: '',
@@ -110,13 +111,18 @@ export default function ProfileManagementModal({ isOpen, onClose }: ProfileManag
       errors.mobileNumber = 'Mobile number is invalid';
     }
 
-    // Password validation - only if password field is not empty
-    if (profileData.password) {
-      if (profileData.password.length < 6) {
+    // Fixed password validation
+    if (profileData.password || profileData.confirmPassword) {
+      // If either password field has content, both must be valid
+      if (!profileData.password) {
+        errors.password = 'Password is required when confirmation is provided';
+      } else if (profileData.password.length < 6) {
         errors.password = 'Password must be at least 6 characters';
       }
       
-      if (profileData.password !== profileData.confirmPassword) {
+      if (!profileData.confirmPassword) {
+        errors.confirmPassword = 'Please confirm your password';
+      } else if (profileData.password !== profileData.confirmPassword) {
         errors.confirmPassword = 'Passwords do not match';
       }
     }
@@ -135,6 +141,12 @@ export default function ProfileManagementModal({ isOpen, onClose }: ProfileManag
       return;
     }
 
+    // Show confirmation dialog instead of submitting immediately
+    setShowSaveConfirmation(true);
+  };
+
+  const handleConfirmSave = async () => {
+    setShowSaveConfirmation(false);
     setIsLoading(true);
 
     try {
@@ -494,6 +506,39 @@ export default function ProfileManagementModal({ isOpen, onClose }: ProfileManag
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
             </svg>
           </button>
+        )}
+        
+        {/* Save Confirmation Dialog */}
+        {showSaveConfirmation && (
+          <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center">
+            <div 
+              className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full shadow-xl animate-fade-in-up"
+              onClick={e => e.stopPropagation()}
+            >
+              <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-3">
+                Confirmation
+              </h3>
+              <p className="text-gray-600 dark:text-gray-400 mb-5">
+                Are you sure you want to save these changes to your profile?
+              </p>
+              <div className="flex justify-end space-x-3">
+                <button
+                  type="button"
+                  className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+                  onClick={() => setShowSaveConfirmation(false)}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                  onClick={handleConfirmSave}
+                >
+                  Save Changes
+                </button>
+              </div>
+            </div>
+          </div>
         )}
       </div>
     </div>
