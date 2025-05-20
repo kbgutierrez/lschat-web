@@ -55,7 +55,7 @@ export const groupsAPI = {
       }
       
       const groups: Group[] = await response.json();
-      
+      console.log('Fetched groups pubnub channel:', groups.map(group => group.pubnub_channel));
       return groups;
     } catch (error) {
       console.error('Group list fetch error:', error);
