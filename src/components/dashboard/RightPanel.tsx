@@ -80,7 +80,7 @@ export function RightPanel({
             setPubnubChannel(contact.pubnub_channel);
             setContactData({
               ...contact,
-              email: '' 
+              email: contact.email || '', 
             });
             } else {
               console.error('Contact not found in contact list');

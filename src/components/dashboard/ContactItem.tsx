@@ -18,6 +18,7 @@ interface ContactItemProps {
   contact: ContactListItem;
   isSelected: boolean;
   onSelect: (id: string) => void;
+  email?: string;
 }
 
 export function ContactItem({ contact, isSelected, onSelect }: ContactItemProps) {

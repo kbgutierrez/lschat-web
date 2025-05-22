@@ -29,6 +29,7 @@ export interface ContactListItem {
   contact_mobile_number: string;
   pubnub_channel: string;
   status: string;
+  email: string;
 }
 
 export interface ChatMessage {
