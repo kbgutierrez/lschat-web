@@ -567,11 +567,9 @@ export function RightPanel({
                 )}
               </div>
             )}
-            
             {activeTab === 'files' && (
               <div className="p-4">
-                <h4 className="text-xs uppercase text-gray-500 dark:text-gray-400 font-medium mb-3">Shared Files</h4>
-                
+                <h4 className="text-xs uppercase text-gray-500 dark:text-gray-400 font-medium mb-3">Shared Files</h4>       
                 {loadingFiles ? (
                   <div className="py-8 flex justify-center">
                     <div className="animate-spin rounded-full h-8 w-8 border-2 border-violet-500 border-t-transparent"></div>
