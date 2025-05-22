@@ -25,6 +25,8 @@ interface SidebarProps {
   selectedGroup: number | null;
   handleGroupSelect: (id: number) => void;
   clearSelection?: () => void;
+  onNewChat?: () => void;  // Add this prop
+  onNewGroup?: () => void; // Add this prop
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -42,7 +44,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
   groupError,
   selectedGroup,
   handleGroupSelect,
-  clearSelection
+  clearSelection,
+  onNewChat,  // Add this prop
+  onNewGroup  // Add this prop
 }) => {
   const handleTabChange = useCallback((tab: TabType) => {
     if (tab !== activeTab) {
@@ -54,6 +58,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
       }
     }
   }, [activeTab, setActiveTab, clearSelection]);
+
+  const handleNewChat = () => {
+    if (onNewChat) onNewChat();
+  };
+
+  const handleNewGroup = () => {
+    if (onNewGroup) onNewGroup();
+  };
 
   return (
     <aside
@@ -103,6 +115,33 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
           </svg>
         </div>
+      </div>
+
+      {/* New Action Button Section */}
+      <div className="px-4 mb-2">
+        {activeTab === 'chats' && (
+          <button
+            onClick={handleNewChat}
+            className="w-full flex items-center justify-center py-2.5 px-4 rounded-lg bg-white/10 hover:bg-white/15 transition-colors duration-200 text-white"
+          >
+            <svg className="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+            </svg>
+            <span className="font-medium">New Chat</span>
+          </button>
+        )}
+        
+        {activeTab === 'groups' && (
+          <button
+            onClick={handleNewGroup}
+            className="w-full flex items-center justify-center py-2.5 px-4 rounded-lg bg-white/10 hover:bg-white/15 transition-colors duration-200 text-white"
+          >
+            <svg className="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+            </svg>
+            <span className="font-medium">Create New Group</span>
+          </button>
+        )}
       </div>
 
       <div className="px-3 py-2 mb-2">
@@ -202,7 +241,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <div className="p-4 text-center">
               <div className="text-red-500 mb-2">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </div>
               <p className="text-sm text-gray-600 dark:text-gray-400">{groupError}</p>
@@ -214,8 +253,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </button>
             </div>
           ) : groups.length === 0 ? (
-            <div className="p-4 text-center text-gray-500 dark:text-gray-400 text-sm">
-              No groups found
+            <div className="p-4 text-center text-white/80 dark:text-gray-400 text-sm">
+              No groups found. Create a new group to get started.
             </div>
           ) : (
             groups.map((group) => (
@@ -260,6 +299,24 @@ export const Sidebar: React.FC<SidebarProps> = ({
             ))
           )}
         </div>
+      </div>
+      
+      {/* Mobile Floating Action Button */}
+      <div className="md:hidden fixed bottom-4 right-4 z-50">
+        {isOpen && (
+          <button 
+            onClick={activeTab === 'chats' ? handleNewChat : activeTab === 'groups' ? handleNewGroup : undefined}
+            className={cn(
+              "w-14 h-14 rounded-full shadow-lg flex items-center justify-center",
+              "bg-violet-500 hover:bg-violet-600 transition-colors duration-200",
+              (activeTab === 'contacts') ? "hidden" : "block"
+            )}
+          >
+            <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+            </svg>
+          </button>
+        )}
       </div>
     </aside>
   );

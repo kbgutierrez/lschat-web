@@ -783,6 +783,19 @@ export default function Dashboard() {
     }
   }, [selectedGroup, selectedChannel, isSubscribed]);
 
+  // Add handlers for creating new chats and groups
+  const handleNewChat = useCallback(() => {
+    // Implement new chat creation
+    // For now, just open the contacts tab to select someone to chat with
+    handleTabChange('contacts');
+  }, [handleTabChange]);
+  
+  const handleNewGroup = useCallback(() => {
+    // This would open a modal to create a new group
+    console.log('Creating new group');
+    // Future implementation: setCreateGroupModalOpen(true);
+  }, []);
+
   if (!isClient) {
     return <div className="min-h-screen bg-violet-50 dark:bg-gray-950"></div>;
   }
@@ -815,8 +828,10 @@ export default function Dashboard() {
         apiError={apiError}
         groupError={groupError}
         clearSelection={clearSelection}
+        onNewChat={handleNewChat}
+        onNewGroup={handleNewGroup}
       />
-
+      
       {isMobileSidebarOpen && (
         <div
           className="fixed inset-0 bg-violet-900/20 backdrop-blur-sm md:hidden z-20"
