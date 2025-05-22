@@ -68,8 +68,24 @@ export const Sidebar = memo(function Sidebar({
   }, [onNewGroup]);
 
   const buttonTextRef = useRef<HTMLSpanElement>(null);
+  const buttonIconRef = useRef<SVGSVGElement>(null);
   const prevTabRef = useRef<TabType>(activeTab);
   const isFirstRender = useRef(true);
+  const sidebarRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const listItemsRef = useRef<HTMLDivElement>(null);
+  const mobileButtonRef = useRef<HTMLButtonElement>(null);
+  
+
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      prevTabRef.current = activeTab;
+      return;
+    }
+    
+    prevTabRef.current = activeTab;
+  }, [activeTab]);
 
   useEffect(() => {
     if (isFirstRender.current) {
@@ -87,43 +103,134 @@ export const Sidebar = memo(function Sidebar({
         (activeTab === 'chats' || activeTab === 'groups')) {
       
       const buttonText = buttonTextRef.current;
-      if (!buttonText) return;
+      const buttonIcon = buttonIconRef.current;
+      
+      if (!buttonText || !buttonIcon) return;
       
       const nextText = activeTab === 'chats' ? 'New Chat' : 'Create New Group';
       
-      gsap.killTweensOf(buttonText);
+      gsap.killTweensOf([buttonText, buttonIcon]);
       
-      gsap.to(buttonText, {
-        duration: 0.15,
+      const tl = gsap.timeline({
+        defaults: { duration: 0.2, ease: "power2.inOut" }
+      });
+      
+      tl.to(buttonIcon, {
+        rotate: activeTab === 'chats' ? -180 : 180, 
+        scale: 1.2,
+        duration: 0.3,
+      }, 0);
+      
+      tl.to(buttonText, {
         opacity: 0,
-        y: -3,
-        ease: "power1.in",
+        y: -10,
+        duration: 0.15,
         onComplete: () => {
           buttonText.textContent = nextText;
-          gsap.fromTo(buttonText, 
-            { opacity: 0, y: 3 },
-            { opacity: 1, y: 0, duration: 0.15 }
-          );
         }
-      });
+      }, 0);
+      
+      tl.to(buttonText, {
+        opacity: 1,
+        y: 0,
+        duration: 0.15,
+      }, 0.15);
+      
+      tl.to(buttonIcon, {
+        rotate: 0, 
+        scale: 1,
+        duration: 0.3,
+        ease: "back.out(1.5)"
+      }, 0.2);
     }
     
     prevTabRef.current = activeTab;
   }, [activeTab]);
+  
+  useEffect(() => {
+    if (!listItemsRef.current || !isOpen) return;
+    
+    const listItems = listItemsRef.current.children;
+    
+    gsap.fromTo(listItems, 
+      { 
+        opacity: 0, 
+        y: 15
+      },
+      { 
+        opacity: 1, 
+        y: 0, 
+        stagger: 0.03, 
+        duration: 0.25,
+        ease: "power2.out",
+        clearProps: "all"
+      }
+    );
+  }, [activeTab, contacts, groups, isOpen]);
+  
+  useEffect(() => {
+    if (!mobileButtonRef.current || !isOpen) return;
+    
+    gsap.fromTo(mobileButtonRef.current, 
+      { 
+        scale: 0.5, 
+        opacity: 0 
+      },
+      { 
+        scale: 1, 
+        opacity: 1, 
+        duration: 0.3, 
+        ease: "back.out(1.7)"
+      }
+    );
+    
+    const pulseAnimation = gsap.timeline({ repeat: -1, repeatDelay: 3 });
+    pulseAnimation.to(mobileButtonRef.current, {
+      scale: 1.05,
+      duration: 0.3,
+      ease: "power1.inOut"
+    }).to(mobileButtonRef.current, {
+      scale: 1,
+      duration: 0.5,
+      ease: "elastic.out(1, 0.3)"
+    });
+    
+    return () => {
+      pulseAnimation.kill();
+    };
+  }, [isOpen, activeTab]);
+  
+  useEffect(() => {
+    if (!sidebarRef.current) return;
+    
+    if (isOpen) {
+      if (window.innerWidth < 768) {
+        gsap.fromTo(sidebarRef.current,
+          { 
+            x: "-100%" 
+          },
+          { 
+            x: "0%", 
+            duration: 0.3, 
+            ease: "power3.out" 
+          }
+        );
+      }
+    }
+  }, [isOpen]);
 
   const tabButtons = (
-    <div className="bg-white/10 dark:bg-gray-800/50 rounded-lg p-1 flex items-center will-change-transform transform-gpu">
+    <div className="bg-white/10 dark:bg-gray-800/50 rounded-lg p-1 flex items-center">
       {['chats', 'groups', 'contacts'].map((tab) => (
         <button
           key={tab}
           className={cn(
-            "flex items-center justify-center space-x-2 py-2 px-3 rounded-md flex-1 text-sm font-medium transition-all duration-200 will-change-transform transform-gpu",
+            "flex items-center justify-center space-x-2 py-2 px-3 rounded-md flex-1 text-sm font-medium transition-colors duration-200",
             activeTab === tab
               ? "bg-white dark:bg-gray-700 text-violet-900 dark:text-violet-400 shadow-sm"
               : "text-white/90 dark:text-gray-400 hover:bg-white/5 dark:hover:bg-gray-700/30"
           )}
           onClick={() => handleTabChange(tab as TabType)}
-          style={{ backfaceVisibility: "hidden" }}
         >
           {tab === 'chats' && (
             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -268,6 +375,7 @@ export const Sidebar = memo(function Sidebar({
 
   return (
     <aside
+      ref={sidebarRef}
       className={cn(
         "bg-gradient-to-b from-violet-900 to-violet-900/95 dark:from-gray-800 dark:to-gray-900 flex flex-col border-r border-violet-600/50 dark:border-gray-800 shadow-lg z-30",
         "transition-all duration-300 ease-in-out transform-gpu will-change-transform",
@@ -307,7 +415,21 @@ export const Sidebar = memo(function Sidebar({
           <input
             type="text"
             placeholder="Search messages or contacts"
-            className="w-full h-10 pl-10 pr-4 rounded-lg border-0 bg-white/10 dark:bg-gray-800/50 text-sm text-white dark:text-gray-300 placeholder-white/60 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-white/20 dark:focus:ring-gray-600/50"
+            className="w-full h-10 pl-10 pr-4 rounded-lg border-0 bg-white/10 dark:bg-gray-800/50 text-sm text-white dark:text-gray-300 placeholder-white/60 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-white/20 dark:focus:ring-gray-600/50 transition-all duration-200"
+            onFocus={(e) => {
+              gsap.to(e.currentTarget, {
+                backgroundColor: 'rgba(255, 255, 255, 0.15)',
+                boxShadow: '0 0 0 2px rgba(255, 255, 255, 0.1)',
+                duration: 0.2
+              });
+            }}
+            onBlur={(e) => {
+              gsap.to(e.currentTarget, {
+                backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                boxShadow: 'none',
+                duration: 0.2
+              });
+            }}
           />
           <svg className="absolute left-3 top-2.5 h-5 w-5 text-white/70 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
@@ -319,27 +441,36 @@ export const Sidebar = memo(function Sidebar({
         {activeTab !== 'contacts' && (
           <button
             onClick={activeTab === 'chats' ? handleNewChat : handleNewGroup}
-            className="w-full flex items-center justify-center py-2.5 px-4 rounded-lg bg-white/10 hover:bg-white/15 transition-colors duration-200 text-white transform-gpu will-change-transform"
-            style={{ backfaceVisibility: "hidden" }}
+            className="w-full flex items-center justify-center py-2.5 px-4 rounded-lg bg-white/10 hover:bg-white/15 transition-colors duration-200 text-white"
+            onMouseEnter={(e) => {
+              gsap.to(e.currentTarget, {
+                backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                scale: 1.01,
+                duration: 0.2
+              });
+            }}
+            onMouseLeave={(e) => {
+              gsap.to(e.currentTarget, {
+                backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                scale: 1,
+                duration: 0.2
+              });
+            }}
           >
             <svg 
+              ref={buttonIconRef}
               className="w-5 h-5 mr-2 will-change-transform" 
               fill="none" 
               viewBox="0 0 24 24" 
               stroke="currentColor"
-              style={{ transform: "translateZ(0)", transformOrigin: "center" }}
+              style={{ transformOrigin: 'center' }}
             >
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
             </svg>
             <span 
               ref={buttonTextRef} 
               className="font-medium will-change-transform"
-              style={{ 
-                minWidth: "80px", 
-                display: "inline-block", 
-                transform: "translateZ(0)", 
-                transformOrigin: "center" 
-              }}
+              style={{ minWidth: "100px" }}
             >
               {activeTab === 'chats' ? 'New Chat' : 'Create New Group'}
             </span>
@@ -351,16 +482,39 @@ export const Sidebar = memo(function Sidebar({
         {tabButtons}
       </div>
 
-      <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-track-transparent">
-        {renderTabContent()}
+      <div 
+        ref={contentRef}
+        className="flex-1 overflow-y-auto scrollbar-thin scrollbar-track-transparent"
+      >
+        <div 
+          ref={listItemsRef} 
+          className="space-y-1"
+        >
+          {renderTabContent()}
+        </div>
       </div>
       
       {isOpen && activeTab !== 'contacts' && (
         <div className="md:hidden fixed bottom-4 right-4 z-50">
           <button 
+            ref={mobileButtonRef}
             onClick={activeTab === 'chats' ? handleNewChat : handleNewGroup}
             className="w-14 h-14 rounded-full shadow-lg flex items-center justify-center
                      bg-violet-500 hover:bg-violet-600 transition-colors duration-200 transform-gpu"
+            onMouseEnter={(e) => {
+              gsap.to(e.currentTarget, {
+                scale: 1.1,
+                duration: 0.2,
+                ease: "power1.out"
+              });
+            }}
+            onMouseLeave={(e) => {
+              gsap.to(e.currentTarget, {
+                scale: 1,
+                duration: 0.2,
+                ease: "power1.out"
+              });
+            }}
           >
             <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
