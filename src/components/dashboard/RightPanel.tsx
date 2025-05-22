@@ -78,7 +78,6 @@ export function RightPanel({
             if (contact) {
             console.log('Found contact pubnub channel:', contact.pubnub_channel);
             setPubnubChannel(contact.pubnub_channel);
-            // Store the contact data with added email property
             setContactData({
               ...contact,
               email: '' 
