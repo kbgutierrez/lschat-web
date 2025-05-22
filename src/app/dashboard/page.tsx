@@ -410,7 +410,7 @@ export default function Dashboard() {
 
   const handleContactSelect = (id: string) => {
     setSelectedContact(id);
-    setSelectedGroup(null); // Clear selected group when a contact is selected
+    setSelectedGroup(null); 
     const contactDetails = contacts.find(contact => contact.contact_id.toString() === id);
     if (contactDetails) {
       setSelectedContactDetails({
@@ -426,8 +426,22 @@ export default function Dashboard() {
 
   const handleGroupSelect = (id: number) => {
     setSelectedGroup(id);
-    setSelectedContact(null); // Clear selected contact when a group is selected
-    setSelectedChannel(null); // Clear selected channel to prevent PubNub issues
+    setSelectedContact(null); 
+    
+    // Find the group details to get its PubNub channel
+    const groupDetails = groups.find(g => g.group_id === id);
+    console.log('Selected Group PubNub Channel:', groupDetails?.pubnub_channel);
+    console.log('Group Details:', groupDetails);
+    
+    // Set the selectedChannel to the group's PubNub channel for subscription
+    if (groupDetails?.pubnub_channel) {
+      console.log('Setting PubNub channel for group messaging:', groupDetails.pubnub_channel);
+      setSelectedChannel(groupDetails.pubnub_channel);
+    } else {
+      console.warn('No PubNub channel found for this group, notifications will not work');
+      setSelectedChannel(null);
+    }
+    
     setIsMobileSidebarOpen(false);
   };
 
@@ -480,7 +494,6 @@ export default function Dashboard() {
   useEffect(() => {
     if (!isClient || !selectedGroup) return;
     
-    // Find the selected group details
     const groupDetails = groups.find(g => g.group_id === selectedGroup);
     if (groupDetails) {
       setSelectedGroupDetails(groupDetails);
@@ -500,17 +513,23 @@ export default function Dashboard() {
   }, [selectedGroup, fetchGroupMessagesFromApi]);
 
   const handleSendGroupMessage = useCallback(async (message: string, file?: File) => {
-    if ((!message.trim() && !file) || !selectedGroup || !user) return;
+    if ((!message.trim() && !file) || !selectedGroup || !user || !user.user_id) return;
+
+    const optimisticMessage = file 
+      ? `Sending ${file.name}...` 
+      : message;
+      
+    const optimisticMsg: GroupMessage = {
+      id: Date.now(), 
+      sender_id: Number(user.user_id),
+      sender_name: `${user.firstName} ${user.lastName}`.trim() || user.username || 'Me',
+      message: optimisticMessage,
+      created_at: new Date().toISOString()
+    };
 
     try {
-      const optimisticMsg: GroupMessage = {
-        id: Date.now(), // Temporary ID
-        sender_id: Number(user.user_id),
-        sender_name: `${user.firstName} ${user.lastName}`.trim() || user.username || 'Me',
-        message: message,
-        created_at: new Date().toISOString()
-      };
 
+      // Add optimistic message to UI
       setGroupMessages(prev => ({
         ...prev,
         [selectedGroup]: [...(prev[selectedGroup] || []), optimisticMsg]
@@ -519,12 +538,21 @@ export default function Dashboard() {
       setTimeout(scrollToBottom, 100);
 
       // Send the actual message
-     
-
+      const response = await groupsAPI.sendGroupMessage(
+        selectedGroup, 
+        user.user_id, 
+        message,
+        file
+      );
+      
       // Update with the server response
       setGroupMessages(prev => {
         const messages = [...(prev[selectedGroup] || [])];
         const index = messages.findIndex(m => m.id === optimisticMsg.id);
+        
+        if (index !== -1) {
+          messages[index] = response;
+        }
    
         return {
           ...prev,
@@ -532,11 +560,28 @@ export default function Dashboard() {
         };
       });
       
+      // Refetch messages to ensure we have the latest
+      fetchGroupMessagesFromApi(true);
+      
     } catch (error) {
       console.error('Failed to send group message:', error);
-      // Handle the error if needed
+      
+      // Handle error by updating the optimistic message
+      setGroupMessages(prev => {
+        const updatedMessages = (prev[selectedGroup] || []).map(msg => 
+          msg.id === optimisticMsg.id ? {
+            ...msg,
+            message: `Failed to send message${file ? ` (${file.name})` : ''}: ${error instanceof Error ? error.message : 'Unknown error'}`
+          } : msg
+        );
+        
+        return {
+          ...prev,
+          [selectedGroup]: updatedMessages
+        };
+      });
     }
-  }, [selectedGroup, user, scrollToBottom]);
+  }, [selectedGroup, user, scrollToBottom, fetchGroupMessagesFromApi]);
 
   const handleSendMessage = useCallback(async (message: string, file?: File) => {
     if ((!message.trim() && !file) || !selectedChannel || !user) return;
@@ -680,6 +725,14 @@ export default function Dashboard() {
 
     fetchGroups();
   }, [user, isClient]);
+
+  // Add additional logging to track subscription status when the group channel changes
+  useEffect(() => {
+    if (selectedGroup && selectedChannel) {
+      console.log(`Group PubNub subscription status for channel ${selectedChannel}:`, isSubscribed);
+      console.log(`Current PubNub connection status:`, isSubscribed ? 'Connected' : 'Disconnected');
+    }
+  }, [selectedGroup, selectedChannel, isSubscribed]);
 
   if (!isClient) {
     return <div className="min-h-screen bg-violet-50 dark:bg-gray-950"></div>;

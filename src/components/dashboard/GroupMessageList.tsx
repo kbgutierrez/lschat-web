@@ -24,6 +24,33 @@ export function GroupMessageList({
   endRef,
   currentUserId
 }: GroupMessageListProps) {
+  // Get user name initials from localStorage
+  const getUserInitials = () => {
+    try {
+      const userData = localStorage.getItem('userSession');
+      if (userData) {
+        const parsed = JSON.parse(userData);
+        const user = parsed.user || parsed;
+        
+        // Handle different ways user name might be stored
+        const firstName = user.firstName || user.first_name || '';
+        const lastName = user.lastName || user.last_name || '';
+        
+        if (firstName || lastName) {
+          return getInitials(`${firstName} ${lastName}`.trim());
+        }
+        
+        if (user.username) {
+          return getInitials(user.username);
+        }
+      }
+    } catch (e) {
+      // Silently fail and use default
+    }
+    
+    return "U"; // Default fallback
+  };
+
   if (isLoading) {
     return (
       <div className="flex justify-center items-center h-full">
@@ -175,7 +202,10 @@ export function GroupMessageList({
           </div>
           
           {dateMessages.map((message) => {
-            const isOwn = message.sender_id.toString() === currentUserId?.toString();
+            // Fix the null check to handle undefined values properly
+            const isOwn = currentUserId !== undefined && 
+                          message.sender_id !== undefined && 
+                          message.sender_id.toString() === currentUserId.toString();
             
             return (
               <div 
@@ -205,7 +235,7 @@ export function GroupMessageList({
 
                 {isOwn && (
                   <div className="flex-shrink-0 w-8 h-8 pt-0.5 rounded-full bg-violet-500 flex items-center justify-center text-white text-sm font-medium overflow-hidden">
-                    {getInitials("Me")}
+                    {getUserInitials()}
                   </div>
                 )}
               </div>

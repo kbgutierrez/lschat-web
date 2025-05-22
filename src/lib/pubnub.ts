@@ -33,7 +33,7 @@ export function getPubNub(userId?: string): PubNub {
       publishKey: pubnubConfig.publishKey as string,
       subscribeKey: pubnubConfig.subscribeKey as string, 
       userId: userId || `user-${uuidv4()}`,
-      logVerbosity: true,
+      logVerbosity: false, 
       heartbeatInterval: 10,
       presenceTimeout: 30,
       keepAlive: true,

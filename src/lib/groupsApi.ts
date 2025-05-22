@@ -1,4 +1,5 @@
 import { API_BASE_URL } from './api';
+import { publishMessage } from './pubnub';
 
 export interface Group {
   group_id: number;
@@ -90,7 +91,7 @@ export const groupsAPI = {
     }
   },
 
-  sendGroupMessage: async (groupId: number | string, userId: number | string, message: string): Promise<GroupMessage> => {
+  sendGroupMessage: async (groupId: number | string, userId: number | string, message: string, file?: File): Promise<GroupMessage> => {
     if (!groupId) {
       throw new Error('Group ID is required to send a message');
     }
@@ -100,30 +101,117 @@ export const groupsAPI = {
     }
     
     try {
-      const headers = middleware.addAuthHeader({
-        'Content-Type': 'application/json',
-      });
+      const headers = middleware.addAuthHeader();
       
-      const body = JSON.stringify({
-        user_id: userId,
-        message: message,
-      });
-      
-      const url = `${API_BASE_URL}/api/groupMessages/${groupId}`;
-      const response = await fetch(url, { 
-        method: 'POST',
-        headers,
-        body
-      });
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Failed to send group message: ${response.status} - ${errorText}`);
+      // If there's a file, use FormData instead of JSON
+      if (file) {
+        const formData = new FormData();
+        formData.append('group_id', groupId.toString());
+        formData.append('sender_id', userId.toString());
+        formData.append('message_content', message);
+        formData.append('message_type', 'text');
+        formData.append('file', file);
+        
+        const url = `${API_BASE_URL}/api/sendGroupMessage`;
+        const response = await fetch(url, { 
+          method: 'POST',
+          headers,  // Browser will set content-type for FormData
+          body: formData
+        });
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`Failed to send group message: ${response.status} - ${errorText}`);
+        }
+        
+        const sentMessage: GroupMessage = await response.json();
+        
+        // Try to send a PubNub notification
+        try {
+          const groupDetails = await groupsAPI.getGroups(userId);
+          const thisGroup = groupDetails.find(g => g.group_id.toString() === groupId.toString());
+          
+          if (thisGroup && thisGroup.pubnub_channel) {
+            console.log('🔔 Sending PubNub notification for group file message on channel:', thisGroup.pubnub_channel);
+            const uniqueId = `${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+            
+            await publishMessage(
+              thisGroup.pubnub_channel, 
+              {
+                type: 'NEW_GROUP_MESSAGE',
+                action: 'new_group_message',
+                group_id: groupId,
+                sender: userId,
+                timestamp: Date.now(),
+                notification_id: uniqueId
+              },
+              userId.toString()
+            );
+          } else {
+            console.log('⚠️ No PubNub channel found for group:', groupId);
+          }
+        } catch (pubnubError) {
+          console.error('Failed to send PubNub notification for group message:', pubnubError);
+        }
+        
+        return sentMessage;
+      } else {
+        // Text-only message
+        const body = JSON.stringify({
+          group_id: groupId,
+          sender_id: userId,
+          message_content: message,
+          message_type: 'text'
+        });
+        
+        const url = `${API_BASE_URL}/api/sendGroupMessage`;
+        const response = await fetch(url, { 
+          method: 'POST',
+          headers: {
+            ...headers,
+            'Content-Type': 'application/json'
+          },
+          body
+        });
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`Failed to send group message: ${response.status} - ${errorText}`);
+        }
+        
+        const sentMessage: GroupMessage = await response.json();
+        
+        // Try to send a PubNub notification
+        try {
+          const groupDetails = await groupsAPI.getGroups(userId);
+          const thisGroup = groupDetails.find(g => g.group_id.toString() === groupId.toString());
+          
+          if (thisGroup && thisGroup.pubnub_channel) {
+            console.log('🔔 Sending PubNub notification for group text message on channel:', thisGroup.pubnub_channel);
+            const uniqueId = `${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+            
+            await publishMessage(
+              thisGroup.pubnub_channel, 
+              {
+                type: 'NEW_GROUP_MESSAGE',
+                action: 'new_group_message',
+                group_id: groupId,
+                sender: userId,
+                timestamp: Date.now(),
+                notification_id: uniqueId
+              },
+              userId.toString()
+            );
+            console.log('✅ PubNub notification sent successfully');
+          } else {
+            console.log('⚠️ No PubNub channel found for group:', groupId, 'Group details:', thisGroup);
+          }
+        } catch (pubnubError) {
+          console.error('Failed to send PubNub notification for group message:', pubnubError);
+        }
+        
+        return sentMessage;
       }
-      
-      const sentMessage: GroupMessage = await response.json();
-      
-      return sentMessage;
     } catch (error) {
       console.error('Send group message error:', error);
       throw error;

@@ -220,7 +220,19 @@ export function usePubnubTrigger(
              event.message.type === 'new_message' || 
              event.message.action === 'new_message');
           
-          if (isNotification) {
+          const isGroupNotification = event.message && 
+            typeof event.message === 'object' && 
+            (event.message.type === 'NEW_GROUP_MESSAGE' || 
+             event.message.action === 'new_group_message');
+          
+          if (isGroupNotification) {
+            console.log(`⚠️ PubNub GROUP notification received on ${event.channel}:`, 
+              event.message, 'at', new Date().toISOString());
+            
+            setState(prev => ({ ...prev, lastMessage: event.message }));
+            debouncedMessageTrigger(event.message);
+          }
+          else if (isNotification) {
             console.log(`⚠️ PubNub notification received on ${event.channel}:`, 
               event.message, 'at', new Date().toISOString());
             
