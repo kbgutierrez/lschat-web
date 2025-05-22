@@ -117,14 +117,16 @@ export function GroupMessageList({
         return "Invalid date";
       }
       
-      let hours = date.getUTCHours();
-      const minutes = date.getUTCMinutes().toString().padStart(2, '0');
-      const ampm = hours >= 12 ? 'PM' : 'AM';
-      
-      hours = hours % 12;
-      hours = hours ? hours : 12;
-      
-      return `${hours}:${minutes} ${ampm}`;
+      // Format to match one-on-one chat format with full date and time
+      return new Date(dateStr.replace('Z', '')).toLocaleString('en-PH', { 
+        timeZone: 'Asia/Manila',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: 'numeric', 
+        minute: 'numeric', 
+        hour12: true 
+      });
     } catch (error) {
       return "Unknown time";
     }
