@@ -24,7 +24,6 @@ interface SidebarProps {
   groupError: string | null;
   selectedGroup: number | null;
   handleGroupSelect: (id: number) => void;
-  // Add this new prop to clear selection when needed
   clearSelection?: () => void;
 }
 
