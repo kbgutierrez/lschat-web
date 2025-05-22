@@ -24,6 +24,8 @@ interface SidebarProps {
   groupError: string | null;
   selectedGroup: number | null;
   handleGroupSelect: (id: number) => void;
+  // Add this new prop to clear selection when needed
+  clearSelection?: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -40,13 +42,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
   loadingGroups,
   groupError,
   selectedGroup,
-  handleGroupSelect
+  handleGroupSelect,
+  clearSelection
 }) => {
   const handleTabChange = useCallback((tab: TabType) => {
     if (tab !== activeTab) {
       setActiveTab(tab);
+      
+      // When switching to contacts tab, clear any selection
+      if (tab === 'contacts' && clearSelection) {
+        clearSelection();
+      }
     }
-  }, [activeTab, setActiveTab]);
+  }, [activeTab, setActiveTab, clearSelection]);
 
   return (
     <aside

@@ -17,10 +17,11 @@ type ContactDetails = {
 interface ChatHeaderProps {
   user: User;
   contactDetails: ContactDetails | null;
-  groupDetails: Group | null;  // Add this line
+  groupDetails: Group | null;
   onToggleSidebar: () => void;
   onLogout: () => void;
   onOpenProfileModal: () => void;
+  onToggleRightPanel: () => void; // Add this prop
   channelId?: string | null;
   pubnubConnected?: boolean;
   lastMessage?: any;
@@ -29,10 +30,11 @@ interface ChatHeaderProps {
 export const ChatHeader: React.FC<ChatHeaderProps> = ({ 
   user, 
   contactDetails,
-  groupDetails,  // Add this line
+  groupDetails,
   onToggleSidebar, 
   onLogout,
   onOpenProfileModal,
+  onToggleRightPanel, // Add this prop
   channelId,
   pubnubConnected,
   lastMessage
@@ -130,8 +132,21 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
         )}
       </div>
       
-      {/* Right side - User profile */}
+      {/* Right side - Actions and user profile */}
       <div className="flex items-center">
+        {/* Show toggle button only on mobile */}
+        {(contactDetails || groupDetails) && (
+          <button
+            onClick={onToggleRightPanel}
+            className="p-2 rounded-full text-gray-500 hover:bg-violet-50 dark:hover:bg-gray-800 mr-1 md:hidden"
+            aria-label="Show info"
+          >
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </button>
+        )}
+        
         <div className="relative">
           <button
             ref={buttonRef}

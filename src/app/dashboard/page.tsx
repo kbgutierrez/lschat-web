@@ -17,10 +17,12 @@ import { publishTypingIndicator } from '@/lib/pubnub';
 import ProfileManagementModal from '@/components/dashboard/ProfileManagementModal';
 import { GroupMessageList } from '@/components/dashboard/GroupMessageList';
 import { MessageInput } from '@/components/chat/MessageInput';
+import { RightPanel } from '@/components/dashboard/RightPanel';
 
 type TabType = 'chats' | 'groups' | 'contacts';
 
-type ContactDetails = {
+// Add ContactDetails export so RightPanel can use it
+export type ContactDetails = {
   id: string;
   name: string;
   status: string;
@@ -74,6 +76,9 @@ export default function Dashboard() {
   const [loadingGroupMessages, setLoadingGroupMessages] = useState(false);
   const [groupMessageError, setGroupMessageError] = useState<string | null>(null);
   const [selectedGroupDetails, setSelectedGroupDetails] = useState<Group | null>(null);
+
+  // Add state to control right panel visibility
+  const [isRightPanelVisible, setIsRightPanelVisible] = useState(false);
 
   const scrollToBottom = useCallback(() => {
     if (!messagesEndRef.current) return;
@@ -134,8 +139,10 @@ export default function Dashboard() {
 
         setContacts(contactList);
 
-        // Only auto-select a contact if no contact is selected AND no group is selected
-        if (contactList.length > 0 && !selectedContact && !selectedGroup) {
+        // Only auto-select a contact if:
+        // 1. No contact or group is selected AND
+        // 2. We're NOT on the contacts tab (we're on chats or groups tab)
+        if (contactList.length > 0 && !selectedContact && !selectedGroup && activeTab !== 'contacts') {
           setSelectedContact(contactList[0].contact_id.toString());
           setSelectedContactDetails({
             id: contactList[0].contact_id.toString(),
@@ -154,7 +161,7 @@ export default function Dashboard() {
     };
 
     fetchContacts();
-  }, [user, isClient, selectedContact, selectedGroup]); // Add selectedGroup as a dependency
+  }, [user, isClient, selectedContact, selectedGroup, activeTab]);  // Added activeTab as a dependency
 
   useEffect(() => {
     if (!isClient || !selectedContact) return;
@@ -687,13 +694,20 @@ export default function Dashboard() {
     }
   }, [selectedChannel, user, scrollToBottom, isClient]);
 
+  // Add this function to clear selections
+  const clearSelection = useCallback(() => {
+    setSelectedContact(null);
+    setSelectedGroup(null);
+    setSelectedContactDetails(null);
+    setSelectedGroupDetails(null);
+  }, []);
+
   const handleTabChange = useCallback((tab: TabType) => {
     if (tab !== activeTab) {
       setActiveTab(tab);
       
-      // When switching tabs, ensure the appropriate content is shown
+      // When switching to chats tab, select first contact if available
       if (tab === 'chats') {
-        // When switching to chats tab, select first contact if available
         if (contacts.length > 0) {
           handleContactSelect(contacts[0].contact_id.toString());
         }
@@ -702,6 +716,9 @@ export default function Dashboard() {
         if (groups.length > 0) {
           handleGroupSelect(groups[0].group_id);
         }
+      } else if (tab === 'contacts') {
+        // When switching to contacts tab, clear selection
+        clearSelection();
       }
       
       if (!tabsVisited[tab]) {
@@ -711,7 +728,7 @@ export default function Dashboard() {
         }));
       }
     }
-  }, [activeTab, tabsVisited, contacts, groups, handleContactSelect, handleGroupSelect]);
+  }, [activeTab, tabsVisited, contacts, groups, handleContactSelect, handleGroupSelect, clearSelection]);
 
   const handleRetryLoadMessages = useCallback(() => {
     if (selectedChannel) {
@@ -797,6 +814,7 @@ export default function Dashboard() {
         loadingGroups={loadingGroups}
         apiError={apiError}
         groupError={groupError}
+        clearSelection={clearSelection}
       />
 
       {isMobileSidebarOpen && (
@@ -814,6 +832,7 @@ export default function Dashboard() {
           onToggleSidebar={() => setIsMobileSidebarOpen(true)}
           onLogout={handleLogout}
           onOpenProfileModal={handleOpenProfileModal}
+          onToggleRightPanel={() => setIsRightPanelVisible(!isRightPanelVisible)}
           channelId={selectedChannel}
           pubnubConnected={isSubscribed}
           lastMessage={lastPubnubMessage}
@@ -830,65 +849,76 @@ export default function Dashboard() {
           </div>
         )}
 
-        <div className="flex-1 flex flex-col overflow-hidden relative">
-          {selectedContact ? (
-            <ChatArea 
-              selectedContact={selectedContact}
-              contactName={selectedContactDetails?.name || ''}
-              messages={selectedChannel ? messages[selectedChannel] || [] : []}
-              loadingMessages={loadingMessages}
-              messageError={messageError}
-              handleRetryLoadMessages={handleRetryLoadMessages}
-              handleSendMessage={handleSendMessage}
-              handleTyping={handleTypingChange}
-              selectedChannel={selectedChannel}
-              isTyping={isContactTyping}
-            />
-          ) : selectedGroup ? (
-            <div className="flex-1 flex flex-col bg-violet-50 dark:bg-gray-950 overflow-hidden">
-              <div 
-                ref={containerRef}
-                className="chat-messages-container flex-1 overflow-y-auto no-scrollbar" 
-                style={{ 
-                  height: "calc(100% - 80px)", 
-                  display: "flex",
-                  flexDirection: "column",
-                  scrollBehavior: "auto"
-                }}
-              >
-                <div className="p-4 space-y-3 flex-1"> 
-                  <div className="flex justify-center my-4">
-                    <div className="px-3 py-1 bg-violet-100 dark:bg-gray-800 rounded-full">
-                      <span className="text-xs text-black dark:text-gray-400">
-                        {selectedGroupDetails?.name || 'Group Chat'}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="relative min-h-[200px]">
-                    <GroupMessageList 
-                      messages={groupMessages[selectedGroup] || []}
-                      groupName={selectedGroupDetails?.name || 'Group'}
-                      isLoading={loadingGroupMessages}
-                      error={groupMessageError}
-                      onRetry={handleRetryLoadGroupMessages}
-                      endRef={messagesEndRef}
-                      currentUserId={user?.user_id}
-                    />
-                  </div>
-                  
-                  <div ref={messagesEndRef} className="h-1" />
-                </div>
-              </div>
-
-              <MessageInput 
-                onSendMessage={handleSendGroupMessage}
-                disabled={!selectedGroup}
+        <div className="flex-1 flex overflow-hidden relative">
+          {/* Added md:pr-80 to make space for the always-visible right panel on desktop */}
+          <div className="flex-1 flex flex-col overflow-hidden md:pr-0">
+            {selectedContact ? (
+              <ChatArea 
+                selectedContact={selectedContact}
+                contactName={selectedContactDetails?.name || ''}
+                messages={selectedChannel ? messages[selectedChannel] || [] : []}
+                loadingMessages={loadingMessages}
+                messageError={messageError}
+                handleRetryLoadMessages={handleRetryLoadMessages}
+                handleSendMessage={handleSendMessage}
+                handleTyping={handleTypingChange}
+                selectedChannel={selectedChannel}
+                isTyping={isContactTyping}
               />
-            </div>
-          ) : (
-            <EmptyState />
-          )}
+            ) : selectedGroup ? (
+              <div className="flex-1 flex flex-col bg-violet-50 dark:bg-gray-950 overflow-hidden">
+                <div 
+                  ref={containerRef}
+                  className="chat-messages-container flex-1 overflow-y-auto no-scrollbar" 
+                  style={{ 
+                    height: "calc(100% - 80px)", 
+                    display: "flex",
+                    flexDirection: "column",
+                    scrollBehavior: "auto"
+                  }}
+                >
+                  <div className="p-4 space-y-3 flex-1"> 
+                    <div className="flex justify-center my-4">
+                      <div className="px-3 py-1 bg-violet-100 dark:bg-gray-800 rounded-full">
+                        <span className="text-xs text-black dark:text-gray-400">
+                          {selectedGroupDetails?.name || 'Group Chat'}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="relative min-h-[200px]">
+                      <GroupMessageList 
+                        messages={groupMessages[selectedGroup] || []}
+                        groupName={selectedGroupDetails?.name || 'Group'}
+                        isLoading={loadingGroupMessages}
+                        error={groupMessageError}
+                        onRetry={handleRetryLoadGroupMessages}
+                        endRef={messagesEndRef}
+                        currentUserId={user?.user_id}
+                      />
+                    </div>
+                    
+                    <div ref={messagesEndRef} className="h-1" />
+                  </div>
+                </div>
+
+                <MessageInput 
+                  onSendMessage={handleSendGroupMessage}
+                  disabled={!selectedGroup}
+                />
+              </div>
+            ) : (
+              <EmptyState />
+            )}
+          </div>
+          
+          {/* Right Panel is now always visible on desktop */}
+          <RightPanel
+            contactDetails={selectedContact ? selectedContactDetails : null}
+            groupDetails={selectedGroup ? selectedGroupDetails : null}
+            isVisible={isRightPanelVisible}
+            onClose={() => setIsRightPanelVisible(false)}
+          />
         </div>
       </main>
       
