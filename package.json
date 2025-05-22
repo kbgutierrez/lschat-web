@@ -11,6 +11,7 @@
   "dependencies": {
     "firebase": "^11.6.1",
     "formidable": "^2.1.2",
+    "gsap": "^3.13.0",
     "next": "15.3.0",
     "pubnub": "^7.6.3",
     "react": "^19.0.0",
