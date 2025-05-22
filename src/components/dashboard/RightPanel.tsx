@@ -34,6 +34,16 @@ interface FileItem {
   timestamp: string;
 }
 
+interface ContactData {
+  user_id: number;
+  contact_id: number;
+  contact_full_name: string;
+  contact_mobile_number: string;
+  email?: string; 
+  pubnub_channel: string;
+  status: string;
+}
+
 export function RightPanel({
   contactDetails,
   groupDetails,
@@ -47,23 +57,18 @@ export function RightPanel({
   const [loadingFiles, setLoadingFiles] = useState(false);
   const [mediaError, setMediaError] = useState<string | null>(null);
   const [filesError, setFilesError] = useState<string | null>(null);
+  const [contactData, setContactData] = useState<ContactData | null>(null);
 
-  // Select the appropriate name and image based on whether we have contact or group
   const name = contactDetails?.name || groupDetails?.name || 'No Selection';
   const initials = name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
-
-  // Determine if we should show content (have either contact or group details)
   const hasContent = contactDetails !== null || groupDetails !== null;
   
-  // Get the current channel ID depending on whether it's a contact or group
   const [pubnubChannel, setPubnubChannel] = useState<string | null>(null);
 
-  // Find the correct pubnub channel for the contact
   useEffect(() => {
     const fetchPubnubChannel = async () => {
       if (contactDetails?.id) {
         try {
-          // We need to get the pubnub_channel value from contacts API
           const userSession = localStorage.getItem('userSession');
           if (userSession) {
             const { user_id } = JSON.parse(userSession).user;
@@ -71,28 +76,36 @@ export function RightPanel({
             const contact = contacts.find(c => c.contact_id.toString() === contactDetails.id);
             
             if (contact) {
-              console.log('Found contact pubnub channel:', contact.pubnub_channel);
-              setPubnubChannel(contact.pubnub_channel);
+            console.log('Found contact pubnub channel:', contact.pubnub_channel);
+            setPubnubChannel(contact.pubnub_channel);
+            // Store the contact data with added email property
+            setContactData({
+              ...contact,
+              email: '' 
+            });
             } else {
               console.error('Contact not found in contact list');
               setPubnubChannel(null);
+              setContactData(null);
             }
           }
         } catch (error) {
           console.error('Error fetching contacts for pubnub channel:', error);
           setPubnubChannel(null);
+          setContactData(null);
         }
       } else if (groupDetails?.pubnub_channel) {
         setPubnubChannel(groupDetails.pubnub_channel);
+        setContactData(null);
       } else {
         setPubnubChannel(null);
+        setContactData(null);
       }
     };
     
     fetchPubnubChannel();
   }, [contactDetails?.id, groupDetails?.pubnub_channel]);
 
-  // Fetch media items (images, videos) from conversation
   const fetchMedia = useCallback(async () => {
     if (!pubnubChannel) {
       console.log('Cannot fetch media: No pubnub channel available');
@@ -107,23 +120,17 @@ export function RightPanel({
       let mediaItems: MediaItem[] = [];
       
       if (contactDetails) {
-        // For direct contacts, use the contact's channel for messages
         try {
-          // FIXED: Use the correct pubnubChannel instead of contact ID
           const messages = await messagesAPI.getChatMessages(pubnubChannel);
           console.log('Fetched messages for media:', messages.length);
           
-          // Use more flexible pattern to match different image formats
           const IMAGE_REGEX = /\[(?:Image|JPG|JPEG|PNG|GIF)(?:\s*File)?:?\s*(?:[^-\]]+)?(?:-\s*)?([^\]\s]+)\]/i;
           const FILE_IMAGE_REGEX = /\[(JPG|PNG|GIF|JPEG)\s*File:\s*([^-\]]+)\s*-\s*([^\]\s]+)\]/i;
           
-          // Extract media from messages
           mediaItems = messages
             .filter(msg => {
-              // Log all messages to debug
               console.log('Checking message:', msg.message_content?.substring(0, 50));
               
-              // More comprehensive check for image content
               return msg.message_content?.includes('[Image:') || 
                      msg.message_content?.includes('JPG File:') || 
                      msg.message_content?.includes('PNG File:') ||
@@ -135,12 +142,10 @@ export function RightPanel({
                      msg.message_type === 'image';
             })
             .map((msg, index) => {
-              // Extract image URL using regex
               const imgMatch = msg.message_content?.match(/\[Image:\s*(https?:\/\/[^\]\s]+)\]/i);
               const imgFileMatch = msg.message_content?.match(/\[(JPG|PNG|GIF|JPEG)\s*File:\s*([^-\]]+)\s*-\s*([^\]\s]+)\]/i);
               const plainUrlMatch = msg.message_content?.match(/https?:\/\/\S+\.(?:jpg|jpeg|png|gif)/i);
               
-              // Try to extract URL with more flexible pattern
               const flexMatch = msg.message_content?.match(IMAGE_REGEX);
               
               const url = imgMatch ? imgMatch[1] : 
@@ -151,7 +156,6 @@ export function RightPanel({
               
               let fileName = imgFileMatch ? imgFileMatch[2] : `Image ${index + 1}`;
               
-              // If this is a file message but no explicit filename was found
               if (msg.message_type === 'file' || msg.message_type === 'image') {
                 const urlParts = url.split('/');
                 fileName = urlParts[urlParts.length - 1] || fileName;
@@ -172,16 +176,13 @@ export function RightPanel({
         }
       } 
       else if (groupDetails) {
-        // For groups, use the group ID to fetch messages
         try {
           const messages = await groupsAPI.getGroupMessages(groupDetails.group_id);
           console.log('Fetched group messages for media:', messages.length);
           
-          // Use more flexible pattern to match different image formats
           const IMAGE_REGEX = /\[(?:Image|JPG|JPEG|PNG|GIF)(?:\s*File)?:?\s*(?:[^-\]]+)?(?:-\s*)?([^\]\s]+)\]/i;
           const FILE_IMAGE_REGEX = /\[(JPG|PNG|GIF|JPEG)\s*File:\s*([^-\]]+)\s*-\s*([^\]\s]+)\]/i;
           
-          // Extract media from group messages with better detection
           mediaItems = messages
             .filter(msg => {
               console.log('Checking group message:', msg.message?.substring(0, 50));
@@ -195,12 +196,10 @@ export function RightPanel({
                      IMAGE_REGEX.test(msg.message || '');
             })
             .map((msg, index) => {
-              // Extract image URL using regex
               const imgMatch = msg.message?.match(/\[Image:\s*(https?:\/\/[^\]\s]+)\]/i);
               const imgFileMatch = msg.message?.match(/\[(JPG|PNG|GIF|JPEG)\s*File:\s*([^-\]]+)\s*-\s*([^\]\s]+)\]/i);
               const plainUrlMatch = msg.message?.match(/https?:\/\/\S+\.(?:jpg|jpeg|png|gif)/i);
               
-              // Try to extract URL with more flexible pattern
               const flexMatch = msg.message?.match(IMAGE_REGEX);
               
               const url = imgMatch ? imgMatch[1] : 
@@ -236,7 +235,6 @@ export function RightPanel({
     }
   }, [pubnubChannel, contactDetails, groupDetails]);
   
-  // Fetch file items (documents, etc) from conversation
   const fetchFiles = useCallback(async () => {
     if (!pubnubChannel) {
       console.log('Cannot fetch files: No pubnub channel available');
@@ -251,18 +249,14 @@ export function RightPanel({
       let fileItems: FileItem[] = [];
       
       if (contactDetails) {
-        // For direct contacts, use the contact's channel for messages
         try {
           const messages = await messagesAPI.getChatMessages(pubnubChannel);
           console.log('Fetched messages for files:', messages.length);
           
-          // More flexible file pattern
           const FILE_REGEX = /\[File:\s*(https?:\/\/[^\|\]\s]+)(?:\|([^\]\s]+))?\]/i;
           
-          // Extract files with better detection - only include messages with actual file attachments
           fileItems = messages
             .filter(msg => {
-              // Only include messages that have a proper file URL match
               const fileMatch = msg.message_content?.match(FILE_REGEX);
               const hasValidFileUrl = fileMatch && fileMatch[1] && fileMatch[1].startsWith('http');
               
@@ -272,16 +266,13 @@ export function RightPanel({
                     !msg.message_content?.includes('PNG File:');
             })
             .map((msg, index) => {
-              // Extract file URL and name using regex
               const fileMatch = msg.message_content?.match(/\[File:\s*(https?:\/\/[^\|\]\s]+)\|([^\]\s]+)\]/i);
               
-              // Ensure we actually have a valid URL before proceeding
               if (!fileMatch || !fileMatch[1]) return null;
               
               const url = fileMatch[1];
               let fileName = fileMatch[2] || '';
               
-              // If no filename was provided, extract from URL
               if (!fileName) {
                 const urlParts = url.split('/');
                 fileName = urlParts[urlParts.length - 1] || `File ${index + 1}`;
@@ -298,24 +289,20 @@ export function RightPanel({
                 timestamp: new Date(msg.created_at).toLocaleDateString()
               };
             })
-            .filter(Boolean) as FileItem[]; // Remove any null entries
+            .filter(Boolean) as FileItem[];
         } catch (error) {
           console.error('Error fetching contact messages for files:', error);
         }
       } 
       else if (groupDetails) {
-        // For groups, use the group ID to fetch messages
         try {
           const messages = await groupsAPI.getGroupMessages(groupDetails.group_id);
           console.log('Fetched group messages for files:', messages.length);
           
-          // More flexible file pattern
           const FILE_REGEX = /\[File:\s*(https?:\/\/[^\|\]\s]+)(?:\|([^\]\s]+))?\]/i;
           
-          // Extract files from group messages with better detection
           fileItems = messages
             .filter(msg => {
-              // Only include messages that have a proper file URL match
               const fileMatch = msg.message?.match(FILE_REGEX);
               const hasValidFileUrl = fileMatch && fileMatch[1] && fileMatch[1].startsWith('http');
               
@@ -325,16 +312,13 @@ export function RightPanel({
                     !msg.message?.includes('PNG File:');
             })
             .map((msg, index) => {
-              // Extract file URL and name using regex
               const fileMatch = msg.message.match(/\[File:\s*(https?:\/\/[^\|\]\s]+)\|([^\]\s]+)\]/i);
               
-              // Ensure we actually have a valid URL before proceeding
               if (!fileMatch || !fileMatch[1]) return null;
               
               const url = fileMatch[1];
               let fileName = fileMatch[2] || '';
               
-              // If no filename was provided, extract from URL
               if (!fileName) {
                 const urlParts = url.split('/');
                 fileName = urlParts[urlParts.length - 1] || `File ${index + 1}`;
@@ -351,7 +335,7 @@ export function RightPanel({
                 timestamp: new Date(msg.created_at).toLocaleDateString()
               };
             })
-            .filter(Boolean) as FileItem[]; // Remove any null entries
+            .filter(Boolean) as FileItem[];
         } catch (error) {
           console.error('Error fetching group messages for files:', error);
         }
@@ -367,7 +351,6 @@ export function RightPanel({
     }
   }, [pubnubChannel, contactDetails, groupDetails]);
 
-  // Fetch data when tab changes or when contact/group changes
   useEffect(() => {
     if (activeTab === 'media') {
       fetchMedia();
@@ -379,21 +362,15 @@ export function RightPanel({
   return (
     <div 
       className={cn(
-        // Simple, clean styling that complements main content
         "bg-white dark:bg-gray-900 border-l border-gray-200 dark:border-gray-800 flex flex-col",
-        // Always visible on desktop, toggleable on mobile
         "fixed md:relative inset-y-0 right-0 z-30 md:z-0",
-        // Width and transform styles
         "w-80",
-        // On mobile, apply transform based on isVisible
         isVisible ? "translate-x-0" : "translate-x-full md:translate-x-0",
-        // Smooth transition
         "transition-all duration-300 ease-in-out"
       )}
     >
       {hasContent ? (
         <>
-          {/* Profile section with clean design */}
           <div className="px-4 py-6 border-b border-gray-200 dark:border-gray-800 flex flex-col items-center">
             <div className={cn(
               "w-20 h-20 rounded-full flex items-center justify-center text-xl font-bold mb-4",
@@ -427,7 +404,6 @@ export function RightPanel({
             )}
           </div>
           
-          {/* Simple tab navigation */}
           <div className="border-b border-gray-200 dark:border-gray-800">
             <div className="flex">
               {['info', 'media', 'files'].map((tab) => (
@@ -447,7 +423,6 @@ export function RightPanel({
             </div>
           </div>
           
-          {/* Content area with minimal padding and efficient display */}
           <div className="flex-1 overflow-auto no-scrollbar">
             {activeTab === 'info' && (
               <div className="p-4 space-y-4">
@@ -465,7 +440,9 @@ export function RightPanel({
                           </div>
                           <div>
                             <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Phone</p>
-                            <p className="text-sm text-gray-600 dark:text-gray-400">+1234567890</p>
+                            <p className="text-sm text-gray-600 dark:text-gray-400">
+                              {contactData?.contact_mobile_number || 'No phone number'}
+                            </p>
                           </div>
                         </div>
 
@@ -477,7 +454,9 @@ export function RightPanel({
                           </div>
                           <div>
                             <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Email</p>
-                            <p className="text-sm text-gray-600 dark:text-gray-400 truncate max-w-[180px]">{contactDetails.name.toLowerCase().replace(' ', '')}@example.com</p>
+                            <p className="text-sm text-gray-600 dark:text-gray-400 truncate max-w-[180px]">
+                              {contactData?.email || 'No email available'}
+                            </p>
                           </div>
                         </div>
                       </div>
@@ -547,11 +526,8 @@ export function RightPanel({
                     </button>
                   </div>
                 ) : media.length === 0 ? (
-                  <div className="text-center py-8">
-                    <svg className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
-                    <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">No media shared in this conversation</p>
+                  <div className="text-center py-4">
+                    <p className="text-sm text-gray-500 dark:text-gray-400">No media shared</p>
                   </div>
                 ) : (
                   <div className="grid grid-cols-3 gap-2">
@@ -585,9 +561,7 @@ export function RightPanel({
                 {media.length > 0 && (
                   <button 
                     className="mt-4 w-full py-2 text-sm text-violet-600 dark:text-violet-400 hover:text-violet-700 dark:hover:text-violet-300"
-                    onClick={() => {
-                      // Logic to view all media
-                    }}
+                    onClick={() => {}}
                   >
                     View All Media
                   </button>
@@ -614,11 +588,8 @@ export function RightPanel({
                     </button>
                   </div>
                 ) : files.length === 0 ? (
-                  <div className="text-center py-8">
-                    <svg className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                    </svg>
-                    <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">No files shared in this conversation</p>
+                  <div className="text-center py-4">
+                    <p className="text-sm text-gray-500 dark:text-gray-400">No files shared</p>
                   </div>
                 ) : (
                   <div className="space-y-2">
@@ -677,7 +648,6 @@ export function RightPanel({
           </div>
         </>
       ) : (
-        // Simple empty state
         <div className="flex-1 flex flex-col items-center justify-center p-4">
           <div className="w-16 h-16 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-gray-400 dark:text-gray-600 mb-3">
             <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -691,7 +661,6 @@ export function RightPanel({
         </div>
       )}
       
-      {/* Mobile close button - positioned absolutely to preserve functionality */}
       <button 
         onClick={onClose}
         className="absolute top-2 right-2 p-1.5 rounded-full text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 md:hidden"
