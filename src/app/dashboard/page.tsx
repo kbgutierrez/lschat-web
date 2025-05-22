@@ -262,6 +262,78 @@ export default function Dashboard() {
     }
   }, [selectedChannel, user, isMounted, scrollToBottom, messages]);
 
+  // Add fetchGroupMessagesFromApi declaration above the useEffect that uses it
+  const fetchGroupMessagesFromApi = useCallback(async (skipCache = false, messageData?: any) => {
+    if (!selectedGroup || !user || !isMounted) return;
+
+    const now = Date.now();
+    const fetchKey = `group-${selectedGroup}`;
+    const lastFetch = fetchTimestampRef.current[fetchKey] || 0;
+    const timeSinceLastFetch = now - lastFetch;
+    
+    const isMessageNotification = messageData && 
+      typeof messageData === 'object' && 
+      (messageData.type === 'NEW_MESSAGE' || messageData.type === 'new_message' || 
+       messageData.action === 'new_message');
+    
+    console.log(`[Group Message Check] Group: ${selectedGroup}, Is notification: ${!!isMessageNotification}, ` + 
+      `Last fetch: ${timeSinceLastFetch}ms ago, Skip cache: ${skipCache}`);
+    
+    if (isMessageNotification || skipCache) {
+      console.log('🔥 Group notification received or skip cache - FORCING group message fetch');
+    } 
+    else if (timeSinceLastFetch < 1000) {
+      console.log(`Throttling regular group fetch - last fetch was ${timeSinceLastFetch}ms ago`);
+      return;
+    }
+
+    const hasExistingMessages = groupMessages[selectedGroup]?.length > 0;
+    if (!hasExistingMessages) {
+      setLoadingGroupMessages(true);
+    }
+    setGroupMessageError(null);
+
+    try {
+      fetchTimestampRef.current[fetchKey] = now;
+      
+      console.log(`📥 Fetching messages for group: ${selectedGroup} (using groupsAPI.getGroupMessages)`);
+      const messages = await groupsAPI.getGroupMessages(selectedGroup);
+      
+      if (!isMounted) return;
+      
+      console.log(`📥 Retrieved ${messages.length} group messages`);
+
+      // Check if we have new messages compared to what's already in state
+      const existingMessages = groupMessages[selectedGroup] || [];
+      const hasNewMessages = existingMessages.length !== messages.length ||
+        JSON.stringify(existingMessages.map(m => m.id)) !== 
+        JSON.stringify(messages.map(m => m.id));
+      
+      if (hasNewMessages) {
+        console.log('📨 New group messages detected, updating state');
+        setGroupMessages(prev => ({
+          ...prev,
+          [selectedGroup]: messages
+        }));
+        
+        setTimeout(scrollToBottom, 100);
+      } else {
+        console.log('📊 No new group messages detected, skipping update');
+      }
+    } catch (error) {
+      if (!isMounted) return;
+      setGroupMessageError(
+        error instanceof Error 
+          ? error.message 
+          : 'Failed to load group messages'
+      );
+    } finally {
+      if (isMounted) {
+        setLoadingGroupMessages(false);
+      }
+    }
+  }, [selectedGroup, user, isMounted, scrollToBottom, groupMessages]);
+
   useEffect(() => {
     if (!selectedChannel || !messages[selectedChannel]) return;
     
@@ -308,22 +380,28 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (lastMessage && selectedChannel) {
-    
-      
       const isMessageNotification = 
         typeof lastMessage === 'object' && 
         (lastMessage.type === 'NEW_MESSAGE' || lastMessage.type === 'new_message' || 
          lastMessage.action === 'new_message');
       
+      const isGroupMessage = lastMessage._isGroupMessage === true || 
+                           (isMessageNotification && lastMessage.group_id !== undefined);
+      
       if (isMessageNotification) {
-        console.log('⚡ IMPORTANT: Message notification received - triggering immediate fetch');
-        
-        if (isMounted) {
+        if (isGroupMessage) {
+          if (selectedGroup && String(lastMessage.group_id) === String(selectedGroup)) {
+            if (isMounted) {
+              fetchGroupMessagesFromApi(true, lastMessage);
+            }
+          }
+        } 
+        else if (isMounted) {
           fetchMessagesFromApi(true, lastMessage);
         }
       }
     }
-  }, [lastMessage, selectedChannel, fetchMessagesFromApi, isMounted]);
+  }, [lastMessage, selectedChannel, selectedGroup, fetchMessagesFromApi, fetchGroupMessagesFromApi, isMounted]);
 
   useEffect(() => {
     if (!selectedContact) return;
@@ -444,52 +522,6 @@ export default function Dashboard() {
     
     setIsMobileSidebarOpen(false);
   };
-
-  const fetchGroupMessagesFromApi = useCallback(async (skipCache = false) => {
-    if (!selectedGroup || !user || !isMounted) return;
-
-    const now = Date.now();
-    const lastFetch = fetchTimestampRef.current[`group-${selectedGroup}`] || 0;
-    const timeSinceLastFetch = now - lastFetch;
-    
-    if (!skipCache && timeSinceLastFetch < 1000) {
-      console.log(`Throttling group messages fetch - last fetch was ${timeSinceLastFetch}ms ago`);
-      return;
-    }
-
-    const hasExistingMessages = groupMessages[selectedGroup]?.length > 0;
-    if (!hasExistingMessages) {
-      setLoadingGroupMessages(true);
-    }
-    setGroupMessageError(null);
-
-    try {
-      fetchTimestampRef.current[`group-${selectedGroup}`] = now;
-      
-      console.log(`📥 Fetching messages for group: ${selectedGroup}`);
-      const messages = await groupsAPI.getGroupMessages(selectedGroup);
-      
-      if (!isMounted) return;
-      
-      setGroupMessages(prev => ({
-        ...prev,
-        [selectedGroup]: messages
-      }));
-
-      setTimeout(scrollToBottom, 100);
-    } catch (error) {
-      if (!isMounted) return;
-      setGroupMessageError(
-        error instanceof Error 
-          ? error.message 
-          : 'Failed to load group messages'
-      );
-    } finally {
-      if (isMounted) {
-        setLoadingGroupMessages(false);
-      }
-    }
-  }, [selectedGroup, user, isMounted, scrollToBottom]);
 
   useEffect(() => {
     if (!isClient || !selectedGroup) return;

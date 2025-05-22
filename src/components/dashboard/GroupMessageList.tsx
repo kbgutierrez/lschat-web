@@ -201,15 +201,15 @@ export function GroupMessageList({
             </div>
           </div>
           
-          {dateMessages.map((message) => {
-            // Fix the null check to handle undefined values properly
+          {dateMessages.map((message) => {33
             const isOwn = currentUserId !== undefined && 
                           message.sender_id !== undefined && 
                           message.sender_id.toString() === currentUserId.toString();
+            const stableKey = `${message.id || ''}:${message.sender_id}:${message.created_at}`;
             
             return (
               <div 
-                key={message.id}
+                key={stableKey}
                 className={`flex gap-2 ${isOwn ? "justify-end" : "justify-start"}`}
               >
                 {!isOwn && (

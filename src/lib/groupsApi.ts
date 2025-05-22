@@ -41,7 +41,6 @@ export const groupsAPI = {
     if (!userId) {
       throw new Error('User ID is required to fetch groups');
     }
-    
     try {
       const headers = middleware.addAuthHeader({
         'Content-Type': 'application/json',
@@ -138,8 +137,8 @@ export const groupsAPI = {
             await publishMessage(
               thisGroup.pubnub_channel, 
               {
-                type: 'NEW_GROUP_MESSAGE',
-                action: 'new_group_message',
+                type: 'NEW_MESSAGE',
+                action: 'new_message',
                 group_id: groupId,
                 sender: userId,
                 timestamp: Date.now(),
@@ -190,12 +189,20 @@ export const groupsAPI = {
             console.log('🔔 Sending PubNub notification for group text message on channel:', thisGroup.pubnub_channel);
             const uniqueId = `${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
             
+            // Add more detailed debugging
+            console.log('Publishing notification with data:', {
+              group_id: String(groupId),
+              channel: thisGroup.pubnub_channel,
+              uniqueId: uniqueId
+            });
+            
             await publishMessage(
               thisGroup.pubnub_channel, 
               {
-                type: 'NEW_GROUP_MESSAGE',
-                action: 'new_group_message',
-                group_id: groupId,
+                type: 'NEW_MESSAGE',
+                action: 'new_message',
+                _isGroupMessage: true,  // Add explicit marker
+                group_id: String(groupId), // Always ensure group_id is a string
                 sender: userId,
                 timestamp: Date.now(),
                 notification_id: uniqueId

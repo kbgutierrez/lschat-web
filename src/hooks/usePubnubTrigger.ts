@@ -105,16 +105,17 @@ export function usePubnubTrigger(
       (messageData.type === 'NEW_MESSAGE' || messageData.type === 'new_message' || 
        messageData.action === 'new_message');
     
+    // Check if this is a group message notification
+    const isGroupNotification = isNotification && 
+      (messageData.group_id !== undefined || messageData.type === 'NEW_GROUP_MESSAGE');
+    
     if (isNotification) {
-
-      
       if (fetchDebounceTimerRef.current) {
         clearTimeout(fetchDebounceTimerRef.current);
         fetchDebounceTimerRef.current = null;
       }
       
       setTimeout(() => {
-        console.log('🚀 Executing message fetch from notification');
         lastFetchTimeRef.current = Date.now();
         if (handlerRef.current) {
           handlerRef.current(messageData);
@@ -126,13 +127,11 @@ export function usePubnubTrigger(
     
     const messageHash = messageData ? JSON.stringify(messageData) : '';
     if (!isNotification && messageHash && messageHash === lastProcessedMessageRef.current) {
-      console.log('Skipping duplicate content message');
       return;
     }
     
     if (isNotification) {
       const notificationId = `${messageHash}_${Date.now()}`;
-      console.log('Processing notification message with ID:', notificationId);
       
       if (fetchDebounceTimerRef.current) {
         clearTimeout(fetchDebounceTimerRef.current);
@@ -140,9 +139,7 @@ export function usePubnubTrigger(
       }
       
       if (now - lastFetchTimeRef.current < 300) {
-        console.log(`Debouncing message fetch - scheduling in 100ms (last fetch: ${now - lastFetchTimeRef.current}ms ago)`);
         fetchDebounceTimerRef.current = setTimeout(() => {
-          console.log('Executing debounced message fetch');
           lastFetchTimeRef.current = Date.now();
           if (handlerRef.current) {
             handlerRef.current(messageData);
@@ -151,7 +148,6 @@ export function usePubnubTrigger(
         return;
       }
       
-      console.log('Triggering message fetch immediately', messageData);
       lastFetchTimeRef.current = now;
       if (handlerRef.current) {
         handlerRef.current(messageData);
@@ -220,22 +216,25 @@ export function usePubnubTrigger(
              event.message.type === 'new_message' || 
              event.message.action === 'new_message');
           
-          const isGroupNotification = event.message && 
+          const isLegacyGroupNotification = event.message && 
             typeof event.message === 'object' && 
             (event.message.type === 'NEW_GROUP_MESSAGE' || 
              event.message.action === 'new_group_message');
           
-          if (isGroupNotification) {
-            console.log(`⚠️ PubNub GROUP notification received on ${event.channel}:`, 
-              event.message, 'at', new Date().toISOString());
+          const isGroupMessage = isLegacyGroupNotification || 
+            (isNotification && event.message.group_id !== undefined);
+          
+          if (isGroupMessage) {
+            const enhancedMessage = {
+              ...event.message,
+              _isGroupMessage: true,
+              _receivedAt: new Date().toISOString()
+            };
             
-            setState(prev => ({ ...prev, lastMessage: event.message }));
-            debouncedMessageTrigger(event.message);
+            setState(prev => ({ ...prev, lastMessage: enhancedMessage }));
+            debouncedMessageTrigger(enhancedMessage);
           }
           else if (isNotification) {
-            console.log(`⚠️ PubNub notification received on ${event.channel}:`, 
-              event.message, 'at', new Date().toISOString());
-            
             setState(prev => ({ ...prev, lastMessage: event.message }));
             debouncedMessageTrigger(event.message);
           }
@@ -244,7 +243,6 @@ export function usePubnubTrigger(
             typingHandlerRef.current(event.message as TypingIndicator);
           }
           else {
-            console.log(`📨 PubNub message received on ${event.channel}:`, event.message);
             setState(prev => ({ ...prev, lastMessage: event.message }));
             debouncedMessageTrigger(event.message);
           }
