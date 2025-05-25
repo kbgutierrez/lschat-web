@@ -76,15 +76,53 @@ export const Sidebar = memo(function Sidebar({
   const listItemsRef = useRef<HTMLDivElement>(null);
   const mobileButtonRef = useRef<HTMLButtonElement>(null);
   
-
+  const tabsContainerRef = useRef<HTMLDivElement>(null);
+  const tabsRef = useRef<HTMLButtonElement[]>([]);
+  const tabBackgroundRef = useRef<HTMLDivElement>(null);
+  
   useEffect(() => {
     if (isFirstRender.current) {
       isFirstRender.current = false;
       prevTabRef.current = activeTab;
+      
+      if (tabBackgroundRef.current && tabsRef.current.length) {
+        const activeTabIndex = ['chats', 'groups', 'contacts'].indexOf(activeTab);
+        const activeTabElement = tabsRef.current[activeTabIndex];
+        
+        if (activeTabElement && tabsContainerRef.current) {
+          const containerRect = tabsContainerRef.current.getBoundingClientRect();
+          const tabRect = activeTabElement.getBoundingClientRect();
+          
+          gsap.set(tabBackgroundRef.current, {
+            width: tabRect.width,
+            height: tabRect.height,
+            x: tabRect.left - containerRect.left,
+            y: tabRect.top - containerRect.top,
+            borderRadius: '0.375rem', 
+          });
+        }
+      }
       return;
     }
     
-    prevTabRef.current = activeTab;
+    if (prevTabRef.current !== activeTab) {
+      const activeTabIndex = ['chats', 'groups', 'contacts'].indexOf(activeTab);
+      const activeTabElement = tabsRef.current[activeTabIndex];
+      
+      if (activeTabElement && tabBackgroundRef.current && tabsContainerRef.current) {
+        const containerRect = tabsContainerRef.current.getBoundingClientRect();
+        const tabRect = activeTabElement.getBoundingClientRect();
+        
+        gsap.to(tabBackgroundRef.current, {
+          width: tabRect.width,
+          x: tabRect.left - containerRect.left,
+          duration: 0.3,
+          ease: "power2.inOut",
+        });
+      }
+      
+      prevTabRef.current = activeTab;
+    }
   }, [activeTab]);
 
   useEffect(() => {
@@ -219,16 +257,48 @@ export const Sidebar = memo(function Sidebar({
     }
   }, [isOpen]);
 
+  useEffect(() => {
+    const handleResize = () => {
+      if (tabBackgroundRef.current && tabsRef.current.length) {
+        const activeTabIndex = ['chats', 'groups', 'contacts'].indexOf(activeTab);
+        const activeTabElement = tabsRef.current[activeTabIndex];
+        
+        if (activeTabElement && tabsContainerRef.current) {
+          const containerRect = tabsContainerRef.current.getBoundingClientRect();
+          const tabRect = activeTabElement.getBoundingClientRect();
+          
+          gsap.set(tabBackgroundRef.current, {
+            width: tabRect.width,
+            x: tabRect.left - containerRect.left,
+          });
+        }
+      }
+    };
+    
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [activeTab]);
+
   const tabButtons = (
-    <div className="bg-white/10 dark:bg-gray-800/50 rounded-lg p-1 flex items-center">
-      {['chats', 'groups', 'contacts'].map((tab) => (
+    <div 
+      ref={tabsContainerRef}
+      className="bg-white/10 dark:bg-gray-800/50 rounded-lg p-1 flex items-center relative"
+    >
+      <div 
+        ref={tabBackgroundRef}
+        className="absolute bg-white dark:bg-gray-700 rounded-md shadow-sm z-0 transition-shadow duration-300"
+        style={{ height: 'calc(100% - 8px)', top: '0px', left: '0px' }}
+      />
+      
+      {['chats', 'groups', 'contacts'].map((tab, index) => (
         <button
           key={tab}
+          ref={el => { if (el) tabsRef.current[index] = el; }}
           className={cn(
-            "flex items-center justify-center space-x-2 py-2 px-3 rounded-md flex-1 text-sm font-medium transition-colors duration-200",
+            "flex items-center justify-center space-x-2 py-2 px-3 rounded-md flex-1 text-sm font-medium transition-colors duration-200 z-10 relative",
             activeTab === tab
-              ? "bg-white dark:bg-gray-700 text-violet-900 dark:text-violet-400 shadow-sm"
-              : "text-white/90 dark:text-gray-400 hover:bg-white/5 dark:hover:bg-gray-700/30"
+              ? "text-violet-900 dark:text-violet-400"
+              : "text-white/90 dark:text-gray-400 hover:text-white dark:hover:text-gray-300"
           )}
           onClick={() => handleTabChange(tab as TabType)}
         >
@@ -377,7 +447,7 @@ export const Sidebar = memo(function Sidebar({
     <aside
       ref={sidebarRef}
       className={cn(
-        "bg-gradient-to-b from-violet-900 to-violet-900/95 dark:from-gray-800 dark:to-gray-900 flex flex-col border-r border-violet-600/50 dark:border-gray-800 shadow-lg z-30",
+        "bg-gradient-to-b from-violet-800 to-violet-900/95 dark:from-gray-800 dark:to-gray-900 flex flex-col border-r border-violet-600/50 dark:border-gray-800 shadow-lg z-30",
         "transition-all duration-300 ease-in-out transform-gpu will-change-transform",
         "fixed inset-0 md:inset-y-0 md:left-0 md:w-80 md:relative md:translate-x-0",
         isOpen ? "translate-x-0" : "-translate-x-full"
