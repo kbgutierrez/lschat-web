@@ -21,7 +21,6 @@ export function validatePubNubConfig(): { isValid: boolean; errorMessage?: strin
   
   return { isValid: true };
 }
-
 export function getPubNub(userId?: string): PubNub {
   if (!pubnubInstance) {
     const validation = validatePubNubConfig();
