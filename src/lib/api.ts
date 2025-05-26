@@ -171,7 +171,34 @@ export const contactsAPI = {
    
       throw error;
     }
-  }
+  },
+  
+  fetchIncomingRequests: async (userId: string | number): Promise<any[]> => {
+    if (!userId) {
+      throw new Error('User ID is required to fetch friend requests');
+    }
+    
+    try {
+      const headers = middleware?.addAuthHeader ? 
+        middleware.addAuthHeader({
+          'Content-Type': 'application/json',
+        }) : 
+        { 'Content-Type': 'application/json' };
+      
+      const response = await fetch(`${API_BASE_URL}/api/fetch-friend-requests?contact_id=${userId}`);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Failed to fetch friend requests: ${response.status} - ${errorText}`);
+      }
+      
+      const data = await response.json();
+      return Array.isArray(data) ? data : [];
+    } catch (error) {
+      console.error('Friend requests fetch error:', error);
+      throw error;
+    }
+  },
 };
 
 import { publishMessage, formatMessageForPubNub } from './pubnub';
