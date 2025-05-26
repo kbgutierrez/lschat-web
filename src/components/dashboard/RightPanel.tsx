@@ -5,8 +5,9 @@ import { cn } from '@/lib/utils';
 import Image from 'next/image';
 import { ContactDetails } from '@/app/dashboard/page'; 
 import { Group } from '@/lib/groupsApi';
-import { messagesAPI, contactsAPI } from '@/lib/api'; 
+import { messagesAPI, contactsAPI, ContactListItem } from '@/lib/api'; 
 import { groupsAPI } from '@/lib/groupsApi';
+import { getInitials } from './ContactItem';
 
 type TabType = 'info' | 'media' | 'files';
 
@@ -15,6 +16,10 @@ interface RightPanelProps {
   groupDetails: Group | null;
   isVisible: boolean;
   onClose: () => void;
+  pendingContacts?: ContactListItem[];
+  activeTab?: 'chats' | 'groups' | 'contacts';
+  onContactSelect?: (id: string) => void;
+  loadingContacts?: boolean;
 }
 
 interface MediaItem {
@@ -48,9 +53,13 @@ export function RightPanel({
   contactDetails,
   groupDetails,
   isVisible,
-  onClose
+  onClose,
+  pendingContacts = [],
+  activeTab,
+  onContactSelect,
+  loadingContacts = false
 }: RightPanelProps) {
-  const [activeTab, setActiveTab] = useState<TabType>('info');
+  const [activeRightTab, setActiveRightTab] = useState<TabType>('info');
   const [media, setMedia] = useState<MediaItem[]>([]);
   const [files, setFiles] = useState<FileItem[]>([]);
   const [loadingMedia, setLoadingMedia] = useState(false);
@@ -62,6 +71,7 @@ export function RightPanel({
   const name = contactDetails?.name || groupDetails?.name || 'No Selection';
   const initials = name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
   const hasContent = contactDetails !== null || groupDetails !== null;
+  const showPendingContacts = activeTab === 'contacts' && !hasContent && pendingContacts.length > 0;
   
   const [pubnubChannel, setPubnubChannel] = useState<string | null>(null);
 
@@ -351,12 +361,61 @@ export function RightPanel({
   }, [pubnubChannel, contactDetails, groupDetails]);
 
   useEffect(() => {
-    if (activeTab === 'media') {
+    if (activeRightTab === 'media') {
       fetchMedia();
-    } else if (activeTab === 'files') {
+    } else if (activeRightTab === 'files') {
       fetchFiles();
     }
-  }, [activeTab, contactDetails, groupDetails, fetchMedia, fetchFiles]);
+  }, [activeRightTab, contactDetails, groupDetails, fetchMedia, fetchFiles]);
+
+  const renderPendingContacts = () => {
+    if (loadingContacts) {
+      return (
+        <div className="p-4 flex justify-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-2 border-violet-500 border-t-transparent"></div>
+        </div>
+      );
+    }
+
+    if (pendingContacts.length === 0) {
+      return (
+        <div className="p-4 text-center">
+          <p className="text-sm text-gray-500 dark:text-gray-400">No pending contact requests</p>
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-2 px-4">
+        {pendingContacts.map(contact => (
+          <div 
+            key={contact.contact_id}
+            className="flex items-center p-3 rounded-lg bg-white dark:bg-gray-800 border border-yellow-200 dark:border-yellow-800"
+          >
+            <div className="relative flex-shrink-0">
+              <div className="w-12 h-12 rounded-full bg-violet-200 dark:bg-violet-900/50 flex items-center justify-center text-violet-700 dark:text-violet-300 text-base font-bold">
+                {getInitials(contact.contact_full_name)}
+              </div>
+              <div className="absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white dark:border-gray-800 bg-yellow-500"></div>
+            </div>
+            
+            <div className="ml-3 flex-1 overflow-hidden">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-gray-900 dark:text-white font-medium truncate">{contact.contact_full_name}</p>
+                </div>
+              </div>
+              <div className="mt-2 flex">
+                <span className="inline-flex items-center px-2 py-1 text-xs rounded-md bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300">
+                  Waiting for approval
+                </span>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  };
 
   return (
     <div 
@@ -410,11 +469,11 @@ export function RightPanel({
                   key={tab}
                   className={cn(
                     "flex-1 py-2.5 px-1 text-sm font-medium border-b-2 transition-colors",
-                    activeTab === tab 
+                    activeRightTab === tab 
                       ? "border-violet-500 text-violet-600 dark:text-violet-400" 
                       : "border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-300"
                   )}
-                  onClick={() => setActiveTab(tab as TabType)}
+                  onClick={() => setActiveRightTab(tab as TabType)}
                 >
                   {tab.charAt(0).toUpperCase() + tab.slice(1)}
                 </button>
@@ -423,7 +482,7 @@ export function RightPanel({
           </div>
           
           <div className="flex-1 overflow-auto no-scrollbar">
-            {activeTab === 'info' && (
+            {activeRightTab === 'info' && (
               <div className="p-4 space-y-4">
                 {contactDetails && (
                   <>
@@ -506,7 +565,7 @@ export function RightPanel({
               </div>
             )}
             
-            {activeTab === 'media' && (
+            {activeRightTab === 'media' && (
               <div className="p-4">
                 <h4 className="text-xs uppercase text-gray-500 dark:text-gray-400 font-medium mb-3">Shared Media</h4>
                 
@@ -567,7 +626,7 @@ export function RightPanel({
                 )}
               </div>
             )}
-            {activeTab === 'files' && (
+            {activeRightTab === 'files' && (
               <div className="p-4">
                 <h4 className="text-xs uppercase text-gray-500 dark:text-gray-400 font-medium mb-3">Shared Files</h4>       
                 {loadingFiles ? (
@@ -644,6 +703,43 @@ export function RightPanel({
             )}
           </div>
         </>
+      ) : showPendingContacts ? (
+        <div className="flex-1 overflow-auto">
+          <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+            <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">Contact Requests</h3>
+          </div>
+          
+          {loadingContacts ? (
+            <div className="p-4 flex justify-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-2 border-violet-500 border-t-transparent"></div>
+            </div>
+          ) : (
+            <div className="divide-y divide-gray-200 dark:divide-gray-800">
+              {pendingContacts.map(contact => (
+                <div 
+                  key={contact.contact_id}
+                  className="p-4 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors duration-200"
+                >
+                  <div className="flex items-center space-x-3">
+                    <div className="w-10 h-10 rounded-full bg-violet-100 dark:bg-violet-900/50 flex items-center justify-center text-violet-700 dark:text-violet-300 text-base font-bold">
+                      {getInitials(contact.contact_full_name)}
+                    </div>
+                    
+                    <div className="flex-1">
+                      <p className="font-medium text-gray-900 dark:text-white">{contact.contact_full_name}</p>
+                    </div>
+                    
+                    <div className="flex-shrink-0">
+                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300">
+                        Pending
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       ) : (
         <div className="flex-1 flex flex-col items-center justify-center p-4">
           <div className="w-16 h-16 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-gray-400 dark:text-gray-600 mb-3">

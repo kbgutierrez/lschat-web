@@ -82,6 +82,8 @@ export function ContactItem({ contact, isSelected, onSelect, lastMessage }: Cont
     }
   }, [isSelected]);
 
+  const isPending = contact.status === 'pending';
+
   return (
     <button
       ref={buttonRef}
@@ -89,9 +91,11 @@ export function ContactItem({ contact, isSelected, onSelect, lastMessage }: Cont
         "w-full flex items-center p-3 rounded-lg transition-colors duration-200 mb-1",
         isSelected
           ? "bg-white/20 dark:bg-violet-900/30" 
-          : "hover:bg-white/10 dark:hover:bg-gray-800/50"
+          : "hover:bg-white/10 dark:hover:bg-gray-800/50",
+        isPending && "opacity-75" // Reduce opacity for pending contacts
       )}
       onClick={() => onSelect(contact.contact_id.toString())}
+      title={isPending ? "Request pending approval" : undefined}
     >
       <div className="relative flex-shrink-0">
         <div className="w-12 h-12 rounded-full bg-violet-200 dark:bg-violet-900 flex items-center justify-center text-violet-700 dark:text-violet-300 text-base font-bold">
@@ -99,14 +103,22 @@ export function ContactItem({ contact, isSelected, onSelect, lastMessage }: Cont
         </div>
         <div className={cn(
           "absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-violet-900 dark:border-gray-900",
-          contact.status === 'online' ? 'bg-green-500' : 'bg-gray-400'
+          contact.status === 'online' ? 'bg-green-500' : 
+          contact.status === 'pending' ? 'bg-yellow-500' : 'bg-gray-400'
         )}></div>
       </div>
       
       <div className="ml-3 flex-1 text-left overflow-hidden">
-        <p className="text-white dark:text-white font-medium truncate">{contact.contact_full_name}</p>
+        <div className="flex items-center">
+          <p className="text-white dark:text-white font-medium truncate">{contact.contact_full_name}</p>
+          {isPending && (
+            <span className="ml-2 px-1.5 py-0.5 text-xs rounded-full bg-yellow-500/20 text-yellow-400 truncate">
+              Pending
+            </span>
+          )}
+        </div>
         <p className="text-sm text-white/70 dark:text-gray-400 truncate">
-          {lastMessage || ""}
+          {isPending ? "Waiting for approval" : lastMessage || ""}
         </p>
       </div>
     </button>

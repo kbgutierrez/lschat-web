@@ -28,7 +28,7 @@ interface SidebarProps {
   clearSelection?: () => void;
   onNewChat?: () => void;
   onNewGroup?: () => void;
-  onNewContact?: () => void; // Add new prop for handling new contact action
+  onNewContact?: () => void; 
   messages?: Record<string, any[]>;
 }
 

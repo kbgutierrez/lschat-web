@@ -10,14 +10,15 @@ interface ContactSearchResult {
   first_name: string;
   last_name: string;
   mobile_number: string;
+  status?: string;
 }
 
 interface AddContactModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onAddContact: (contactId: number) => Promise<void>;
+  onAddContact: (contactId: number) => Promise<boolean | void>;
   existingContacts?: ContactListItem[];
-  currentUserId?: string | number; 
+  currentUserId?: string | number;
 }
 
 export default function AddContactModal({ 
@@ -36,6 +37,8 @@ export default function AddContactModal({
   const modalRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [addSuccess, setAddSuccess] = useState(false);
+  const [showConfirmation, setShowConfirmation] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -44,6 +47,8 @@ export default function AddContactModal({
       setIsLoading(false);
       setError(null);
       setSelectedContact(null);
+      setAddSuccess(false);
+      setShowConfirmation(false);
     
       setTimeout(() => {
         searchInputRef.current?.focus();
@@ -67,7 +72,6 @@ export default function AddContactModal({
     };
   }, [isOpen, onClose]);
 
-  // Add debounced search as user types
   useEffect(() => {
     if (searchTimeoutRef.current) {
       clearTimeout(searchTimeoutRef.current);
@@ -79,7 +83,6 @@ export default function AddContactModal({
       return;
     }
 
-    // Only search if at least 2 characters entered
     if (searchTerm.trim().length < 2) {
       return;
     }
@@ -95,29 +98,34 @@ export default function AddContactModal({
           true
         );
         
-        // Filter out:
-        // 1. Contacts already in user's contact list
-        // 2. The current logged-in user
         const filteredResults = results.filter(result => {
-          const isExistingContact = existingContacts.some(contact => 
+          if (currentUserId !== undefined && 
+              String(result.user_id) === String(currentUserId)) {
+            return false;
+          }
+          
+          const existingContact = existingContacts.find(contact => 
             contact.contact_id === result.user_id
           );
           
-          const isCurrentUser = currentUserId !== undefined && 
-                               String(result.user_id) === String(currentUserId);
+          if (!existingContact) {
+            return true;
+          } else if (existingContact.status === 'pending') {
+            result.status = 'pending';
+            return true;
+          }
           
-          return !isExistingContact && !isCurrentUser;
+          return false;
         });
         
         setSearchResults(filteredResults);
         
         if (filteredResults.length === 0) {
           if (results.length > 0) {
-            // More detailed error message to explain why no results are shown
             if (results.length === 1 && String(results[0].user_id) === String(currentUserId)) {
               setError("You cannot add yourself as a contact.");
             } else {
-              setError("These contacts are already in your contacts list or include yourself.");
+              setError("These contacts are already in your contacts list.");
             }
           } else {
             setError("No contacts found. Try a different search term.");
@@ -129,7 +137,7 @@ export default function AddContactModal({
       } finally {
         setIsLoading(false);
       }
-    }, 500); // 500ms debounce delay
+    }, 500);
 
     return () => {
       if (searchTimeoutRef.current) {
@@ -140,22 +148,48 @@ export default function AddContactModal({
   
   const handleContactSelect = (contact: ContactSearchResult) => {
     setSelectedContact(contact);
+    setShowConfirmation(false);
+  };
+  
+  const initiateAddContact = () => {
+    if (!selectedContact) return;
+    
+    if (selectedContact.status === 'pending') {
+      setAddSuccess(true);
+      setTimeout(() => {
+        onClose();
+      }, 2000);
+      return;
+    }
+    
+    setShowConfirmation(true);
   };
   
   const handleAddContact = async () => {
     if (!selectedContact) return;
     
     setIsAdding(true);
+    setError(null);
     
     try {
       await onAddContact(selectedContact.user_id);
-      onClose();
+      setAddSuccess(true);
+      
+      setTimeout(() => {
+        onClose();
+      }, 2000);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to add contact');
-    } finally {
+      setShowConfirmation(false);
       setIsAdding(false);
     }
   };
+
+  const cancelAddContact = () => {
+    setShowConfirmation(false);
+  };
+
+  const isPending = selectedContact?.status === 'pending';
 
   if (!isOpen) return null;
 
@@ -167,7 +201,7 @@ export default function AddContactModal({
       >
         <div className="p-5 border-b border-gray-200 dark:border-gray-800 flex justify-between items-center">
           <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">
-            Add New Contact
+            {showConfirmation ? 'Confirmation' : 'Add New Contact'}
           </h3>
           <button
             onClick={onClose}
@@ -180,102 +214,161 @@ export default function AddContactModal({
         </div>
         
         <div className="p-5">
-          <div className="relative mb-4">
-            <input
-              ref={searchInputRef}
-              type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Search by name or mobile number..."
-              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 rounded-lg text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-violet-500"
-            />
-            {isLoading && (
-              <div className="absolute right-2 top-2 p-1">
-                <svg className="animate-spin h-5 w-5 text-violet-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          {showConfirmation ? (
+            <div className="text-center py-4">
+              <div className="mx-auto w-16 h-16 flex items-center justify-center bg-violet-100 dark:bg-violet-900/30 rounded-full mb-4">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-violet-600 dark:text-violet-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
                 </svg>
               </div>
-            )}
-          </div>
-          
-          {error && (
-            <div className="mb-4 p-3 border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-lg text-sm">
-              {error}
-            </div>
-          )}
-          
-          {searchTerm.length > 0 && searchResults.length > 0 && (
-            <div className="mb-4">
-              <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Search Results
+              <h4 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
+                Add {selectedContact?.first_name} {selectedContact?.last_name}?
               </h4>
-              <div className="max-h-60 overflow-y-auto">
-                {searchResults.map(contact => (
-                  <div 
-                    key={contact.user_id}
-                    onClick={() => handleContactSelect(contact)}
-                    className={cn(
-                      "p-3 mb-2 border rounded-lg cursor-pointer transition-colors",
-                      selectedContact?.user_id === contact.user_id 
-                        ? "bg-violet-50 border-violet-300 dark:bg-violet-900/30 dark:border-violet-800" 
-                        : "bg-white border-gray-200 dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700"
-                    )}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h5 className="font-medium text-gray-900 dark:text-gray-100">
-                          {contact.first_name} {contact.last_name}
-                        </h5>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">
-                          {contact.mobile_number}
-                        </p>
-                      </div>
-                      {selectedContact?.user_id === contact.user_id && (
-                        <div className="text-violet-600 dark:text-violet-400">
-                          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
-                          </svg>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                ))}
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                A connection request will be sent. You can start messaging once they approve.
+              </p>
+              {error && (
+                <div className="mb-4 p-3 border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-lg text-sm">
+                  {error}
+                </div>
+              )}
+              <div className="flex space-x-3 justify-center">
+                <button 
+                  onClick={cancelAddContact}
+                  className="px-4 py-2 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700"
+                  disabled={isAdding}
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={handleAddContact}
+                  className={cn(
+                    "px-4 py-2 bg-violet-600 text-white rounded-lg flex items-center justify-center min-w-[100px]",
+                    isAdding ? "opacity-80" : "hover:bg-violet-700"
+                  )}
+                  disabled={isAdding}
+                >
+                  {isAdding ? (
+                    <>
+                      <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Adding...
+                    </>
+                  ) : (
+                    'Confirm'
+                  )}
+                </button>
               </div>
             </div>
+          ) : (
+            <>
+              <div className="relative mb-4">
+                <input
+                  ref={searchInputRef}
+                  type="text"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="Search by name or mobile number..."
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 rounded-lg text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-violet-500"
+                />
+                {isLoading && (
+                  <div className="absolute right-2 top-2 p-1">
+                    <svg className="animate-spin h-5 w-5 text-violet-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                  </div>
+                )}
+              </div>
+              
+              {addSuccess && (
+                <div className="mb-4 p-3 border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 rounded-lg text-sm">
+                  {isPending 
+                    ? "Contact request already sent. Waiting for approval." 
+                    : "Contact request sent successfully!"}
+                </div>
+              )}
+              
+              {error && !addSuccess && (
+                <div className="mb-4 p-3 border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-lg text-sm">
+                  {error}
+                </div>
+              )}
+              
+              {searchTerm.length > 0 && searchResults.length > 0 && (
+                <div className="mb-4">
+                  <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Search Results
+                  </h4>
+                  <div className="max-h-60 overflow-y-auto">
+                    {searchResults.map(contact => (
+                      <div 
+                        key={contact.user_id}
+                        onClick={() => handleContactSelect(contact)}
+                        className={cn(
+                          "p-3 mb-2 border rounded-lg cursor-pointer transition-colors",
+                          selectedContact?.user_id === contact.user_id 
+                            ? "bg-violet-50 border-violet-300 dark:bg-violet-900/30 dark:border-violet-800" 
+                            : "bg-white border-gray-200 dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700"
+                        )}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <h5 className="font-medium text-gray-900 dark:text-gray-100 flex items-center">
+                              {contact.first_name} {contact.last_name}
+                              {contact.status === 'pending' && (
+                                <span className="ml-2 text-xs bg-yellow-500/20 text-yellow-600 dark:text-yellow-400 px-2 py-0.5 rounded-full">
+                                  Pending
+                                </span>
+                              )}
+                            </h5>
+                            <p className="text-sm text-gray-500 dark:text-gray-400">
+                              {contact.mobile_number}
+                            </p>
+                          </div>
+                          {selectedContact?.user_id === contact.user_id && (
+                            <div className="text-violet-600 dark:text-violet-400">
+                              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                              </svg>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </div>
         
-        <div className="p-4 border-t border-gray-200 dark:border-gray-800 flex justify-end space-x-3">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleAddContact}
-            disabled={!selectedContact || isAdding}
-            className={cn(
-              "px-4 py-2 text-white rounded-lg flex items-center",
-              !selectedContact || isAdding
-                ? "bg-gray-300 dark:bg-gray-700 cursor-not-allowed"
-                : "bg-violet-600 hover:bg-violet-700"
-            )}
-          >
-            {isAdding ? (
-              <>
-                <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                Adding...
-              </>
-            ) : (
-              'Add Contact'
-            )}
-          </button>
-        </div>
+        {!showConfirmation && (
+          <div className="p-4 border-t border-gray-200 dark:border-gray-800 flex justify-end space-x-3">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={initiateAddContact}
+              disabled={!selectedContact || isAdding}
+              className={cn(
+                "px-4 py-2 text-white rounded-lg flex items-center",
+                !selectedContact || isAdding
+                  ? "bg-gray-300 dark:bg-gray-700 cursor-not-allowed"
+                  : isPending 
+                    ? "bg-yellow-600 hover:bg-yellow-700"
+                    : "bg-violet-600 hover:bg-violet-700"
+              )}
+            >
+              {isPending ? 'View Pending Request' : 'Add Contact'}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

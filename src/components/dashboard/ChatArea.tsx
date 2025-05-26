@@ -7,16 +7,17 @@ import { MessageInput } from '@/components/chat/MessageInput';
 import { TypingIndicator } from '@/components/chat/TypingIndicator';
 
 interface ChatAreaProps {
-  selectedContact: string | null;
+  selectedContact: string;
   contactName: string;
   messages: Message[];
   loadingMessages: boolean;
   messageError: string | null;
   handleRetryLoadMessages: () => void;
   handleSendMessage: (message: string, file?: File) => void;
-  handleTyping?: (isTyping: boolean) => void;
+  handleTyping: (isTyping: boolean) => void;
   selectedChannel: string | null;
-  isTyping?: boolean;
+  isTyping: boolean;
+  isPending?: boolean; // Add prop for pending status
 }
 
 export function ChatArea({
@@ -29,7 +30,8 @@ export function ChatArea({
   handleSendMessage,
   handleTyping,
   selectedChannel,
-  isTyping = false,
+  isTyping,
+  isPending = false // Default to false
 }: ChatAreaProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -68,14 +70,12 @@ export function ChatArea({
 
   return (
     <div className="flex-1 flex flex-col bg-violet-50 dark:bg-gray-950 overflow-hidden">
-      <div 
-        ref={containerRef}
-        className="chat-messages-container flex-1 overflow-y-auto no-scrollbar" 
+      <div className="chat-messages-container flex-1 overflow-y-auto no-scrollbar" 
         style={{ 
           height: "calc(100% - 80px)", 
           display: "flex",
           flexDirection: "column",
-          scrollBehavior: "auto"
+          scrollBehavior: "smooth"
         }}
       >
         <div className="p-4 space-y-3 flex-1"> 
@@ -85,6 +85,22 @@ export function ChatArea({
             </div>
           </div>
 
+          {isPending && (
+            <div className="flex justify-center my-4">
+              <div className="px-4 py-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg text-center max-w-md">
+                <div className="flex items-center justify-center mb-2">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-yellow-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <h3 className="font-medium text-yellow-800 dark:text-yellow-300">Contact Request Pending</h3>
+                </div>
+                <p className="text-sm text-yellow-700 dark:text-yellow-400">
+                  You cannot exchange messages yet. Messaging will be available once this contact accepts your request.
+                </p>
+              </div>
+            </div>
+          )}
+          
           <div className="relative min-h-[200px]">
             <MessageList 
               messages={messages}
@@ -96,20 +112,22 @@ export function ChatArea({
             />
           </div>
           
-          <TypingIndicator 
-            isTyping={isTyping}
-            contactName={contactName}
-            className="px-2 py-1 my-2"
-          />
-          
           <div ref={messagesEndRef} className="h-1" />
         </div>
       </div>
 
+      {isTyping && selectedChannel && !isPending && (
+        <TypingIndicator 
+          isTyping={isTyping} 
+          contactName={contactName}
+          className="mx-3 mb-1"
+        />
+      )}
+
       <MessageInput 
         onSendMessage={handleSendMessage}
         onTypingChange={handleTyping}
-        disabled={!selectedChannel}
+        disabled={!selectedChannel || isPending} // Disable input if pending
       />
     </div>
   );

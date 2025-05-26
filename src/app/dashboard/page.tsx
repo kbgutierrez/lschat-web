@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { contactsAPI, ContactListItem, messagesAPI } from '@/lib/api';
+import { contactsAPI, ContactListItem, messagesAPI, fetchAPI } from '@/lib/api';
 import { Group, GroupMessage, groupsAPI } from '@/lib/groupsApi';
 import { useIsClient, getUserFromLocalStorage, User } from '@/lib/clientUtils';
 import { Sidebar } from '@/components/dashboard/Sidebar';
@@ -41,6 +41,7 @@ export default function Dashboard() {
   const [activeTab, setActiveTab] = useState<TabType>('chats');
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [contacts, setContacts] = useState<ContactListItem[]>([]);
+  const [pendingContacts, setPendingContacts] = useState<ContactListItem[]>([]);
   const [loadingContacts, setLoadingContacts] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
   const [user, setUser] = useState<User | null>(null);
@@ -138,21 +139,12 @@ export default function Dashboard() {
         console.log("Fetching contacts for user ID:", userId);
         const contactList = await contactsAPI.getContactList(userId);
 
-        setContacts(contactList);
-
-        // Only auto-select a contact if:
-        // 1. No contact or group is selected AND
-        // 2. We're NOT on the contacts tab (we're on chats or groups tab)
-        if (contactList.length > 0 && !selectedContact && !selectedGroup && activeTab !== 'contacts') {
-          setSelectedContact(contactList[0].contact_id.toString());
-          setSelectedContactDetails({
-            id: contactList[0].contact_id.toString(),
-            name: contactList[0].contact_full_name,
-            status: 'offline',
-            lastSeen: 'Unknown',
-            unread: 0
-          });
-        }
+        // Separate pending from regular contacts
+        const pending = contactList.filter(contact => contact.status === 'pending');
+        const regular = contactList.filter(contact => contact.status !== 'pending');
+        
+        setPendingContacts(pending);
+        setContacts(regular);
       } catch (error) {
         console.error('Error fetching contacts:', error);
         setApiError(error instanceof Error ? error.message : 'Failed to load contacts');
@@ -520,10 +512,18 @@ export default function Dashboard() {
       setSelectedContactDetails({
         id: contactDetails.contact_id.toString(),
         name: contactDetails.contact_full_name,
-        status: contactDetails.status || 'offline',  // Use the contact's actual status instead of defaulting to 'offline'
+        status: contactDetails.status || 'offline',
         lastSeen: 'Unknown',
         unread: 0
       });
+      
+      // Only set the channel if the contact is not pending
+      if (contactDetails.status !== 'pending') {
+        setSelectedChannel(contactDetails.pubnub_channel);
+      } else {
+        // Clear the channel if contact is pending to prevent messaging
+        setSelectedChannel(null);
+      }
     }
     setIsMobileSidebarOpen(false);
   };
@@ -551,6 +551,29 @@ export default function Dashboard() {
     setIsAddContactModalOpen(true);
   }, []);
   
+  const handleAddContact = async (contactId: number) => {
+    if (!user?.user_id) return;
+    
+    try {
+      await fetchAPI('/api/add-contact-to-list', {
+        method: 'POST',
+        body: JSON.stringify({
+          user_id: user.user_id,
+          contact_id: contactId
+        })
+      }, true);
+      
+      // Refresh contacts list after adding a new contact
+      const updatedContacts = await contactsAPI.getContactList(user.user_id);
+      setContacts(updatedContacts);
+      
+      return true;
+    } catch (error) {
+      console.error('Failed to add contact:', error);
+      throw error;
+    }
+  };
+
   useEffect(() => {
     if (!isClient || !selectedGroup) return;
     
@@ -727,18 +750,8 @@ export default function Dashboard() {
     if (tab !== activeTab) {
       setActiveTab(tab);
       
-      // When switching to chats tab, select first contact if available
-      if (tab === 'chats') {
-        if (contacts.length > 0) {
-          handleContactSelect(contacts[0].contact_id.toString());
-        }
-      } else if (tab === 'groups') {
-        // When switching to groups tab, select first group if available
-        if (groups.length > 0) {
-          handleGroupSelect(groups[0].group_id);
-        }
-      } else if (tab === 'contacts') {
-        // When switching to contacts tab, clear selection
+      // When switching to contacts tab, clear selection
+      if (tab === 'contacts') {
         clearSelection();
       }
       
@@ -749,7 +762,7 @@ export default function Dashboard() {
         }));
       }
     }
-  }, [activeTab, tabsVisited, contacts, groups, handleContactSelect, handleGroupSelect, clearSelection]);
+  }, [activeTab, tabsVisited, clearSelection]);
 
   const handleRetryLoadMessages = useCallback(() => {
     if (selectedChannel) {
@@ -902,6 +915,7 @@ export default function Dashboard() {
                 handleTyping={handleTypingChange}
                 selectedChannel={selectedChannel}
                 isTyping={isContactTyping}
+                isPending={selectedContactDetails?.status === 'pending'} // Pass pending status to ChatArea
               />
             ) : selectedGroup ? (
               <div className="flex-1 flex flex-col bg-violet-50 dark:bg-gray-950 overflow-hidden">
@@ -950,17 +964,19 @@ export default function Dashboard() {
             )}
           </div>
           
-          {/* Right Panel is now always visible on desktop */}
           <RightPanel
             contactDetails={selectedContact ? selectedContactDetails : null}
             groupDetails={selectedGroup ? selectedGroupDetails : null}
             isVisible={isRightPanelVisible}
             onClose={() => setIsRightPanelVisible(false)}
+            pendingContacts={pendingContacts}
+            activeTab={activeTab}
+            onContactSelect={handleContactSelect}
+            loadingContacts={loadingContacts}
           />
         </div>
       </main>
       
-      {/* Profile Management Modal */}
       <ProfileManagementModal 
         isOpen={isProfileModalOpen}
         onClose={() => setIsProfileModalOpen(false)}
@@ -969,7 +985,7 @@ export default function Dashboard() {
       <AddContactModal
         isOpen={isAddContactModalOpen}
         onClose={() => setIsAddContactModalOpen(false)}
-        onAddContact={() => {console.log('contact added')}}
+        onAddContact={handleAddContact}
         existingContacts={contacts}
         currentUserId={user?.user_id}
       />
