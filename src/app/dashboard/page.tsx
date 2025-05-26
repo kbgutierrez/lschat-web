@@ -512,12 +512,10 @@ export default function Dashboard() {
     setSelectedGroup(id);
     setSelectedContact(null); 
     
-    // Find the group details to get its PubNub channel
     const groupDetails = groups.find(g => g.group_id === id);
     console.log('Selected Group PubNub Channel:', groupDetails?.pubnub_channel);
     console.log('Group Details:', groupDetails);
     
-    // Set the selectedChannel to the group's PubNub channel for subscription
     if (groupDetails?.pubnub_channel) {
       console.log('Setting PubNub channel for group messaging:', groupDetails.pubnub_channel);
       setSelectedChannel(groupDetails.pubnub_channel);
@@ -528,6 +526,11 @@ export default function Dashboard() {
     
     setIsMobileSidebarOpen(false);
   };
+
+  const handleNewContact = useCallback(() => {
+    console.log('Adding new contact');
+    // Future implementation: setAddContactModalOpen(true);
+  }, []);
 
   useEffect(() => {
     if (!isClient || !selectedGroup) return;
@@ -829,7 +832,8 @@ export default function Dashboard() {
         clearSelection={clearSelection}
         onNewChat={handleNewChat}
         onNewGroup={handleNewGroup}
-        messages={messages} // Pass messages to the Sidebar
+        onNewContact={handleNewContact} // Add the handler for new contact
+        messages={messages}
       />
       
       {isMobileSidebarOpen && (

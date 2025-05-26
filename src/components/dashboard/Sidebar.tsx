@@ -28,6 +28,7 @@ interface SidebarProps {
   clearSelection?: () => void;
   onNewChat?: () => void;
   onNewGroup?: () => void;
+  onNewContact?: () => void; // Add new prop for handling new contact action
   messages?: Record<string, any[]>;
 }
 
@@ -49,6 +50,7 @@ export const Sidebar = memo(function Sidebar({
   clearSelection,
   onNewChat,
   onNewGroup,
+  onNewContact, // Add the new prop here
   messages = {}
 }: SidebarProps) {
   const handleTabChange = useCallback((tab: TabType) => {
@@ -68,6 +70,10 @@ export const Sidebar = memo(function Sidebar({
   const handleNewGroup = useCallback(() => {
     if (onNewGroup) onNewGroup();
   }, [onNewGroup]);
+  
+  const handleNewContact = useCallback(() => {
+    if (onNewContact) onNewContact();
+  }, [onNewContact]);
 
   const buttonTextRef = useRef<HTMLSpanElement>(null);
   const buttonIconRef = useRef<SVGSVGElement>(null);
@@ -523,9 +529,9 @@ export const Sidebar = memo(function Sidebar({
       </div>
 
       <div className="px-4 mb-2">
-        {activeTab !== 'contacts' && (
+        {activeTab === 'chats' && (
           <button
-            onClick={activeTab === 'chats' ? handleNewChat : handleNewGroup}
+            onClick={handleNewChat}
             className="w-full flex items-center justify-center py-2.5 px-4 rounded-lg bg-white/10 hover:bg-white/15 transition-colors duration-200 text-white"
             onMouseEnter={(e) => {
               gsap.to(e.currentTarget, {
@@ -557,7 +563,80 @@ export const Sidebar = memo(function Sidebar({
               className="font-medium will-change-transform"
               style={{ minWidth: "100px" }}
             >
-              {activeTab === 'chats' ? 'New Chat' : 'Create New Group'}
+              New Chat
+            </span>
+          </button>
+        )}
+        
+        {activeTab === 'groups' && (
+          <button
+            onClick={handleNewGroup}
+            className="w-full flex items-center justify-center py-2.5 px-4 rounded-lg bg-white/10 hover:bg-white/15 transition-colors duration-200 text-white"
+            onMouseEnter={(e) => {
+              gsap.to(e.currentTarget, {
+                backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                scale: 1.01,
+                duration: 0.2
+              });
+            }}
+            onMouseLeave={(e) => {
+              gsap.to(e.currentTarget, {
+                backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                scale: 1,
+                duration: 0.2
+              });
+            }}
+          >
+            <svg 
+              className="w-5 h-5 mr-2 will-change-transform" 
+              fill="none" 
+              viewBox="0 0 24 24" 
+              stroke="currentColor"
+              style={{ transformOrigin: 'center' }}
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+            </svg>
+            <span 
+              className="font-medium will-change-transform"
+              style={{ minWidth: "100px" }}
+            >
+              Create New Group
+            </span>
+          </button>
+        )}
+        
+        {activeTab === 'contacts' && (
+          <button
+            onClick={handleNewContact}
+            className="w-full flex items-center justify-center py-2.5 px-4 rounded-lg bg-white/10 hover:bg-white/15 transition-colors duration-200 text-white"
+            onMouseEnter={(e) => {
+              gsap.to(e.currentTarget, {
+                backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                scale: 1.01,
+                duration: 0.2
+              });
+            }}
+            onMouseLeave={(e) => {
+              gsap.to(e.currentTarget, {
+                backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                scale: 1,
+                duration: 0.2
+              });
+            }}
+          >
+            <svg 
+              className="w-5 h-5 mr-2" 
+              fill="none" 
+              viewBox="0 0 24 24" 
+              stroke="currentColor"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+            </svg>
+            <span 
+              className="font-medium"
+              style={{ minWidth: "100px" }}
+            >
+              Add New Contact
             </span>
           </button>
         )}
