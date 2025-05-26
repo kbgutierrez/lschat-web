@@ -40,8 +40,7 @@ export function getPubNub(userId?: string): PubNub {
       suppressLeaveEvents: false,
       requestMessageCountThreshold: 100,
       restore: true,
-      // maximumCacheEntries is not a valid property in PubnubConfig
-      // fileMessagePublishRetryLimit is not a valid property in PubnubConfig
+ 
       retryConfiguration: {
         maximumRetry: 5,
         delay: 2000

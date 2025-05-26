@@ -55,8 +55,6 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
   const toggleUserMenu = () => {
     setShowUserMenu(!showUserMenu);
   };
-
-  // Fetch incoming requests
   const fetchIncomingRequests = async () => {
     if (!isClient || !user?.user_id) return;
     setLoadingRequests(true);
