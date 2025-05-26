@@ -21,7 +21,6 @@ import { RightPanel } from '@/components/dashboard/RightPanel';
 
 type TabType = 'chats' | 'groups' | 'contacts';
 
-// Add ContactDetails export so RightPanel can use it
 export type ContactDetails = {
   id: string;
   name: string;
@@ -830,6 +829,7 @@ export default function Dashboard() {
         clearSelection={clearSelection}
         onNewChat={handleNewChat}
         onNewGroup={handleNewGroup}
+        messages={messages} // Pass messages to the Sidebar
       />
       
       {isMobileSidebarOpen && (

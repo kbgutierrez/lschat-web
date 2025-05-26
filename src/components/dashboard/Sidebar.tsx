@@ -28,6 +28,7 @@ interface SidebarProps {
   clearSelection?: () => void;
   onNewChat?: () => void;
   onNewGroup?: () => void;
+  messages?: Record<string, any[]>;
 }
 
 export const Sidebar = memo(function Sidebar({
@@ -47,7 +48,8 @@ export const Sidebar = memo(function Sidebar({
   handleGroupSelect,
   clearSelection,
   onNewChat,
-  onNewGroup
+  onNewGroup,
+  messages = {}
 }: SidebarProps) {
   const handleTabChange = useCallback((tab: TabType) => {
     if (tab !== activeTab) {
@@ -347,14 +349,26 @@ export const Sidebar = memo(function Sidebar({
               No contacts found. Add some contacts to start chatting.
             </div>
           ) : (
-            contacts.map(contact => (
-              <ContactItem
-                key={`chat-${contact.contact_id}`}
-                contact={contact}
-                isSelected={selectedContact === contact.contact_id.toString()}
-                onSelect={handleContactSelect}
-              />
-            ))
+            contacts.map(contact => {
+              const lastMessage = messages[contact.pubnub_channel]?.[messages[contact.pubnub_channel]?.length - 1];
+              
+              let lastMessageText = "";
+              if (lastMessage) {
+                lastMessageText = lastMessage.text.length > 30 
+                  ? lastMessage.text.substring(0, 30) + "..." 
+                  : lastMessage.text;
+              }
+              
+              return (
+                <ContactItem
+                  key={`chat-${contact.contact_id}`}
+                  contact={contact}
+                  isSelected={selectedContact === contact.contact_id.toString()}
+                  onSelect={handleContactSelect}
+                  lastMessage={lastMessageText}
+                />
+              );
+            })
           )}
         </div>
       );
@@ -436,6 +450,7 @@ export const Sidebar = memo(function Sidebar({
               contact={contact}
               isSelected={selectedContact === contact.contact_id.toString()}
               onSelect={handleContactSelect}
+              lastMessage={contact.contact_mobile_number} 
             />
           ))
         )}

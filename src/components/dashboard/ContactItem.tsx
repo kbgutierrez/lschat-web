@@ -19,20 +19,19 @@ interface ContactItemProps {
   isSelected: boolean;
   onSelect: (id: string) => void;
   email?: string;
+  lastMessage?: string;
 }
 
-export function ContactItem({ contact, isSelected, onSelect }: ContactItemProps) {
+export function ContactItem({ contact, isSelected, onSelect, lastMessage }: ContactItemProps) {
   const buttonRef = useRef<HTMLButtonElement>(null);
   
-  // Add GSAP animation for hover effect
   useEffect(() => {
     if (!buttonRef.current) return;
     
     const button = buttonRef.current;
     
-    // Hover effect
     const enterHandler = () => {
-      if (isSelected) return; // Skip animation if already selected
+      if (isSelected) return;
       
       gsap.to(button, {
         backgroundColor: 'rgba(255, 255, 255, 0.08)',
@@ -42,7 +41,7 @@ export function ContactItem({ contact, isSelected, onSelect }: ContactItemProps)
     };
     
     const leaveHandler = () => {
-      if (isSelected) return; // Skip animation if already selected
+      if (isSelected) return;
       
       gsap.to(button, {
         backgroundColor: 'transparent',
@@ -60,7 +59,6 @@ export function ContactItem({ contact, isSelected, onSelect }: ContactItemProps)
     };
   }, [isSelected]);
   
-  // Add selection animation
   useEffect(() => {
     if (!buttonRef.current) return;
     
@@ -107,7 +105,9 @@ export function ContactItem({ contact, isSelected, onSelect }: ContactItemProps)
       
       <div className="ml-3 flex-1 text-left overflow-hidden">
         <p className="text-white dark:text-white font-medium truncate">{contact.contact_full_name}</p>
-        <p className="text-sm text-white/70 dark:text-gray-400 truncate">{contact.contact_mobile_number}</p>
+        <p className="text-sm text-white/70 dark:text-gray-400 truncate">
+          {lastMessage || ""}
+        </p>
       </div>
     </button>
   );
