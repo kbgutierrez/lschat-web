@@ -74,7 +74,7 @@ export function MessageItem({ message, contactName, showAvatar, isConsecutive }:
         <div className={cn(
           "px-3 py-2 rounded-lg", 
           isOwn 
-            ? "bg-violet-200 dark:bg-violet-600 text-gray-800 dark:text-white" 
+            ? "bg-violet-200 dark:bg-gray-300 text-gray-800 dark:text-gay-900" 
             : "bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200"
         )}>
           <MessageContent content={text} />

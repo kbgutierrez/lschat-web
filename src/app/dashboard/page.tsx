@@ -170,7 +170,7 @@ export default function Dashboard() {
       setSelectedContactDetails({
         id: contactDetails.contact_id.toString(),
         name: contactDetails.contact_full_name,
-        status: 'offline',
+        status: contactDetails.status || 'offline',  
         lastSeen: 'Unknown',
         unread: 0
       });
@@ -414,6 +414,7 @@ export default function Dashboard() {
     
     const presence = getContactPresence(selectedContact);
     
+    // Update the selectedContactDetails
     setSelectedContactDetails(prev => {
       if (!prev) return null;
       
@@ -427,6 +428,23 @@ export default function Dashboard() {
         status: presence.isOnline ? 'online' : 'offline',
         lastSeen: presence.lastSeen
       };
+    });
+    
+    // Also update the contacts array to sync status between sidebar and header
+    setContacts(prev => {
+      const updatedContacts = [...prev];
+      const contactIndex = updatedContacts.findIndex(
+        c => c.contact_id.toString() === selectedContact
+      );
+      
+      if (contactIndex !== -1) {
+        updatedContacts[contactIndex] = {
+          ...updatedContacts[contactIndex],
+          status: presence.isOnline ? 'online' : 'offline'
+        };
+      }
+      
+      return updatedContacts;
     });
   }, [selectedContact, getContactPresence]);
 
@@ -500,7 +518,7 @@ export default function Dashboard() {
       setSelectedContactDetails({
         id: contactDetails.contact_id.toString(),
         name: contactDetails.contact_full_name,
-        status: 'offline',
+        status: contactDetails.status || 'offline',  // Use the contact's actual status instead of defaulting to 'offline'
         lastSeen: 'Unknown',
         unread: 0
       });
@@ -832,7 +850,7 @@ export default function Dashboard() {
         clearSelection={clearSelection}
         onNewChat={handleNewChat}
         onNewGroup={handleNewGroup}
-        onNewContact={handleNewContact} // Add the handler for new contact
+        onNewContact={handleNewContact} 
         messages={messages}
       />
       
