@@ -18,6 +18,7 @@ import ProfileManagementModal from '@/components/dashboard/ProfileManagementModa
 import { GroupMessageList } from '@/components/dashboard/GroupMessageList';
 import { MessageInput } from '@/components/chat/MessageInput';
 import { RightPanel } from '@/components/dashboard/RightPanel';
+import AddContactModal from '@/components/dashboard/AddContactModal';
 
 type TabType = 'chats' | 'groups' | 'contacts';
 
@@ -65,6 +66,7 @@ export default function Dashboard() {
   const fetchTimestampRef = useRef<Record<string, number>>({});
 
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [isAddContactModalOpen, setIsAddContactModalOpen] = useState(false);
 
   const [groups, setGroups] = useState<GroupData[]>([]);
   const [loadingGroups, setLoadingGroups] = useState(false);
@@ -546,10 +548,9 @@ export default function Dashboard() {
   };
 
   const handleNewContact = useCallback(() => {
-    console.log('Adding new contact');
-    // Future implementation: setAddContactModalOpen(true);
+    setIsAddContactModalOpen(true);
   }, []);
-
+  
   useEffect(() => {
     if (!isClient || !selectedGroup) return;
     
@@ -963,6 +964,14 @@ export default function Dashboard() {
       <ProfileManagementModal 
         isOpen={isProfileModalOpen}
         onClose={() => setIsProfileModalOpen(false)}
+      />
+
+      <AddContactModal
+        isOpen={isAddContactModalOpen}
+        onClose={() => setIsAddContactModalOpen(false)}
+        onAddContact={() => {console.log('contact added')}}
+        existingContacts={contacts}
+        currentUserId={user?.user_id}
       />
     </div>
   );

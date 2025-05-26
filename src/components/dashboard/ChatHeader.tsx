@@ -21,7 +21,7 @@ interface ChatHeaderProps {
   onToggleSidebar: () => void;
   onLogout: () => void;
   onOpenProfileModal: () => void;
-  onToggleRightPanel: () => void; // Add this prop
+  onToggleRightPanel: () => void;
   channelId?: string | null;
   pubnubConnected?: boolean;
   lastMessage?: any;
@@ -34,7 +34,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
   onToggleSidebar, 
   onLogout,
   onOpenProfileModal,
-  onToggleRightPanel, // Add this prop
+  onToggleRightPanel,
   channelId,
   pubnubConnected,
   lastMessage
@@ -47,7 +47,6 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
     setShowUserMenu(!showUserMenu);
   };
 
-  // Handle clicks outside the menu
   useEffect(() => {
     const handleOutsideClick = (event: MouseEvent) => {
       if (
@@ -70,7 +69,6 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
 
   return (
     <header className="h-16 flex items-center justify-between px-4 border-b border-violet-100 dark:border-gray-800 bg-white dark:bg-gray-900 z-10">
-      {/* Left side - Contact/Group info */}
       <div className="flex items-center space-x-3">
         <button 
           className="md:hidden p-2 rounded-md hover:bg-violet-50 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300"
@@ -107,7 +105,6 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
               <div className="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center text-white text-lg font-bold">
                 {getInitials(groupDetails.name)}
               </div>
-              {/* Removed the misleading online status indicator for groups */}
             </div>
             <div>
               <h2 className="text-base font-semibold text-gray-900 dark:text-white flex items-center">
@@ -132,9 +129,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
         )}
       </div>
       
-      {/* Right side - Actions and user profile */}
       <div className="flex items-center">
-        {/* Show toggle button only on mobile */}
         {(contactDetails || groupDetails) && (
           <button
             onClick={onToggleRightPanel}
@@ -153,7 +148,6 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
             onClick={toggleUserMenu}
             className="flex items-center hover:cursor-pointer space-x-2 p-1.5 rounded-full hover:bg-violet-50 dark:hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-violet-500"
           >
-            {/* Update user avatar to match contact avatar style */}
             <div className="w-9 h-9 pt-0.5 rounded-full bg-violet-200 dark:bg-violet-900 flex items-center justify-center text-violet-700 dark:text-violet-300 text-sm font-medium">
               {getInitials(user.firstName && user.lastName 
                 ? `${user.firstName} ${user.lastName}`
@@ -197,7 +191,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                 className='w-full text-left hover:cursor-pointer px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center'
                 onClick={() => {
                   setShowUserMenu(false);
-                  onOpenProfileModal(); // Use modal instead of navigation
+                  onOpenProfileModal();
                 }}
                 >
                 <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
