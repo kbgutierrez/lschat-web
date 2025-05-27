@@ -92,10 +92,11 @@ export function ContactItem({ contact, isSelected, onSelect, lastMessage }: Cont
         isSelected
           ? "bg-white/20 dark:bg-violet-900/30" 
           : "hover:bg-white/10 dark:hover:bg-gray-800/50",
-        isPending && "opacity-75" // Reduce opacity for pending contacts
+        isPending && "opacity-75 cursor-not-allowed" 
       )}
-      onClick={() => onSelect(contact.contact_id.toString())}
+      onClick={() => !isPending && onSelect(contact.contact_id.toString())} 
       title={isPending ? "Request pending approval" : undefined}
+      disabled={isPending} 
     >
       <div className="relative flex-shrink-0">
         <div className="w-12 h-12 rounded-full bg-violet-200 dark:bg-violet-900 flex items-center justify-center text-violet-700 dark:text-violet-300 text-base font-bold">

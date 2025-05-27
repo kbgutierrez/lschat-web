@@ -110,8 +110,10 @@ export default function AddContactModal({
           
           if (!existingContact) {
             return true;
-          } else if (existingContact.status === 'pending') {
+          } else if (existingContact.status?.toLowerCase() === 'pending') {
+            // Make the check case-insensitive
             result.status = 'pending';
+            console.log(`Contact ${result.first_name} ${result.last_name} is pending`);
             return true;
           }
           
@@ -303,41 +305,47 @@ export default function AddContactModal({
                     Search Results
                   </h4>
                   <div className="max-h-60 overflow-y-auto">
-                    {searchResults.map(contact => (
-                      <div 
-                        key={contact.user_id}
-                        onClick={() => handleContactSelect(contact)}
-                        className={cn(
-                          "p-3 mb-2 border rounded-lg cursor-pointer transition-colors",
-                          selectedContact?.user_id === contact.user_id 
-                            ? "bg-violet-50 border-violet-300 dark:bg-violet-900/30 dark:border-violet-800" 
-                            : "bg-white border-gray-200 dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700"
-                        )}
-                      >
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <h5 className="font-medium text-gray-900 dark:text-gray-100 flex items-center">
-                              {contact.first_name} {contact.last_name}
-                              {contact.status === 'pending' && (
-                                <span className="ml-2 text-xs bg-yellow-500/20 text-yellow-600 dark:text-yellow-400 px-2 py-0.5 rounded-full">
-                                  Pending
-                                </span>
-                              )}
-                            </h5>
-                            <p className="text-sm text-gray-500 dark:text-gray-400">
-                              {contact.mobile_number}
-                            </p>
-                          </div>
-                          {selectedContact?.user_id === contact.user_id && (
-                            <div className="text-violet-600 dark:text-violet-400">
-                              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
-                              </svg>
-                            </div>
+                    {searchResults.map(contact => {
+                      const isPending = contact.status?.toLowerCase() === 'pending';
+                      console.log(`Contact ${contact.first_name} ${contact.last_name} status: ${contact.status}, isPending: ${isPending}`);
+                      
+                      return (
+                        <div 
+                          key={contact.user_id}
+                          onClick={() => !isPending && handleContactSelect(contact)}
+                          className={cn(
+                            "p-3 mb-2 border rounded-lg transition-colors",
+                            selectedContact?.user_id === contact.user_id && !isPending
+                              ? "bg-violet-50 border-violet-300 dark:bg-violet-900/30 dark:border-violet-800" 
+                              : "bg-white border-gray-200 dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700",
+                            isPending && "opacity-70 cursor-not-allowed hover:bg-white dark:hover:bg-gray-800"
                           )}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <h5 className="font-medium text-gray-900 dark:text-gray-100 flex items-center">
+                                {contact.first_name} {contact.last_name}
+                                {isPending && (
+                                  <span className="ml-2 text-xs bg-yellow-500/20 text-yellow-600 dark:text-yellow-400 px-2 py-0.5 rounded-full">
+                                    Pending
+                                  </span>
+                                )}
+                              </h5>
+                              <p className="text-sm text-gray-500 dark:text-gray-400">
+                                {contact.mobile_number}
+                              </p>
+                            </div>
+                            {selectedContact?.user_id === contact.user_id && !isPending && (
+                              <div className="text-violet-600 dark:text-violet-400">
+                                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                                </svg>
+                              </div>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               )}

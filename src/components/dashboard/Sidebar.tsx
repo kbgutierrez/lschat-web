@@ -485,40 +485,18 @@ export function Sidebar({
                 <p className="text-sm text-red-200">Error: {apiError}</p>
               </div>
             ) : (
-              <div className="space-y-4">
-                <div className="space-y-1">
-                  {filteredContacts
-                    .filter(c => c.status !== 'pending')
-                    .map(contact => (
-                      <ContactItem
-                        key={contact.contact_id}
-                        contact={contact}
-                        isSelected={selectedContact === contact.contact_id.toString()}
-                        onSelect={handleContactSelect}
-                      />
-                    ))
-                  }
-                </div>
-
-                {filteredContacts.filter(c => c.status === 'pending').length > 0 && (
-                  <div className="pt-2">
-                    <h3 className="text-xs uppercase tracking-wider text-white/60 dark:text-gray-400 font-medium px-2 mb-2">
-                      Pending Requests
-                    </h3>
-                    
-                    {filteredContacts
-                      .filter(c => c.status === 'pending')
-                      .map(contact => (
-                        <ContactItem
-                          key={contact.contact_id}
-                          contact={contact}
-                          isSelected={selectedContact === contact.contact_id.toString()}
-                          onSelect={handleContactSelect}
-                        />
-                      ))
-                    }
-                  </div>
-                )}
+              <div className="space-y-1">
+                {filteredContacts
+                  .filter(c => c.status !== 'pending')
+                  .map(contact => (
+                    <ContactItem
+                      key={contact.contact_id}
+                      contact={contact}
+                      isSelected={selectedContact === contact.contact_id.toString()}
+                      onSelect={handleContactSelect}
+                    />
+                  ))
+                }
               </div>
             )}
           </div>
