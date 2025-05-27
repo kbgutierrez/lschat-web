@@ -278,16 +278,22 @@ export function Sidebar({
               data-tab={tab}
               className={cn(
                 "flex-1 py-2 px-1 text-center text-sm font-medium relative z-10 transition-colors",
+                "outline-none focus:outline-none focus:ring-0 focus-visible:outline-none",
+                "border-0 shadow-none !ring-0 !ring-offset-0",
                 activeTab === tab 
-                  ? "text-white"
+                  ? "text-white" 
                   : "text-white/70 hover:text-white/90",
                 isHoveringTab === tab && activeTab !== tab && "text-white/90"
               )}
+              style={{ 
+                boxShadow: 'none',
+                outline: 'none'
+              }}
               onClick={() => setActiveTab(tab)}
               onMouseEnter={() => handleTabHover(tab)}
               onMouseLeave={handleTabLeave}
             >
-              <div className="flex flex-col items-center gap-1">
+              <div className="flex flex-col items-center gap-1 outline-none border-none">
                 {tab === 'chats' && (
                   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={activeTab === tab ? 2.2 : 1.8} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
