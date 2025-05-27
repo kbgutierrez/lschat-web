@@ -206,7 +206,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
               className="absolute right-0 top-full w-80 bg-white dark:bg-gray-800 shadow-lg rounded-md border border-gray-200 dark:border-gray-700 py-1 z-20"
             >
               <div className="px-4 py-2 border-b border-gray-200 dark:border-gray-700 flex items-center">
-                <span className="font-medium text-gray-800 dark:text-gray-200">Incoming Requests</span>
+                <span className="font-medium text-gray-800 dark:text-gray-200">Notifications</span>
                 {loadingRequests && (
                   <svg className="ml-2 animate-spin h-4 w-4 text-violet-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
@@ -219,7 +219,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
               )}
               {!loadingRequests && incomingRequests.length === 0 && !requestsError && (
                 <div className="p-4 text-center text-gray-500 dark:text-gray-400 text-sm">
-                  No incoming requests
+                  No notifications
                 </div>
               )}
               {incomingRequests.length > 0 && (
