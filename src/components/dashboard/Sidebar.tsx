@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback, useRef, useEffect, memo } from 'react';
+import React, { useState, useCallback, useRef, useEffect, memo, useMemo } from 'react';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
 import { ContactListItem } from '@/lib/api';
@@ -63,6 +63,7 @@ export function Sidebar({
 
   const [isHoveringTab, setIsHoveringTab] = useState<TabType | null>(null);
   const [isButtonHovered, setIsButtonHovered] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
   
   const getLastMessage = (channelId: string) => {
     if (!messages[channelId]?.length) return "";
@@ -230,6 +231,30 @@ export function Sidebar({
     }
   }, [isButtonHovered]);
 
+  // Filter contacts based on search term
+  const filteredContacts = useMemo(() => {
+    if (!searchTerm.trim()) return contacts;
+    
+    const searchLower = searchTerm.toLowerCase();
+    return contacts.filter(contact => 
+      contact.contact_full_name.toLowerCase().includes(searchLower) ||
+      (contact.contact_mobile_number && 
+       contact.contact_mobile_number.toLowerCase().includes(searchLower))
+    );
+  }, [contacts, searchTerm]);
+
+  // Filter groups based on search term
+  const filteredGroups = useMemo(() => {
+    if (!searchTerm.trim()) return groups;
+    
+    const searchLower = searchTerm.toLowerCase();
+    return groups.filter(group => 
+      group.name.toLowerCase().includes(searchLower) ||
+      (group.description && 
+       group.description.toLowerCase().includes(searchLower))
+    );
+  }, [groups, searchTerm]);
+
   return (
     <div 
       ref={sidebarRef}
@@ -326,6 +351,8 @@ export function Sidebar({
         <div className="relative">
           <input
             type="text"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
             placeholder={`Search ${activeTab}...`}
             className="w-full bg-white/10 dark:bg-gray-800 text-white placeholder-white/60 dark:placeholder-gray-400 border-0 rounded-full py-2 pl-10 pr-4 focus:ring-2 focus:ring-white/25 focus:bg-white/15 dark:focus:bg-gray-700 transition-all duration-200"
           />
@@ -334,6 +361,16 @@ export function Sidebar({
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
           </div>
+          {searchTerm && (
+            <button 
+              onClick={() => setSearchTerm('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-white/70 dark:text-gray-400 hover:text-white dark:hover:text-white"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          )}
         </div>
       </div>
       
@@ -347,10 +384,10 @@ export function Sidebar({
               Recent Conversations
             </h3>
             
-            {contacts.length === 0 && !loadingContacts ? (
+            {filteredContacts.length === 0 && !loadingContacts ? (
               <div className="bg-white/10 dark:bg-gray-800/50 rounded-lg p-4 text-center">
                 <p className="text-sm text-white/80 dark:text-gray-300">
-                  No conversations yet. Start by adding contacts!
+                  {searchTerm ? 'No conversations matching your search' : 'No conversations yet. Start by adding contacts!'}
                 </p>
               </div>
             ) : loadingContacts ? (
@@ -366,7 +403,7 @@ export function Sidebar({
                 <p className="text-sm text-red-200">Error: {apiError}</p>
               </div>
             ) : (
-              contacts
+              filteredContacts
                 .filter(c => c.status !== 'pending')
                 .map(contact => {
                   const contactChannel = contact.pubnub_channel || '';
@@ -392,10 +429,10 @@ export function Sidebar({
               Your Groups
             </h3>
             
-            {groups.length === 0 && !loadingGroups ? (
+            {filteredGroups.length === 0 && !loadingGroups ? (
               <div className="bg-white/10 dark:bg-gray-800/50 rounded-lg p-4 text-center">
                 <p className="text-sm text-white/80 dark:text-gray-300">
-                  No groups yet. Create a new group to get started!
+                  {searchTerm ? 'No groups matching your search' : 'No groups yet. Create a new group to get started!'}
                 </p>
               </div>
             ) : loadingGroups ? (
@@ -411,7 +448,7 @@ export function Sidebar({
                 <p className="text-sm text-red-200">Error: {groupError}</p>
               </div>
             ) : (
-              groups.map(group => (
+              filteredGroups.map(group => (
                 <GroupItem
                   key={group.group_id}
                   group={group}
@@ -429,10 +466,10 @@ export function Sidebar({
               Your Contacts
             </h3>
             
-            {contacts.length === 0 && !loadingContacts ? (
+            {filteredContacts.length === 0 && !loadingContacts ? (
               <div className="bg-white/10 dark:bg-gray-800/50 rounded-lg p-4 text-center">
                 <p className="text-sm text-white/80 dark:text-gray-300">
-                  No contacts yet. Add your first contact to start chatting!
+                  {searchTerm ? 'No contacts matching your search' : 'No contacts yet. Add your first contact to start chatting!'}
                 </p>
               </div>
             ) : loadingContacts ? (
@@ -450,7 +487,7 @@ export function Sidebar({
             ) : (
               <div className="space-y-4">
                 <div className="space-y-1">
-                  {contacts
+                  {filteredContacts
                     .filter(c => c.status !== 'pending')
                     .map(contact => (
                       <ContactItem
@@ -463,13 +500,13 @@ export function Sidebar({
                   }
                 </div>
 
-                {contacts.filter(c => c.status === 'pending').length > 0 && (
+                {filteredContacts.filter(c => c.status === 'pending').length > 0 && (
                   <div className="pt-2">
                     <h3 className="text-xs uppercase tracking-wider text-white/60 dark:text-gray-400 font-medium px-2 mb-2">
                       Pending Requests
                     </h3>
                     
-                    {contacts
+                    {filteredContacts
                       .filter(c => c.status === 'pending')
                       .map(contact => (
                         <ContactItem
