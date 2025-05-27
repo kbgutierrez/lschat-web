@@ -50,7 +50,7 @@ export const Sidebar = memo(function Sidebar({
   clearSelection,
   onNewChat,
   onNewGroup,
-  onNewContact, // Add the new prop here
+  onNewContact, 
   messages = {}
 }: SidebarProps) {
   const handleTabChange = useCallback((tab: TabType) => {

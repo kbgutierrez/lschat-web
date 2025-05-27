@@ -1,5 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  devIndicators: false,
   reactStrictMode: true,
   // Moved from experimental and renamed according to the warning
   serverExternalPackages: ['formidable', 'superagent'],
