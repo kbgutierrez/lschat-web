@@ -266,7 +266,7 @@ export function Sidebar({
         "shadow-lg md:shadow-none"
       )}
     >
-      <div className="p-4 flex items-center justify-between border-b border-violet-600/30 dark:border-gray-800">
+      <div className="p-3 flex items-center justify-between border-b border-violet-600/30 dark:border-gray-800">
         <div className="flex items-center space-x-3">
           <div className="relative w-10 h-10 shrink-0">
             <Image
