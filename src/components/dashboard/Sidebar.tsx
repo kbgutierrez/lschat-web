@@ -387,7 +387,7 @@ export function Sidebar({
             {filteredContacts.length === 0 && !loadingContacts ? (
               <div className="bg-white/10 dark:bg-gray-800/50 rounded-lg p-4 text-center">
                 <p className="text-sm text-white/80 dark:text-gray-300">
-                  {searchTerm ? 'No conversations matching your search' : 'No conversations yet. Start by adding contacts!'}
+                  {searchTerm ? 'No conversations matching your search' : 'No conversations yet. Start by adding contacts'}
                 </p>
               </div>
             ) : loadingContacts ? (
