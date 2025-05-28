@@ -552,18 +552,56 @@ export default function Dashboard() {
   }, []);
   
   
-  const refreshPendingContacts = useCallback(async () => {
-    if (!user?.user_id) return;
+  const pendingContactsRef = useRef<ContactListItem[]>([]);
+  const isRefreshingContactsRef = useRef<boolean>(false);
+  
+  const refreshPendingContacts = useCallback(async (silent: boolean = false) => {
+    if (!user?.user_id || isRefreshingContactsRef.current) return;
     
     try {
+      isRefreshingContactsRef.current = true;
+      
+      if (!silent) {
+        setLoadingContacts(true);
+      }
+      
       const contactList = await contactsAPI.getContactList(user.user_id);
       const pending = contactList.filter(contact => contact.status === 'pending');
-      setPendingContacts(pending);
+      const regular = contactList.filter(contact => contact.status !== 'pending');
+      
+      const pendingChanged = JSON.stringify(pending) !== JSON.stringify(pendingContactsRef.current);
+      
+      if (pendingChanged) {
+        setPendingContacts(pending);
+        pendingContactsRef.current = pending;
+      }
+      
+      if (!silent) {
+        setContacts(regular);
+      }
+      
+      return pendingChanged;
     } catch (error) {
       console.error('Error refreshing pending contacts:', error);
+      return false;
+    } finally {
+      if (!silent) {
+        setLoadingContacts(false);
+      }
+      isRefreshingContactsRef.current = false;
     }
   }, [user?.user_id]);
   
+  useEffect(() => {
+    if (!user?.user_id) return;
+    
+    const intervalId = setInterval(() => {
+      refreshPendingContacts(true);
+    }, 15000);
+    
+    return () => clearInterval(intervalId);
+  }, [user?.user_id, refreshPendingContacts]);
+
   const handleAddContact = async (contactId: number) => {
     if (!user?.user_id) return;
     
@@ -576,8 +614,7 @@ export default function Dashboard() {
         })
       }, true);
       
-      // Refresh contact lists after adding a new contact
-      await refreshPendingContacts();
+      await refreshPendingContacts(false);
       const updatedContacts = await contactsAPI.getContactList(user.user_id);
       setContacts(updatedContacts.filter(c => c.status !== 'pending'));
       
@@ -600,7 +637,6 @@ export default function Dashboard() {
         })
       }, true);
       
-      // Refresh contacts list after cancelling request
       const updatedContacts = await contactsAPI.getContactList(user.user_id);
       const pending = updatedContacts.filter(contact => contact.status === 'pending');
       const regular = updatedContacts.filter(contact => contact.status !== 'pending');
@@ -652,7 +688,7 @@ export default function Dashboard() {
 
     try {
 
-      // Add optimistic message to UI
+      // Add message to UI
       setGroupMessages(prev => ({
         ...prev,
         [selectedGroup]: [...(prev[selectedGroup] || []), optimisticMsg]
@@ -683,13 +719,11 @@ export default function Dashboard() {
         };
       });
       
-      // Refetch messages to ensure we have the latest
+      // Refetch messages to be sure we have the latest
       fetchGroupMessagesFromApi(true);
       
     } catch (error) {
       console.error('Failed to send group message:', error);
-      
-      // Handle error by updating the optimistic message
       setGroupMessages(prev => {
         const updatedMessages = (prev[selectedGroup] || []).map(msg => 
           msg.id === optimisticMsg.id ? {
@@ -778,7 +812,6 @@ export default function Dashboard() {
     }
   }, [selectedChannel, user, scrollToBottom, isClient]);
 
-  // Add this function to clear selections
   const clearSelection = useCallback(() => {
     setSelectedContact(null);
     setSelectedGroup(null);
@@ -790,7 +823,6 @@ export default function Dashboard() {
     if (tab !== activeTab) {
       setActiveTab(tab);
       
-      // When switching to contacts tab, refresh pending contacts and clear selection
       if (tab === 'contacts') {
         clearSelection();
         refreshPendingContacts();
@@ -831,7 +863,6 @@ export default function Dashboard() {
         console.log("Fetching groups for user ID:", userId);
         const groupsList = await groupsAPI.getGroups(userId);
         
-        // Convert API response to match GroupData interface - without unread and memberCount
         const enhancedGroups: GroupData[] = groupsList.map(group => ({
           ...group,
           lastMessage: "",
@@ -850,7 +881,6 @@ export default function Dashboard() {
     fetchGroups();
   }, [user, isClient]);
 
-  // Add additional logging to track subscription status when the group channel changes
   useEffect(() => {
     if (selectedGroup && selectedChannel) {
       console.log(`Group PubNub subscription status for channel ${selectedChannel}:`, isSubscribed);
@@ -858,17 +888,13 @@ export default function Dashboard() {
     }
   }, [selectedGroup, selectedChannel, isSubscribed]);
 
-  // Add handlers for creating new chats and groups
   const handleNewChat = useCallback(() => {
-    // Implement new chat creation
-    // For now, just open the contacts tab to select someone to chat with
+
     handleTabChange('contacts');
   }, [handleTabChange]);
   
   const handleNewGroup = useCallback(() => {
-    // This would open a modal to create a new group
     console.log('Creating new group');
-    // Future implementation: setCreateGroupModalOpen(true);
   }, []);
 
   if (!isClient) {
@@ -1033,7 +1059,7 @@ export default function Dashboard() {
         onAddContact={handleAddContact}
         existingContacts={contacts}
         currentUserId={user?.user_id}
-        onContactAdded={refreshPendingContacts}  // Pass the refresh function here
+        onContactAdded={refreshPendingContacts}  
       />
     </div>
   );

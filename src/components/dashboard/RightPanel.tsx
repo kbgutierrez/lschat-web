@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { cn } from '@/lib/utils';
 import Image from 'next/image';
 import { ContactDetails } from '@/app/dashboard/page'; 
@@ -421,7 +421,6 @@ export function RightPanel({
     });
   };
 
-  // Close menus when clicking outside
   useEffect(() => {
     const handleClickOutside = () => {
       setOpenMenus(new Set());
@@ -436,22 +435,57 @@ export function RightPanel({
     };
   }, [openMenus.size]);
 
+  const [localPendingContacts, setLocalPendingContacts] = useState(pendingContacts);
+  const backgroundRefreshTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const lastRefreshTimeRef = useRef<number>(Date.now());
+
+  // Update local state when pendingContacts prop changes
+  useEffect(() => {
+    setLocalPendingContacts(pendingContacts);
+  }, [pendingContacts]);
+
+  // Set up background refresh timer
+  useEffect(() => {
+    const setupBackgroundRefresh = () => {
+      if (backgroundRefreshTimerRef.current) {
+        clearInterval(backgroundRefreshTimerRef.current);
+      }
+      
+      // Only set up timer if we have the refresh function and right panel is visible
+      if (refreshPendingContacts && isVisible && activeTab === 'contacts' && !hasContent) {
+        backgroundRefreshTimerRef.current = setInterval(() => {
+          // Only refresh if it's been more than 5 seconds since last refresh
+          // This prevents excessive API calls if user is manually refreshing
+          if (Date.now() - lastRefreshTimeRef.current > 5000) {
+            // Silent refresh - don't set any loading states
+            refreshPendingContacts();
+            lastRefreshTimeRef.current = Date.now();
+          }
+        }, 15000); // 15 seconds interval
+      }
+    };
+    
+    setupBackgroundRefresh();
+    
+    return () => {
+      if (backgroundRefreshTimerRef.current) {
+        clearInterval(backgroundRefreshTimerRef.current);
+        backgroundRefreshTimerRef.current = null;
+      }
+    };
+  }, [refreshPendingContacts, isVisible, activeTab, hasContent]);
+
   // Refresh pending contacts when the panel becomes visible
   useEffect(() => {
     if (isVisible && !hasContent && activeTab === 'contacts' && refreshPendingContacts) {
       refreshPendingContacts();
+      lastRefreshTimeRef.current = Date.now();
     }
   }, [isVisible, hasContent, activeTab, refreshPendingContacts]);
 
   const renderPendingContacts = () => {
-    // Request a refresh when this section becomes visible
-    useEffect(() => {
-      if (showPendingContacts && refreshPendingContacts) {
-        refreshPendingContacts();
-      }
-    }, [showPendingContacts]);
-    
-    if (loadingContacts) {
+    // Initial load still shows loading indicator
+    if (loadingContacts && localPendingContacts.length === 0) {
       return (
         <div className="p-4 flex justify-center">
           <div className="animate-spin rounded-full h-8 w-8 border-2 border-violet-500 border-t-transparent"></div>
@@ -459,7 +493,7 @@ export function RightPanel({
       );
     }
 
-    if (pendingContacts.length === 0) {
+    if (localPendingContacts.length === 0) {
       return (
         <div className="p-4 text-center">
           <p className="text-sm text-gray-500 dark:text-gray-400">No pending contact requests</p>
@@ -469,7 +503,7 @@ export function RightPanel({
 
     return (
       <div className="space-y-2 px-4">
-        {pendingContacts.map(contact => {
+        {localPendingContacts.map(contact => {
           const isMenuOpen = openMenus.has(contact.contact_id);
           const isCancelling = cancellingRequests.has(contact.contact_id);
           const isConfirming = confirmingCancel === contact.contact_id;
