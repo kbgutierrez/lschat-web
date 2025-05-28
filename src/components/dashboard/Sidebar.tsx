@@ -3,7 +3,7 @@
 import React, { useState, useCallback, useRef, useEffect, memo, useMemo } from 'react';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
-import { ContactListItem } from '@/lib/api';
+import { ContactListItem, messagesAPI } from '@/lib/api'; 
 import { ContactItem } from './ContactItem';
 import { GroupItem, GroupData } from './GroupItem';
 import { gsap } from 'gsap';
@@ -32,6 +32,7 @@ interface SidebarProps {
   onNewContact?: () => void;
   messages?: Record<string, Message[]>;
   onRemoveContact?: (contactId: number) => Promise<void>;
+  refreshPendingContacts?: () => void;  // New prop
 }
 
 export function Sidebar({ 
@@ -54,7 +55,8 @@ export function Sidebar({
   onNewGroup,
   onNewContact,
   messages = {},
-  onRemoveContact
+  onRemoveContact,
+  refreshPendingContacts
 }: SidebarProps) {
   const sidebarRef = useRef<HTMLDivElement>(null);
   const tabsRef = useRef<HTMLDivElement>(null);
@@ -69,15 +71,78 @@ export function Sidebar({
   const [removingContacts, setRemovingContacts] = useState<Set<number>>(new Set());
   const [openContactMenus, setOpenContactMenus] = useState<Set<number>>(new Set());
   const [confirmingRemove, setConfirmingRemove] = useState<number | null>(null);
+  const [lastMessages, setLastMessages] = useState<Record<string, string>>({});
+  const [fetchingLastMessages, setFetchingLastMessages] = useState(false);
   
-  const getLastMessage = (channelId: string) => {
-    if (!messages[channelId]?.length) return "";
-    const lastMsg = messages[channelId][messages[channelId].length - 1];
-    return lastMsg.text.length > 30 
-      ? lastMsg.text.substring(0, 30) + '...' 
-      : lastMsg.text;
-  };
+  const getLastMessage = useCallback((channelId: string) => {
+    // First check if we have full messages for this channel
+    if (messages[channelId]?.length) {
+      const lastMsg = messages[channelId][messages[channelId].length - 1];
+      return lastMsg.text.length > 30 
+        ? lastMsg.text.substring(0, 30) + '...' 
+        : lastMsg.text;
+    }
+    
+    // If not, check our cached last messages
+    if (lastMessages[channelId]) {
+      return lastMessages[channelId].length > 30 
+        ? lastMessages[channelId].substring(0, 30) + '...' 
+        : lastMessages[channelId];
+    }
+    
+    return "";
+  }, [messages, lastMessages]);
 
+  // Fetch last messages for all contacts when the component mounts or contacts change
+  useEffect(() => {
+    const fetchLastMessages = async () => {
+      if (!contacts.length || fetchingLastMessages) return;
+      
+      try {
+        setFetchingLastMessages(true);
+        
+        // Only fetch for non-pending contacts with channels
+        const validContacts = contacts.filter(
+          contact => contact.status !== 'pending' && contact.pubnub_channel
+        );
+        
+        if (!validContacts.length) {
+          setFetchingLastMessages(false);
+          return;
+        }
+
+        const results: Record<string, string> = {};
+        
+        // Use existing messagesAPI to fetch messages
+        const fetchPromises = validContacts.map(async (contact) => {
+          try {
+            if (!contact.pubnub_channel) return;
+            
+            // Use the existing API to fetch messages
+            const messages = await messagesAPI.getChatMessages(contact.pubnub_channel);
+            
+            // Get the last message if exists
+            if (messages && messages.length > 0) {
+              const lastMessage = messages[messages.length - 1];
+              results[contact.pubnub_channel] = lastMessage.message_content || '';
+            }
+          } catch (err) {
+            console.error(`Error fetching last message for ${contact.contact_full_name}:`, err);
+          }
+        });
+        
+        await Promise.all(fetchPromises);
+        setLastMessages(results);
+      } catch (err) {
+        console.error("Error fetching last messages:", err);
+      } finally {
+        setFetchingLastMessages(false);
+      }
+    };
+    
+    fetchLastMessages();
+  }, [contacts]);
+  
   useEffect(() => {
     if (isOpen && sidebarRef.current) {
       gsap.fromTo(
@@ -236,27 +301,42 @@ export function Sidebar({
     }
   }, [isButtonHovered]);
 
-
+  // Filter contacts based on search term and messages
   const filteredContacts = useMemo(() => {
-    let contactsToFilter = contacts;
-  
+    let filtered = contacts;
+
+    // For the chats tab, only show contacts with messages
     if (activeTab === 'chats') {
-      contactsToFilter = contacts.filter(contact => {
-        const contactChannel = contact.pubnub_channel || '';
-        return messages[contactChannel] && messages[contactChannel].length > 0;
+      filtered = contacts.filter(contact => {
+        const channelId = contact.pubnub_channel;
+        
+        // Check if this contact has any messages
+        const hasMessagesInState = channelId && messages[channelId]?.length > 0;
+        const hasLastMessage = channelId && lastMessages[channelId];
+        
+        return hasMessagesInState || hasLastMessage;
       });
     }
     
-    if (!searchTerm.trim()) return contactsToFilter;
+    // Apply search filter if term exists
+    if (searchTerm.trim()) {
+      const searchLower = searchTerm.toLowerCase();
+      filtered = filtered.filter(contact => 
+        contact.contact_full_name.toLowerCase().includes(searchLower) ||
+        (contact.contact_mobile_number && 
+         contact.contact_mobile_number.toLowerCase().includes(searchLower))
+      );
+    }
     
-    const searchLower = searchTerm.toLowerCase();
-    return contactsToFilter.filter(contact => 
-      contact.contact_full_name.toLowerCase().includes(searchLower) ||
-      (contact.contact_mobile_number && 
-       contact.contact_mobile_number.toLowerCase().includes(searchLower))
-    );
-  }, [contacts, searchTerm, activeTab, messages]);
+    // Exclude pending contacts for the chats tab
+    if (activeTab === 'chats') {
+      filtered = filtered.filter(c => c.status !== 'pending');
+    }
+    
+    return filtered;
+  }, [contacts, searchTerm, activeTab, messages, lastMessages]);
 
+  // Filter groups based on search term
   const filteredGroups = useMemo(() => {
     if (!searchTerm.trim()) return groups;
     
@@ -327,6 +407,13 @@ export function Sidebar({
       document.removeEventListener('click', handleClickOutside);
     };
   }, [openContactMenus.size]);
+
+  // Refresh pending contacts when switching to contacts tab
+  useEffect(() => {
+    if (activeTab === 'contacts' && refreshPendingContacts) {
+      refreshPendingContacts();
+    }
+  }, [activeTab, refreshPendingContacts]);
 
   return (
     <div 
@@ -440,7 +527,7 @@ export function Sidebar({
               className="absolute right-3 top-1/2 -translate-y-1/2 text-white/70 dark:text-gray-400 hover:text-white dark:hover:text-white"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
           )}
@@ -460,7 +547,7 @@ export function Sidebar({
             {filteredContacts.length === 0 && !loadingContacts ? (
               <div className="bg-white/10 dark:bg-gray-800/50 rounded-lg p-4 text-center">
                 <p className="text-sm text-white/80 dark:text-gray-300">
-                  {searchTerm ? 'No conversations matching your search' : 'No conversations yet. Start chatting with your contacts!'}
+                  {searchTerm ? 'No conversations matching your search' : 'No conversations yet. Start by adding contacts'}
                 </p>
               </div>
             ) : loadingContacts ? (
@@ -476,22 +563,20 @@ export function Sidebar({
                 <p className="text-sm text-red-200">Error: {apiError}</p>
               </div>
             ) : (
-              filteredContacts
-                .filter(c => c.status !== 'pending')
-                .map(contact => {
-                  const contactChannel = contact.pubnub_channel || '';
-                  const lastMsg = getLastMessage(contactChannel);
-                  
-                  return (
-                    <ContactItem
-                      key={contact.contact_id}
-                      contact={contact}
-                      isSelected={selectedContact === contact.contact_id.toString()}
-                      onSelect={handleContactSelect}
-                      lastMessage={lastMsg}
-                    />
-                  );
-                })
+              !loadingContacts && !apiError && filteredContacts.map(contact => {
+                const contactChannel = contact.pubnub_channel || '';
+                const lastMsg = getLastMessage(contactChannel);
+                
+                return (
+                  <ContactItem
+                    key={contact.contact_id}
+                    contact={contact}
+                    isSelected={selectedContact === contact.contact_id.toString()}
+                    onSelect={handleContactSelect}
+                    lastMessage={lastMsg}
+                  />
+                );
+              })
             )}
           </div>
         )}
@@ -603,7 +688,7 @@ export function Sidebar({
                                     className="w-full text-left px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
                                   >
                                     <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                                     </svg>
                                     Remove
                                   </button>

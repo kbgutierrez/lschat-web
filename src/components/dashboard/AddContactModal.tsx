@@ -19,6 +19,7 @@ interface AddContactModalProps {
   onAddContact: (contactId: number) => Promise<boolean | void>;
   existingContacts?: ContactListItem[];
   currentUserId?: string | number;
+  onContactAdded?: () => void;  
 }
 
 export default function AddContactModal({ 
@@ -26,7 +27,8 @@ export default function AddContactModal({
   onClose, 
   onAddContact, 
   existingContacts = [],
-  currentUserId 
+  currentUserId,
+  onContactAdded
 }: AddContactModalProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [searchResults, setSearchResults] = useState<ContactSearchResult[]>([]);
@@ -176,6 +178,11 @@ export default function AddContactModal({
     try {
       await onAddContact(selectedContact.user_id);
       setAddSuccess(true);
+      
+      // Call onContactAdded to refresh contact lists in parent components
+      if (onContactAdded) {
+        onContactAdded();
+      }
       
       setTimeout(() => {
         onClose();

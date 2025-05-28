@@ -551,6 +551,19 @@ export default function Dashboard() {
     setIsAddContactModalOpen(true);
   }, []);
   
+  
+  const refreshPendingContacts = useCallback(async () => {
+    if (!user?.user_id) return;
+    
+    try {
+      const contactList = await contactsAPI.getContactList(user.user_id);
+      const pending = contactList.filter(contact => contact.status === 'pending');
+      setPendingContacts(pending);
+    } catch (error) {
+      console.error('Error refreshing pending contacts:', error);
+    }
+  }, [user?.user_id]);
+  
   const handleAddContact = async (contactId: number) => {
     if (!user?.user_id) return;
     
@@ -563,9 +576,10 @@ export default function Dashboard() {
         })
       }, true);
       
-      // Refresh contacts list after adding a new contact
+      // Refresh contact lists after adding a new contact
+      await refreshPendingContacts();
       const updatedContacts = await contactsAPI.getContactList(user.user_id);
-      setContacts(updatedContacts);
+      setContacts(updatedContacts.filter(c => c.status !== 'pending'));
       
       return true;
     } catch (error) {
@@ -776,9 +790,10 @@ export default function Dashboard() {
     if (tab !== activeTab) {
       setActiveTab(tab);
       
-      // When switching to contacts tab, clear selection
+      // When switching to contacts tab, refresh pending contacts and clear selection
       if (tab === 'contacts') {
         clearSelection();
+        refreshPendingContacts();
       }
       
       if (!tabsVisited[tab]) {
@@ -788,7 +803,7 @@ export default function Dashboard() {
         }));
       }
     }
-  }, [activeTab, tabsVisited, clearSelection]);
+  }, [activeTab, tabsVisited, clearSelection, refreshPendingContacts]);
 
   const handleRetryLoadMessages = useCallback(() => {
     if (selectedChannel) {
@@ -893,6 +908,7 @@ export default function Dashboard() {
         onNewContact={handleNewContact} 
         messages={messages}
         onRemoveContact={handleCancelContactRequest}
+        refreshPendingContacts={refreshPendingContacts}
       />
       
       {isMobileSidebarOpen && (
@@ -1001,6 +1017,7 @@ export default function Dashboard() {
             onContactSelect={handleContactSelect}
             loadingContacts={loadingContacts}
             onCancelContactRequest={handleCancelContactRequest}
+            refreshPendingContacts={refreshPendingContacts}
           />
         </div>
       </main>
@@ -1016,6 +1033,7 @@ export default function Dashboard() {
         onAddContact={handleAddContact}
         existingContacts={contacts}
         currentUserId={user?.user_id}
+        onContactAdded={refreshPendingContacts}  // Pass the refresh function here
       />
     </div>
   );

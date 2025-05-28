@@ -21,6 +21,7 @@ interface RightPanelProps {
   onContactSelect?: (id: string) => void;
   loadingContacts?: boolean;
   onCancelContactRequest?: (contactId: number) => Promise<void>;
+  refreshPendingContacts?: () => void;  
 }
 
 interface MediaItem {
@@ -59,7 +60,8 @@ export function RightPanel({
   activeTab,
   onContactSelect,
   loadingContacts = false,
-  onCancelContactRequest
+  onCancelContactRequest,
+  refreshPendingContacts
 }: RightPanelProps) {
   const [activeRightTab, setActiveRightTab] = useState<TabType>('info');
   const [media, setMedia] = useState<MediaItem[]>([]);
@@ -434,7 +436,21 @@ export function RightPanel({
     };
   }, [openMenus.size]);
 
+  // Refresh pending contacts when the panel becomes visible
+  useEffect(() => {
+    if (isVisible && !hasContent && activeTab === 'contacts' && refreshPendingContacts) {
+      refreshPendingContacts();
+    }
+  }, [isVisible, hasContent, activeTab, refreshPendingContacts]);
+
   const renderPendingContacts = () => {
+    // Request a refresh when this section becomes visible
+    useEffect(() => {
+      if (showPendingContacts && refreshPendingContacts) {
+        refreshPendingContacts();
+      }
+    }, [showPendingContacts]);
+    
     if (loadingContacts) {
       return (
         <div className="p-4 flex justify-center">
