@@ -574,6 +574,32 @@ export default function Dashboard() {
     }
   };
 
+  const handleCancelContactRequest = async (contactId: number) => {
+    if (!user?.user_id) return;
+    
+    try {
+      await fetchAPI('/api/remove-contact', {
+        method: 'POST',
+        body: JSON.stringify({
+          user_id: user.user_id,
+          contact_id: contactId
+        })
+      }, true);
+      
+      // Refresh contacts list after cancelling request
+      const updatedContacts = await contactsAPI.getContactList(user.user_id);
+      const pending = updatedContacts.filter(contact => contact.status === 'pending');
+      const regular = updatedContacts.filter(contact => contact.status !== 'pending');
+      
+      setPendingContacts(pending);
+      setContacts(regular);
+      
+    } catch (error) {
+      console.error('Failed to cancel contact request:', error);
+      throw error;
+    }
+  };
+
   useEffect(() => {
     if (!isClient || !selectedGroup) return;
     
@@ -973,6 +999,7 @@ export default function Dashboard() {
             activeTab={activeTab}
             onContactSelect={handleContactSelect}
             loadingContacts={loadingContacts}
+            onCancelContactRequest={handleCancelContactRequest}
           />
         </div>
       </main>

@@ -17,7 +17,7 @@ interface ChatAreaProps {
   handleTyping: (isTyping: boolean) => void;
   selectedChannel: string | null;
   isTyping: boolean;
-  isPending?: boolean; // Add prop for pending status
+  isPending?: boolean; 
 }
 
 export function ChatArea({
@@ -31,7 +31,7 @@ export function ChatArea({
   handleTyping,
   selectedChannel,
   isTyping,
-  isPending = false // Default to false
+  isPending = false 
 }: ChatAreaProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);

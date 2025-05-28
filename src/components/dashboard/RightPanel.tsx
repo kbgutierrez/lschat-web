@@ -20,6 +20,7 @@ interface RightPanelProps {
   activeTab?: 'chats' | 'groups' | 'contacts';
   onContactSelect?: (id: string) => void;
   loadingContacts?: boolean;
+  onCancelContactRequest?: (contactId: number) => Promise<void>;
 }
 
 interface MediaItem {
@@ -57,7 +58,8 @@ export function RightPanel({
   pendingContacts = [],
   activeTab,
   onContactSelect,
-  loadingContacts = false
+  loadingContacts = false,
+  onCancelContactRequest
 }: RightPanelProps) {
   const [activeRightTab, setActiveRightTab] = useState<TabType>('info');
   const [media, setMedia] = useState<MediaItem[]>([]);
@@ -368,6 +370,70 @@ export function RightPanel({
     }
   }, [activeRightTab, contactDetails, groupDetails, fetchMedia, fetchFiles]);
 
+  const [cancellingRequests, setCancellingRequests] = useState<Set<number>>(new Set());
+  const [openMenus, setOpenMenus] = useState<Set<number>>(new Set());
+  const [confirmingCancel, setConfirmingCancel] = useState<number | null>(null);
+
+  const handleCancelRequest = async (contactId: number) => {
+    if (!onCancelContactRequest) return;
+    
+    setCancellingRequests(prev => new Set(prev).add(contactId));
+    setConfirmingCancel(null);
+    setOpenMenus(prev => {
+      const newSet = new Set(prev);
+      newSet.delete(contactId);
+      return newSet;
+    });
+    
+    try {
+      await onCancelContactRequest(contactId);
+    } catch (error) {
+      console.error('Failed to cancel request:', error);
+    } finally {
+      setCancellingRequests(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(contactId);
+        return newSet;
+      });
+    }
+  };
+
+  const showCancelConfirmation = (contactId: number) => {
+    setConfirmingCancel(contactId);
+    setOpenMenus(new Set());
+  };
+
+  const cancelCancelRequest = () => {
+    setConfirmingCancel(null);
+  };
+
+  const toggleMenu = (contactId: number) => {
+    setOpenMenus(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(contactId)) {
+        newSet.delete(contactId);
+      } else {
+        newSet.add(contactId);
+      }
+      return newSet;
+    });
+  };
+
+  // Close menus when clicking outside
+  useEffect(() => {
+    const handleClickOutside = () => {
+      setOpenMenus(new Set());
+    };
+
+    if (openMenus.size > 0) {
+      document.addEventListener('click', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('click', handleClickOutside);
+    };
+  }, [openMenus.size]);
+
   const renderPendingContacts = () => {
     if (loadingContacts) {
       return (
@@ -387,32 +453,98 @@ export function RightPanel({
 
     return (
       <div className="space-y-2 px-4">
-        {pendingContacts.map(contact => (
-          <div 
-            key={contact.contact_id}
-            className="flex items-center p-3 rounded-lg bg-white dark:bg-gray-800 border border-yellow-200 dark:border-yellow-800"
-          >
-            <div className="relative flex-shrink-0">
-              <div className="w-12 h-12 rounded-full bg-violet-200 dark:bg-violet-900/50 flex items-center justify-center text-violet-700 dark:text-violet-300 text-base font-bold">
-                {getInitials(contact.contact_full_name)}
+        {pendingContacts.map(contact => {
+          const isMenuOpen = openMenus.has(contact.contact_id);
+          const isCancelling = cancellingRequests.has(contact.contact_id);
+          const isConfirming = confirmingCancel === contact.contact_id;
+          
+          return (
+            <div 
+              key={contact.contact_id}
+              className="relative flex items-center p-3 rounded-lg bg-white dark:bg-gray-800 border border-yellow-200 dark:border-yellow-800"
+            >
+              <div className="relative flex-shrink-0">
+                <div className="w-12 h-12 rounded-full bg-violet-200 dark:bg-violet-900/50 flex items-center justify-center text-violet-700 dark:text-violet-300 text-base font-bold">
+                  {getInitials(contact.contact_full_name)}
+                </div>
+                <div className="absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white dark:border-gray-800 bg-yellow-500"></div>
               </div>
-              <div className="absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white dark:border-gray-800 bg-yellow-500"></div>
-            </div>
-            
-            <div className="ml-3 flex-1 overflow-hidden">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-gray-900 dark:text-white font-medium truncate">{contact.contact_full_name}</p>
+              
+              <div className="ml-3 flex-1 overflow-hidden">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-gray-900 dark:text-white font-medium truncate">{contact.contact_full_name}</p>
+                  </div>
+                </div>
+                <div className="mt-2 flex items-center justify-between">
+                  <span className="inline-flex items-center px-2 py-1 text-xs rounded-md bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300">
+                    {isCancelling ? 'Cancelling...' : 'Waiting for approval'}
+                  </span>
+                  
+                  {onCancelContactRequest && (
+                    <div className="relative">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleMenu(contact.contact_id);
+                        }}
+                        disabled={isCancelling}
+                        className="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+                        </svg>
+                      </button>
+                      
+                      {isMenuOpen && (
+                        <div 
+                          className="absolute right-0 top-full mt-1 w-40 bg-white dark:bg-gray-800 shadow-lg rounded-md border border-gray-200 dark:border-gray-700 py-1 z-10"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <button
+                            onClick={() => showCancelConfirmation(contact.contact_id)}
+                            disabled={isCancelling}
+                            className="w-full text-left px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+                          >
+                            <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                            Cancel Request
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
-              <div className="mt-2 flex">
-                <span className="inline-flex items-center px-2 py-1 text-xs rounded-md bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300">
-                  Waiting for approval
-                </span>
-              </div>
+
+              {/* Confirmation overlay */}
+              {isConfirming && (
+                <div className="absolute inset-0 bg-white dark:bg-gray-800 rounded-lg border border-red-200 dark:border-red-800 flex items-center justify-center p-3">
+                  <div className="text-center w-full">
+                    <div className="text-sm font-medium mb-3 text-red-800 dark:text-red-200">
+                      Cancel contact request?
+                    </div>
+                    <div className="flex justify-center gap-2">
+                      <button
+                        className="px-3 py-1.5 text-xs rounded border border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                        onClick={cancelCancelRequest}
+                      >
+                        No
+                      </button>
+                      <button
+                        className="px-3 py-1.5 text-xs rounded bg-red-500 hover:bg-red-600 text-white transition-colors"
+                        onClick={() => handleCancelRequest(contact.contact_id)}
+                      >
+                        Yes
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     );
   };
@@ -715,28 +847,94 @@ export function RightPanel({
             </div>
           ) : (
             <div className="divide-y divide-gray-200 dark:divide-gray-800">
-              {pendingContacts.map(contact => (
-                <div 
-                  key={contact.contact_id}
-                  className="p-4 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors duration-200"
-                >
-                  <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 rounded-full bg-violet-100 dark:bg-violet-900/50 flex items-center justify-center text-violet-700 dark:text-violet-300 text-base font-bold">
-                      {getInitials(contact.contact_full_name)}
+              {pendingContacts.map(contact => {
+                const isMenuOpen = openMenus.has(contact.contact_id);
+                const isCancelling = cancellingRequests.has(contact.contact_id);
+                const isConfirming = confirmingCancel === contact.contact_id;
+                
+                return (
+                  <div 
+                    key={contact.contact_id}
+                    className="relative p-4 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors duration-200"
+                  >
+                    <div className="flex items-center space-x-3">
+                      <div className="w-10 h-10 rounded-full bg-violet-100 dark:bg-violet-900/50 flex items-center justify-center text-violet-700 dark:text-violet-300 text-base font-bold">
+                        {getInitials(contact.contact_full_name)}
+                      </div>
+                      
+                      <div className="flex-1">
+                        <p className="font-medium text-gray-900 dark:text-white">{contact.contact_full_name}</p>
+                      </div>
+                      
+                      <div className="flex items-center space-x-2">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300">
+                          {isCancelling ? 'Cancelling...' : 'Pending'}
+                        </span>
+                        
+                        {onCancelContactRequest && (
+                          <div className="relative">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleMenu(contact.contact_id);
+                              }}
+                              disabled={isCancelling}
+                              className="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+                              </svg>
+                            </button>
+                            
+                            {isMenuOpen && (
+                              <div 
+                                className="absolute right-0 top-full mt-1 w-40 bg-white dark:bg-gray-800 shadow-lg rounded-md border border-gray-200 dark:border-gray-700 py-1 z-10"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <button
+                                  onClick={() => showCancelConfirmation(contact.contact_id)}
+                                  disabled={isCancelling}
+                                  className="w-full text-left px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+                                >
+                                  <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                  </svg>
+                                  Cancel Request
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
                     </div>
-                    
-                    <div className="flex-1">
-                      <p className="font-medium text-gray-900 dark:text-white">{contact.contact_full_name}</p>
-                    </div>
-                    
-                    <div className="flex-shrink-0">
-                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300">
-                        Pending
-                      </span>
-                    </div>
+
+                    {/* Confirmation overlay */}
+                    {isConfirming && (
+                      <div className="absolute inset-0 bg-gray-50 dark:bg-gray-800 border border-red-200 dark:border-red-800 rounded-lg flex items-center justify-center">
+                        <div className="text-center px-2">
+                          <div className="text-sm font-medium mb-3 text-red-800 dark:text-red-200">
+                            Cancel contact request for <span className="font-medium">{contact.contact_full_name}</span>?
+                          </div>
+                          <div className="flex justify-center gap-2">
+                            <button
+                              className="px-3 py-1.5 text-xs rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
+                              onClick={cancelCancelRequest}
+                            >
+                              No
+                            </button>
+                            <button
+                              className="px-3 py-1.5 text-xs rounded bg-red-500 hover:bg-red-600 text-white transition-colors"
+                              onClick={() => handleCancelRequest(contact.contact_id)}
+                            >
+                              Yes
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
