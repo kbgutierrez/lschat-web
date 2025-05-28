@@ -8,6 +8,7 @@ import { Group } from '@/lib/groupsApi';
 import { messagesAPI, contactsAPI, ContactListItem } from '@/lib/api'; 
 import { groupsAPI } from '@/lib/groupsApi';
 import { getInitials } from './ContactItem';
+import { gsap } from 'gsap';
 
 type TabType = 'info' | 'media' | 'files';
 
@@ -71,6 +72,12 @@ export function RightPanel({
   const [mediaError, setMediaError] = useState<string | null>(null);
   const [filesError, setFilesError] = useState<string | null>(null);
   const [contactData, setContactData] = useState<ContactData | null>(null);
+  const [isHoveringTab, setIsHoveringTab] = useState<TabType | null>(null);
+
+  // Add refs for animation
+  const tabsRef = useRef<HTMLDivElement>(null);
+  const tabIndicatorRef = useRef<HTMLDivElement>(null);
+  const tabContentRef = useRef<HTMLDivElement>(null);
 
   const name = contactDetails?.name || groupDetails?.name || 'No Selection';
   const initials = name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
@@ -599,6 +606,138 @@ export function RightPanel({
     );
   };
 
+  const handleTabClick = (tab: TabType) => {
+    if (tab === activeRightTab) return;
+    
+    const tabsElement = tabsRef.current;
+    const indicatorElement = tabIndicatorRef.current;
+    
+    if (!tabsElement || !indicatorElement) {
+      setActiveRightTab(tab);
+      return;
+    }
+    
+    const currentTabElement = tabsElement.querySelector(`[data-tab="${activeRightTab}"]`);
+    const targetTabElement = tabsElement.querySelector(`[data-tab="${tab}"]`);
+    
+    if (!currentTabElement || !targetTabElement) {
+      setActiveRightTab(tab);
+      return;
+    }
+    
+    const tabsRect = tabsElement.getBoundingClientRect();
+    const currentRect = currentTabElement.getBoundingClientRect();
+    const targetRect = targetTabElement.getBoundingClientRect();
+    
+    const currentLeft = currentRect.left - tabsRect.left;
+    const currentWidth = currentRect.width;
+    
+    const targetLeft = targetRect.left - tabsRect.left;
+    const targetWidth = targetRect.width;
+    
+    const tl = gsap.timeline({
+      onComplete: () => setActiveRightTab(tab),
+      defaults: { duration: 0.2, ease: "power2.inOut" }
+    });
+    
+    if (targetLeft > currentLeft) {
+      tl.to(indicatorElement, { 
+        width: targetLeft + targetWidth - currentLeft,
+      }).to(indicatorElement, { 
+        left: targetLeft,
+        width: targetWidth
+      }, ">=0");
+    } else {
+      tl.to(indicatorElement, { 
+        left: targetLeft,
+        width: currentLeft + currentWidth - targetLeft
+      }).to(indicatorElement, { 
+        width: targetWidth
+      }, ">=0");
+    }
+    
+    if (tabContentRef.current) {
+      gsap.fromTo(
+        tabContentRef.current,
+        { opacity: 0.92, y: 3 },
+        { opacity: 1, y: 0, duration: 0.2, delay: 0.1 }
+      );
+    }
+  };
+  
+  const handleTabHover = (tab: TabType) => {
+    setIsHoveringTab(tab);
+  };
+  
+  const handleTabLeave = () => {
+    setIsHoveringTab(null);
+  };
+  
+  // Initialize tab indicator position when component mounts or active tab changes
+  useEffect(() => {
+    if (!tabIndicatorRef.current || !tabsRef.current) return;
+    
+    const tabs = tabsRef.current.querySelectorAll('[data-tab]');
+    const activeTabElement = tabsRef.current.querySelector(`[data-tab="${activeRightTab}"]`);
+    
+    if (activeTabElement) {
+      const tabRect = activeTabElement.getBoundingClientRect();
+      const tabsRect = tabsRef.current.getBoundingClientRect();
+      
+      const currentLeft = parseFloat(tabIndicatorRef.current.style.left) || 0;
+      const currentWidth = parseFloat(tabIndicatorRef.current.style.width) || 0;
+      
+      const targetLeft = tabRect.left - tabsRect.left;
+      const targetWidth = tabRect.width;
+      
+      const tl = gsap.timeline({
+        defaults: { 
+          ease: 'power2.out',
+          duration: 0.2
+        }
+      });
+      
+      gsap.set(tabIndicatorRef.current, { 
+        top: 'auto', 
+        bottom: 0, 
+        right: 'auto',
+        height: '2px',
+        width: currentWidth,
+        left: currentLeft
+      });
+      
+      if (currentLeft > 0 && Math.abs(targetLeft - currentLeft) > 5) {
+        tl.to(tabIndicatorRef.current, { 
+          width: Math.max(targetLeft + targetWidth - currentLeft, currentWidth),
+          duration: 0.15
+        });
+        
+        tl.to(tabIndicatorRef.current, { 
+          left: targetLeft,
+          duration: 0.15
+        }, "-=0.05");
+        
+        tl.to(tabIndicatorRef.current, { 
+          width: targetWidth,
+          duration: 0.15
+        }, "-=0.05");
+      } else {
+        tl.to(tabIndicatorRef.current, {
+          left: targetLeft,
+          width: targetWidth,
+        });
+      }
+      
+      if (tabContentRef.current) {
+        gsap.fromTo(
+          tabContentRef.current,
+          { opacity: 0.9, y: 5 },
+          { opacity: 1, y: 0, duration: 0.2 }
+        );
+      }
+    }
+  }, [activeRightTab]);
+
   return (
     <div 
       className={cn(
@@ -644,26 +783,45 @@ export function RightPanel({
             )}
           </div>
           
-          <div className="border-b border-gray-200 dark:border-gray-800">
-            <div className="flex">
-              {['info', 'media', 'files'].map((tab) => (
+        
+          <div className="relative">
+            <div ref={tabsRef} className="flex relative">
+              {(['info', 'media', 'files'] as TabType[]).map((tab) => (
                 <button
                   key={tab}
+                  data-tab={tab}
                   className={cn(
-                    "flex-1 py-2.5 px-1 text-sm font-medium border-b-2 transition-colors",
+                    "flex-1 py-2.5 px-1 text-sm font-medium transition-colors relative z-10",
+                    "border-0 outline-none focus:outline-none focus:ring-0 focus-visible:outline-none",
+                    "shadow-none !ring-0 !ring-offset-0",
                     activeRightTab === tab 
-                      ? "border-violet-500 text-violet-600 dark:text-violet-400" 
-                      : "border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-300"
+                      ? "text-violet-600 dark:text-violet-400" 
+                      : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-300",
+                    isHoveringTab === tab && activeRightTab !== tab && "text-gray-800 dark:text-gray-300"
                   )}
-                  onClick={() => setActiveRightTab(tab as TabType)}
+                  style={{ 
+                    boxShadow: 'none',
+                    outline: 'none'
+                  }}
+                  onClick={() => handleTabClick(tab)}
+                  onMouseEnter={() => handleTabHover(tab)}
+                  onMouseLeave={handleTabLeave}
                 >
                   {tab.charAt(0).toUpperCase() + tab.slice(1)}
                 </button>
               ))}
+              
+              <div 
+                ref={tabIndicatorRef}
+                className="absolute bottom-0 h-[2px] bg-violet-500 dark:bg-violet-400 rounded-full transition-none" 
+                style={{ width: '33.33%', left: '0%' }}
+              />
             </div>
+            {/* This line acts as a bottom separator under all tabs */}
+            <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-gray-200 dark:bg-gray-800"></div>
           </div>
           
-          <div className="flex-1 overflow-auto no-scrollbar">
+          <div ref={tabContentRef} className="flex-1 overflow-auto no-scrollbar">
             {activeRightTab === 'info' && (
               <div className="p-4 space-y-4">
                 {contactDetails && (
