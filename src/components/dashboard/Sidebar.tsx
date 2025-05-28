@@ -32,7 +32,7 @@ interface SidebarProps {
   onNewContact?: () => void;
   messages?: Record<string, Message[]>;
   onRemoveContact?: (contactId: number) => Promise<void>;
-  refreshPendingContacts?: () => void;  // New prop
+  refreshPendingContacts?: () => void;
 }
 
 export function Sidebar({ 
@@ -75,7 +75,6 @@ export function Sidebar({
   const [fetchingLastMessages, setFetchingLastMessages] = useState(false);
   
   const getLastMessage = useCallback((channelId: string) => {
-    // First check if we have full messages for this channel
     if (messages[channelId]?.length) {
       const lastMsg = messages[channelId][messages[channelId].length - 1];
       return lastMsg.text.length > 30 
@@ -83,7 +82,6 @@ export function Sidebar({
         : lastMsg.text;
     }
     
-    // If not, check our cached last messages
     if (lastMessages[channelId]) {
       return lastMessages[channelId].length > 30 
         ? lastMessages[channelId].substring(0, 30) + '...' 
@@ -93,7 +91,6 @@ export function Sidebar({
     return "";
   }, [messages, lastMessages]);
 
-  // Fetch last messages for all contacts when the component mounts or contacts change
   useEffect(() => {
     const fetchLastMessages = async () => {
       if (!contacts.length || fetchingLastMessages) return;
@@ -101,7 +98,6 @@ export function Sidebar({
       try {
         setFetchingLastMessages(true);
         
-        // Only fetch for non-pending contacts with channels
         const validContacts = contacts.filter(
           contact => contact.status !== 'pending' && contact.pubnub_channel
         );
@@ -113,15 +109,12 @@ export function Sidebar({
 
         const results: Record<string, string> = {};
         
-        // Use existing messagesAPI to fetch messages
         const fetchPromises = validContacts.map(async (contact) => {
           try {
             if (!contact.pubnub_channel) return;
             
-            // Use the existing API to fetch messages
             const messages = await messagesAPI.getChatMessages(contact.pubnub_channel);
             
-            // Get the last message if exists
             if (messages && messages.length > 0) {
               const lastMessage = messages[messages.length - 1];
               results[contact.pubnub_channel] = lastMessage.message_content || '';
@@ -171,18 +164,55 @@ export function Sidebar({
       const tabRect = activeTabElement.getBoundingClientRect();
       const tabsRect = tabsRef.current.getBoundingClientRect();
       
-      gsap.to(tabIndicatorRef.current, {
-        left: tabRect.left - tabsRect.left,
-        width: tabRect.width,
-        duration: 0.3,
-        ease: 'power2.out',
+      const currentLeft = parseFloat(tabIndicatorRef.current.style.left) || 0;
+      const currentWidth = parseFloat(tabIndicatorRef.current.style.width) || 0;
+      
+      const targetLeft = tabRect.left - tabsRect.left;
+      const targetWidth = tabRect.width;
+      
+      const tl = gsap.timeline({
+        defaults: { 
+          ease: 'power2.out',
+          duration: 0.2
+        }
       });
+      
+      gsap.set(tabIndicatorRef.current, { 
+        top: 'auto', 
+        bottom: 0, 
+        right: 'auto',
+        height: '2px',
+        width: currentWidth,
+        left: currentLeft
+      });
+      
+      if (currentLeft > 0 && Math.abs(targetLeft - currentLeft) > 5) {
+        tl.to(tabIndicatorRef.current, { 
+          width: Math.max(targetLeft + targetWidth - currentLeft, currentWidth),
+          duration: 0.15
+        });
+        
+        tl.to(tabIndicatorRef.current, { 
+          left: targetLeft,
+          duration: 0.15
+        }, "-=0.05");
+        
+        tl.to(tabIndicatorRef.current, { 
+          width: targetWidth,
+          duration: 0.15
+        }, "-=0.05");
+      } else {
+        tl.to(tabIndicatorRef.current, {
+          left: targetLeft,
+          width: targetWidth,
+        });
+      }
       
       if (tabContentRef.current) {
         gsap.fromTo(
           tabContentRef.current,
-          { opacity: 0.8, y: 10 },
-          { opacity: 1, y: 0, duration: 0.3 }
+          { opacity: 0.9, y: 5 },
+          { opacity: 1, y: 0, duration: 0.2 }
         );
       }
     }
@@ -301,16 +331,13 @@ export function Sidebar({
     }
   }, [isButtonHovered]);
 
-  // Filter contacts based on search term and messages
   const filteredContacts = useMemo(() => {
     let filtered = contacts;
 
-    // For the chats tab, only show contacts with messages
     if (activeTab === 'chats') {
       filtered = contacts.filter(contact => {
         const channelId = contact.pubnub_channel;
         
-        // Check if this contact has any messages
         const hasMessagesInState = channelId && messages[channelId]?.length > 0;
         const hasLastMessage = channelId && lastMessages[channelId];
         
@@ -318,7 +345,6 @@ export function Sidebar({
       });
     }
     
-    // Apply search filter if term exists
     if (searchTerm.trim()) {
       const searchLower = searchTerm.toLowerCase();
       filtered = filtered.filter(contact => 
@@ -328,7 +354,6 @@ export function Sidebar({
       );
     }
     
-    // Exclude pending contacts for the chats tab
     if (activeTab === 'chats') {
       filtered = filtered.filter(c => c.status !== 'pending');
     }
@@ -336,7 +361,6 @@ export function Sidebar({
     return filtered;
   }, [contacts, searchTerm, activeTab, messages, lastMessages]);
 
-  // Filter groups based on search term
   const filteredGroups = useMemo(() => {
     if (!searchTerm.trim()) return groups;
     
@@ -393,7 +417,6 @@ export function Sidebar({
     });
   };
 
-  // Close menus when clicking outside
   useEffect(() => {
     const handleClickOutside = () => {
       setOpenContactMenus(new Set());
@@ -408,12 +431,72 @@ export function Sidebar({
     };
   }, [openContactMenus.size]);
 
-  // Refresh pending contacts when switching to contacts tab
   useEffect(() => {
     if (activeTab === 'contacts' && refreshPendingContacts) {
       refreshPendingContacts();
     }
   }, [activeTab, refreshPendingContacts]);
+
+  const handleTabClick = useCallback((tab: TabType) => {
+    if (tab === activeTab) return;
+    
+    const tabsElement = tabsRef.current;
+    const indicatorElement = tabIndicatorRef.current;
+    
+    if (!tabsElement || !indicatorElement) {
+      setActiveTab(tab);
+      return;
+    }
+    
+    const currentTabElement = tabsElement.querySelector(`[data-tab="${activeTab}"]`);
+    const targetTabElement = tabsElement.querySelector(`[data-tab="${tab}"]`);
+    
+    if (!currentTabElement || !targetTabElement) {
+      setActiveTab(tab);
+      return;
+    }
+    
+    const tabsRect = tabsElement.getBoundingClientRect();
+    const currentRect = currentTabElement.getBoundingClientRect();
+    const targetRect = targetTabElement.getBoundingClientRect();
+    
+    const currentLeft = currentRect.left - tabsRect.left;
+    const currentWidth = currentRect.width;
+    
+    const targetLeft = targetRect.left - tabsRect.left;
+    const targetWidth = targetRect.width;
+    
+    const tl = gsap.timeline({
+      onComplete: () => setActiveTab(tab),
+      defaults: { duration: 0.2, ease: "power2.inOut" }
+    });
+    
+    if (targetLeft > currentLeft) {
+      tl.to(indicatorElement, { 
+        width: targetLeft + targetWidth - currentLeft,
+      }).to(indicatorElement, { 
+        left: targetLeft,
+        width: targetWidth
+      }, ">=0");
+    } else {
+      tl.to(indicatorElement, { 
+        left: targetLeft,
+        width: currentLeft + currentWidth - targetLeft
+      }).to(indicatorElement, { 
+        width: targetWidth
+      }, ">=0");
+    }
+    
+    if (tabContentRef.current) {
+      gsap.fromTo(
+        tabContentRef.current,
+        { opacity: 0.92, y: 3 },
+        { opacity: 1, y: 0, duration: 0.2, delay: 0.1 }
+      );
+    }
+    
+    return tl;
+  }, [activeTab, setActiveTab]);
 
   return (
     <div 
@@ -474,7 +557,7 @@ export function Sidebar({
                 boxShadow: 'none',
                 outline: 'none'
               }}
-              onClick={() => setActiveTab(tab)}
+              onClick={() => handleTabClick(tab)}
               onMouseEnter={() => handleTabHover(tab)}
               onMouseLeave={handleTabLeave}
             >
@@ -501,7 +584,7 @@ export function Sidebar({
           
           <div 
             ref={tabIndicatorRef}
-            className="absolute bottom-0 h-0.5 bg-white rounded-full transition-all duration-300"
+            className="absolute bottom-0 h-1 bg-white rounded-full transition-none" 
             style={{ width: '33.33%', left: '0%' }}
           />
         </div>
@@ -527,7 +610,7 @@ export function Sidebar({
               className="absolute right-3 top-1/2 -translate-y-1/2 text-white/70 dark:text-gray-400 hover:text-white dark:hover:text-white"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
           )}
@@ -698,7 +781,6 @@ export function Sidebar({
                           )}
                         </div>
 
-                        {/* Confirmation overlay */}
                         {isConfirming && (
                           <div className="absolute inset-0 bg-white/95 dark:bg-gray-800/95 border border-red-200 dark:border-red-800 rounded-lg flex items-center justify-center z-40">
                             <div className="text-center px-2">

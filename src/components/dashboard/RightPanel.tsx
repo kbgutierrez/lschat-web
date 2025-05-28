@@ -454,14 +454,14 @@ export function RightPanel({
       // Only set up timer if we have the refresh function and right panel is visible
       if (refreshPendingContacts && isVisible && activeTab === 'contacts' && !hasContent) {
         backgroundRefreshTimerRef.current = setInterval(() => {
-          // Only refresh if it's been more than 5 seconds since last refresh
+          // Only refresh if it's been more than 2.5 seconds since last refresh
           // This prevents excessive API calls if user is manually refreshing
-          if (Date.now() - lastRefreshTimeRef.current > 5000) {
+          if (Date.now() - lastRefreshTimeRef.current > 2500) {
             // Silent refresh - don't set any loading states
             refreshPendingContacts();
             lastRefreshTimeRef.current = Date.now();
           }
-        }, 15000); // 15 seconds interval
+        }, 5000); // 5 seconds interval
       }
     };
     
