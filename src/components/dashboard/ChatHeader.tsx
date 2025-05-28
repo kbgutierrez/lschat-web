@@ -71,7 +71,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
     try {
       const data = await contactsAPI.fetchIncomingRequests(user.user_id);
       setIncomingRequests(data);
-      fetchErrorCountRef.current = 0; 
+      fetchErrorCountRef.current = 0;
     } catch (e: any) {
       setRequestsError(e?.message || 'Failed to fetch requests');
       setIncomingRequests([]);
@@ -143,13 +143,11 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
     const { id: requesterId, action } = confirmingAction;
     
     try {
-      // Set this request as pending
       setPendingActions(prev => ({
         ...prev,
         [requesterId]: action
       }));
       
-      // Clear the confirming state
       setConfirmingAction(null);
       setRequestsError(null);
       
@@ -159,18 +157,14 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
         action
       );
       
-      // Handle successful response
       if (response) {
-        // Remove the request from the list
         setIncomingRequests(prev => prev.filter(req => req.user_id.toString() !== requesterId.toString()));
         
-        // Show success message briefly
         setActionSuccess({
           id: requesterId,
           action: action
         });
         
-        // Clear success message after 3 seconds
         setTimeout(() => {
           setActionSuccess(null);
         }, 3000);
@@ -179,7 +173,6 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
       console.error(`Failed to ${action} contact request:`, error);
       setRequestsError(`Failed to ${action} request. Please try again.`);
     } finally {
-      // Clear pending state
       setPendingActions(prev => {
         const updated = {...prev};
         delete updated[requesterId];
@@ -255,22 +248,23 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
       </div>
       
       <div className="flex items-center">
-        {/* Contact Requests Bell Icon */}
         <div className="relative mr-2">
           <button
             ref={bellButtonRef}
             onClick={() => setShowRequestsMenu((v) => !v)}
             className={cn(
-              "p-2 rounded-full hover:bg-violet-50 dark:hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-violet-500",
-              incomingRequests.length > 0 ? "text-gray-500" : "text-gray-500"
+              "p-2 rounded-full hover:bg-violet-50 dark:hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-violet-500 transition-all duration-200",
+              incomingRequests.length > 0 
+                ? "text-violet-600 dark:text-violet-400" 
+                : "text-gray-500"
             )}
             aria-label="Incoming contact requests"
           >
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
             </svg>
             {incomingRequests.length > 0 && (
-              <span className="absolute -top-1 -right-1 bg-yellow-500 text-white text-xs rounded-full px-1.5 py-0.5">
+              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center shadow-sm animate-pulse-once">
                 {incomingRequests.length}
               </span>
             )}
@@ -278,10 +272,10 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
           {showRequestsMenu && (
             <div
               ref={requestsMenuRef}
-              className="absolute right-0 top-full w-80 bg-white dark:bg-gray-800 shadow-lg rounded-md border border-gray-200 dark:border-gray-700 py-1 z-20"
+              className="absolute right-0 top-full mt-1 w-80 bg-white dark:bg-gray-800 shadow-xl rounded-lg border border-gray-200 dark:border-gray-700 py-1 z-20 overflow-hidden"
             >
-              <div className="px-4 py-2 border-b border-gray-200 dark:border-gray-700 flex items-center">
-                <span className="font-medium text-gray-800 dark:text-gray-200">Notifications</span>
+              <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex items-center">
+                <span className="font-medium text-gray-800 dark:text-gray-200">Requests</span>
                 {loadingRequests && (
                   <svg className="ml-2 animate-spin h-4 w-4 text-violet-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
@@ -291,49 +285,84 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
               </div>
               
               {actionSuccess && (
-                <div className="m-3 p-2 text-sm bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 rounded-md border border-green-200 dark:border-green-800">
-                  Contact request {actionSuccess.action === 'accept' ? 'accepted' : 'rejected'} successfully.
+                <div className="mx-3 my-2 p-3 text-sm bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 rounded-md border border-green-200 dark:border-green-800 flex items-center">
+                  <svg className="w-5 h-5 mr-2 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span>
+                    Contact request {actionSuccess.action === 'accept' ? 'accepted' : 'rejected'} successfully.
+                  </span>
                 </div>
               )}
               
               {requestsError && (
-                <div className="p-3 text-sm text-red-600 dark:text-red-400">
-                  {requestsError}
+                <div className="mx-3 my-2 p-3 text-sm bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-md border border-red-200 dark:border-red-800 flex items-center">
+                  <svg className="w-5 h-5 mr-2 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span>{requestsError}</span>
                 </div>
               )}
               
-              {!loadingRequests && incomingRequests.length === 0 && !requestsError && (
-                <div className="p-4 text-center text-gray-500 dark:text-gray-400 text-sm">
-                  No notifications
+              {!loadingRequests && incomingRequests.length === 0 && !requestsError && !actionSuccess && (
+                <div className="p-8 text-center text-gray-500 dark:text-gray-400 flex flex-col items-center">
+                  <svg className="w-12 h-12 mb-3 text-gray-300 dark:text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+                  </svg>
+                  <span className="text-sm">No contact requests</span>
+                  <p className="text-xs mt-1 text-gray-400 dark:text-gray-500">
+                    When someone adds you as a contact, you'll see their request here
+                  </p>
                 </div>
               )}
               
               {incomingRequests.length > 0 && (
-                <div className="max-h-64 overflow-y-auto divide-y divide-gray-100 dark:divide-gray-700">
+                <div className="max-h-[400px] overflow-y-auto">
                   {incomingRequests.map((req) => (
-                    <div key={req.user_id} className="flex items-center px-4 py-3">
-                      <div className="w-10 h-10 rounded-full bg-violet-200 dark:bg-violet-900 flex items-center justify-center text-violet-700 dark:text-violet-300 text-base font-bold mr-3">
-                        {getInitials(req.requester_full_name)}
+                    <div 
+                      key={req.user_id} 
+                      className={cn(
+                        "px-3 py-2 border-b border-gray-100 dark:border-gray-700 last:border-b-0 transition-colors",
+                        pendingActions[req.user_id] ? "bg-gray-50 dark:bg-gray-800/60" : 
+                        confirmingAction?.id === req.user_id ? "bg-violet-50 dark:bg-violet-900/20" : 
+                        "hover:bg-gray-50 dark:hover:bg-gray-800/80"
+                      )}
+                    >
+                      <div className="flex items-center">
+                        <div className="w-9 h-9 rounded-full bg-violet-200 dark:bg-violet-900 flex items-center justify-center text-violet-700 dark:text-violet-300 text-sm font-medium mr-3">
+                          {getInitials(req.requester_full_name)}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium text-gray-900 dark:text-white truncate">
+                            {req.requester_full_name}
+                          </div>
+                          <div className="text-xs text-gray-500 dark:text-gray-400">
+                            {req.requester_username || 'Wants to connect with you'}
+                          </div>
+                        </div>
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="font-medium text-gray-900 dark:text-white truncate">{req.requester_full_name}</div>
-                      </div>
-                      <div className="flex flex-col gap-1 ml-2">
+                      
+                      <div className="mt-2">
                         {pendingActions[req.user_id] ? (
-                          <div className="flex items-center justify-center p-1">
-                            <svg className="animate-spin h-4 w-4 text-violet-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <div className="flex items-center justify-center p-1 text-violet-600 dark:text-violet-400">
+                            <svg className="animate-spin h-4 w-4 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                             </svg>
+                            <span className="text-xs">
+                              {pendingActions[req.user_id] === 'accept' ? 'Accepting...' : 'Rejecting...'}
+                            </span>
                           </div>
                         ) : confirmingAction?.id === req.user_id ? (
-                          <div className="flex flex-col gap-1">
-                            <div className="text-xs text-center text-gray-600 dark:text-gray-300 mb-1">
-                              {confirmingAction?.action === 'accept' ? 'Accept request?' : 'Reject request?'}
+                          <div className="bg-white dark:bg-gray-700 p-2 rounded-lg border border-gray-200 dark:border-gray-600">
+                            <div className="text-xs font-medium mb-1 text-center text-gray-800 dark:text-gray-200">
+                              {confirmingAction.action === 'accept' 
+                                ? 'Accept contact request?' 
+                                : 'Reject contact request?'}
                             </div>
-                            <div className="flex gap-1">
+                            <div className="flex justify-center gap-2">
                               <button
-                                className="px-2 py-1 text-xs rounded bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+                                className="px-2 py-1 text-xs rounded border border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
                                 onClick={cancelAction}
                               >
                                 Cancel
@@ -347,25 +376,35 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                                 )}
                                 onClick={confirmAction}
                               >
-                                Confirm
+                                {confirmingAction?.action === 'accept' ? 'Accept' : 'Reject'}
                               </button>
                             </div>
                           </div>
                         ) : (
-                          <>
+                          <div className="flex gap-2">
                             <button
-                              className="px-2 py-1 text-xs rounded bg-blue-500 text-white hover:bg-blue-600 transition-colors"
+                              className="flex-1 px-2 py-1 text-xs rounded-md bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors"
                               onClick={() => handleRequestAction(req.user_id, 'accept')}
                             >
-                              Accept
+                              <span className="flex items-center justify-center">
+                                <svg className="w-3 h-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                </svg>
+                                Accept
+                              </span>
                             </button>
                             <button
-                              className="px-2 py-1 text-xs rounded bg-red-500 text-white hover:bg-red-600 transition-colors"
+                              className="flex-1 px-2 py-1 text-xs rounded-md bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors"
                               onClick={() => handleRequestAction(req.user_id, 'reject')}
                             >
-                              Reject
+                              <span className="flex items-center justify-center">
+                                <svg className="w-3 h-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6m0 0l-12 12M6 6l12 12" />
+                                </svg>
+                                Reject
+                              </span>
                             </button>
-                          </>
+                          </div>
                         )}
                       </div>
                     </div>
