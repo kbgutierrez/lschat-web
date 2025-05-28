@@ -15,7 +15,6 @@ export default function Home() {
     setIsClient(true);
     console.log("Home page mounted, starting animation");
     
-    // Track if component is mounted to prevent state updates after unmounting
     let isMounted = true;
     let startTime: number;
     const duration = 2000; 
@@ -42,7 +41,7 @@ export default function Home() {
         requestAnimationFrame(animateProgress);
       } else {
         console.log("Animation completed, preparing to redirect");
-        // Only redirect once when animation completes
+   
         if (!redirecting && isMounted) {
           setRedirecting(true);
           console.log("Redirecting to auth page in 800ms");
@@ -55,15 +54,14 @@ export default function Home() {
                 console.error("Navigation error:", error);
               }
             }
-          }, 800); // Short delay after animation completes
+          }, 800); 
         }
       }
     };
 
-    // Start the animation
+ 
     const animationId = requestAnimationFrame(animateProgress);
     
-    // Cleanup function
     return () => {
       console.log("Home page unmounting");
       isMounted = false;
