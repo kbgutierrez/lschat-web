@@ -199,6 +199,42 @@ export const contactsAPI = {
       throw error;
     }
   },
+  
+  updateContactRequest: async (
+    userId: string | number,
+    requesterId: string | number,
+    status: 'accept' | 'reject',
+    updatedAt?: string
+  ): Promise<any> => {
+    try {
+      const url = `${API_BASE_URL}/api/update-contact-list`;
+      
+      const headers = middleware.addAuthHeader({
+        'Content-Type': 'application/json'
+      });
+      
+      const response = await fetch(url, {
+        method: 'PUT', 
+        headers,
+        body: JSON.stringify({
+          user_id: userId,
+          requester_id: requesterId,
+          status: status,
+          updated_at: updatedAt || new Date().toISOString()
+        })
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Failed to ${status} contact request: ${response.status} - ${errorText}`);
+      }
+      
+      return await response.json();
+    } catch (error) {
+      console.error(`Error updating contact request:`, error);
+      throw error;
+    }
+  }
 };
 
 import { publishMessage, formatMessageForPubNub } from './pubnub';

@@ -6,7 +6,7 @@ import { User } from '@/lib/clientUtils';
 import { getInitials } from '@/utils/initials';
 import { Group } from '@/lib/groupsApi';
 import { useIsClient } from '@/lib/clientUtils';
-import { API_BASE_URL, contactsAPI } from '@/lib/api';
+import { API_BASE_URL, contactsAPI, fetchAPI } from '@/lib/api';
 
 type ContactDetails = {
   id: string;
@@ -46,27 +46,41 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
   const [incomingRequests, setIncomingRequests] = useState<any[]>([]);
   const [loadingRequests, setLoadingRequests] = useState(false);
   const [requestsError, setRequestsError] = useState<string | null>(null);
+  const [pendingActions, setPendingActions] = useState<Record<string, string>>({});
+  const [actionSuccess, setActionSuccess] = useState<{id: string, action: string} | null>(null);
+  const [confirmingAction, setConfirmingAction] = useState<{id: string, action: 'accept' | 'reject'} | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const requestsMenuRef = useRef<HTMLDivElement>(null);
   const bellButtonRef = useRef<HTMLButtonElement>(null);
   const isClient = useIsClient();
+  const fetchErrorCountRef = useRef<number>(0);
 
   const toggleUserMenu = () => {
     setShowUserMenu(!showUserMenu);
   };
-  const fetchIncomingRequests = async () => {
+  const fetchIncomingRequests = async (showLoading = true) => {
     if (!isClient || !user?.user_id) return;
-    setLoadingRequests(true);
+    
+    if (showLoading) {
+      setLoadingRequests(true);
+    }
+    
     setRequestsError(null);
+    
     try {
       const data = await contactsAPI.fetchIncomingRequests(user.user_id);
       setIncomingRequests(data);
+      fetchErrorCountRef.current = 0; 
     } catch (e: any) {
       setRequestsError(e?.message || 'Failed to fetch requests');
       setIncomingRequests([]);
+      fetchErrorCountRef.current += 1;
+      
     } finally {
-      setLoadingRequests(false);
+      if (showLoading) {
+        setLoadingRequests(false);
+      }
     }
   };
 
@@ -78,9 +92,11 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
 
   useEffect(() => {
     if (!user?.user_id) return;
+    
     const interval = setInterval(() => {
-      fetchIncomingRequests();
-    }, 30000);
+      fetchIncomingRequests(false);
+    }, 10000);
+    
     return () => clearInterval(interval);
   }, [user?.user_id, isClient]);
 
@@ -116,6 +132,65 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
       document.removeEventListener('mousedown', handleOutsideClick);
     };
   }, [showUserMenu, showRequestsMenu]);
+
+  const handleRequestAction = (requesterId: string, action: 'accept' | 'reject') => {
+    setConfirmingAction({ id: requesterId, action });
+  };
+
+  const confirmAction = async () => {
+    if (!confirmingAction || !user?.user_id) return;
+
+    const { id: requesterId, action } = confirmingAction;
+    
+    try {
+      // Set this request as pending
+      setPendingActions(prev => ({
+        ...prev,
+        [requesterId]: action
+      }));
+      
+      // Clear the confirming state
+      setConfirmingAction(null);
+      setRequestsError(null);
+      
+      const response = await contactsAPI.updateContactRequest(
+        user.user_id,
+        requesterId,
+        action
+      );
+      
+      // Handle successful response
+      if (response) {
+        // Remove the request from the list
+        setIncomingRequests(prev => prev.filter(req => req.user_id.toString() !== requesterId.toString()));
+        
+        // Show success message briefly
+        setActionSuccess({
+          id: requesterId,
+          action: action
+        });
+        
+        // Clear success message after 3 seconds
+        setTimeout(() => {
+          setActionSuccess(null);
+        }, 3000);
+      }
+    } catch (error) {
+      console.error(`Failed to ${action} contact request:`, error);
+      setRequestsError(`Failed to ${action} request. Please try again.`);
+    } finally {
+      // Clear pending state
+      setPendingActions(prev => {
+        const updated = {...prev};
+        delete updated[requesterId];
+        return updated;
+      });
+    }
+  };
+  
+  const cancelAction = () => {
+    setConfirmingAction(null);
+  };
 
   return (
     <header className="h-16 flex items-center justify-between px-4 border-b border-violet-100 dark:border-gray-800 bg-white dark:bg-gray-900 z-10">
@@ -214,14 +289,25 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                   </svg>
                 )}
               </div>
-              {requestsError && (
-                <div className="p-3 text-sm text-red-600 dark:text-red-400">{requestsError}</div>
+              
+              {actionSuccess && (
+                <div className="m-3 p-2 text-sm bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 rounded-md border border-green-200 dark:border-green-800">
+                  Contact request {actionSuccess.action === 'accept' ? 'accepted' : 'rejected'} successfully.
+                </div>
               )}
+              
+              {requestsError && (
+                <div className="p-3 text-sm text-red-600 dark:text-red-400">
+                  {requestsError}
+                </div>
+              )}
+              
               {!loadingRequests && incomingRequests.length === 0 && !requestsError && (
                 <div className="p-4 text-center text-gray-500 dark:text-gray-400 text-sm">
                   No notifications
                 </div>
               )}
+              
               {incomingRequests.length > 0 && (
                 <div className="max-h-64 overflow-y-auto divide-y divide-gray-100 dark:divide-gray-700">
                   {incomingRequests.map((req) => (
@@ -231,23 +317,56 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="font-medium text-gray-900 dark:text-white truncate">{req.requester_full_name}</div>
-                      
                       </div>
                       <div className="flex flex-col gap-1 ml-2">
-                        <button
-                          className="px-2 py-1 text-xs rounded bg-blue-500/80 text-white opacity-60 cursor-not-allowed"
-                          disabled
-                          title="Accept (not implemented)"
-                        >
-                          Accept
-                        </button>
-                        <button
-                          className="px-2 py-1 text-xs rounded bg-red-500/80 text-white opacity-60 cursor-not-allowed"
-                          disabled
-                          title="Reject (not implemented)"
-                        >
-                          Reject
-                        </button>
+                        {pendingActions[req.user_id] ? (
+                          <div className="flex items-center justify-center p-1">
+                            <svg className="animate-spin h-4 w-4 text-violet-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                          </div>
+                        ) : confirmingAction?.id === req.user_id ? (
+                          <div className="flex flex-col gap-1">
+                            <div className="text-xs text-center text-gray-600 dark:text-gray-300 mb-1">
+                              {confirmingAction?.action === 'accept' ? 'Accept request?' : 'Reject request?'}
+                            </div>
+                            <div className="flex gap-1">
+                              <button
+                                className="px-2 py-1 text-xs rounded bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+                                onClick={cancelAction}
+                              >
+                                Cancel
+                              </button>
+                              <button
+                                className={cn(
+                                  "px-2 py-1 text-xs rounded text-white transition-colors",
+                                  confirmingAction?.action === 'accept'
+                                    ? "bg-blue-500 hover:bg-blue-600"
+                                    : "bg-red-500 hover:bg-red-600"
+                                )}
+                                onClick={confirmAction}
+                              >
+                                Confirm
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <>
+                            <button
+                              className="px-2 py-1 text-xs rounded bg-blue-500 text-white hover:bg-blue-600 transition-colors"
+                              onClick={() => handleRequestAction(req.user_id, 'accept')}
+                            >
+                              Accept
+                            </button>
+                            <button
+                              className="px-2 py-1 text-xs rounded bg-red-500 text-white hover:bg-red-600 transition-colors"
+                              onClick={() => handleRequestAction(req.user_id, 'reject')}
+                            >
+                              Reject
+                            </button>
+                          </>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -256,6 +375,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
             </div>
           )}
         </div>
+        
         <div className="flex items-center">
           {(contactDetails || groupDetails) && (
             <button
