@@ -235,7 +235,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                       </div>
                       <div className="flex flex-col gap-1 ml-2">
                         <button
-                          className="px-2 py-1 text-xs rounded bg-green-500/80 text-white opacity-60 cursor-not-allowed"
+                          className="px-2 py-1 text-xs rounded bg-blue-500/80 text-white opacity-60 cursor-not-allowed"
                           disabled
                           title="Accept (not implemented)"
                         >
