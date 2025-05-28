@@ -892,6 +892,7 @@ export default function Dashboard() {
         onNewGroup={handleNewGroup}
         onNewContact={handleNewContact} 
         messages={messages}
+        onRemoveContact={handleCancelContactRequest}
       />
       
       {isMobileSidebarOpen && (

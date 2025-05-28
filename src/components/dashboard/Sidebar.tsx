@@ -31,6 +31,7 @@ interface SidebarProps {
   onNewGroup?: () => void;
   onNewContact?: () => void;
   messages?: Record<string, Message[]>;
+  onRemoveContact?: (contactId: number) => Promise<void>;
 }
 
 export function Sidebar({ 
@@ -52,7 +53,8 @@ export function Sidebar({
   onNewChat,
   onNewGroup,
   onNewContact,
-  messages = {}
+  messages = {},
+  onRemoveContact
 }: SidebarProps) {
   const sidebarRef = useRef<HTMLDivElement>(null);
   const tabsRef = useRef<HTMLDivElement>(null);
@@ -64,6 +66,9 @@ export function Sidebar({
   const [isHoveringTab, setIsHoveringTab] = useState<TabType | null>(null);
   const [isButtonHovered, setIsButtonHovered] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [removingContacts, setRemovingContacts] = useState<Set<number>>(new Set());
+  const [openContactMenus, setOpenContactMenus] = useState<Set<number>>(new Set());
+  const [confirmingRemove, setConfirmingRemove] = useState<number | null>(null);
   
   const getLastMessage = (channelId: string) => {
     if (!messages[channelId]?.length) return "";
@@ -231,19 +236,27 @@ export function Sidebar({
     }
   }, [isButtonHovered]);
 
-  // Filter contacts based on search term
+
   const filteredContacts = useMemo(() => {
-    if (!searchTerm.trim()) return contacts;
+    let contactsToFilter = contacts;
+  
+    if (activeTab === 'chats') {
+      contactsToFilter = contacts.filter(contact => {
+        const contactChannel = contact.pubnub_channel || '';
+        return messages[contactChannel] && messages[contactChannel].length > 0;
+      });
+    }
+    
+    if (!searchTerm.trim()) return contactsToFilter;
     
     const searchLower = searchTerm.toLowerCase();
-    return contacts.filter(contact => 
+    return contactsToFilter.filter(contact => 
       contact.contact_full_name.toLowerCase().includes(searchLower) ||
       (contact.contact_mobile_number && 
        contact.contact_mobile_number.toLowerCase().includes(searchLower))
     );
-  }, [contacts, searchTerm]);
+  }, [contacts, searchTerm, activeTab, messages]);
 
-  // Filter groups based on search term
   const filteredGroups = useMemo(() => {
     if (!searchTerm.trim()) return groups;
     
@@ -254,6 +267,66 @@ export function Sidebar({
        group.description.toLowerCase().includes(searchLower))
     );
   }, [groups, searchTerm]);
+
+  const handleRemoveContact = async (contactId: number) => {
+    if (!onRemoveContact) return;
+    
+    setRemovingContacts(prev => new Set(prev).add(contactId));
+    setConfirmingRemove(null);
+    setOpenContactMenus(prev => {
+      const newSet = new Set(prev);
+      newSet.delete(contactId);
+      return newSet;
+    });
+    
+    try {
+      await onRemoveContact(contactId);
+    } catch (error) {
+      console.error('Failed to remove contact:', error);
+    } finally {
+      setRemovingContacts(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(contactId);
+        return newSet;
+      });
+    }
+  };
+
+  const showRemoveConfirmation = (contactId: number) => {
+    setConfirmingRemove(contactId);
+    setOpenContactMenus(new Set());
+  };
+
+  const cancelRemoveContact = () => {
+    setConfirmingRemove(null);
+  };
+
+  const toggleContactMenu = (contactId: number) => {
+    setOpenContactMenus(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(contactId)) {
+        newSet.delete(contactId);
+      } else {
+        newSet.add(contactId);
+      }
+      return newSet;
+    });
+  };
+
+  // Close menus when clicking outside
+  useEffect(() => {
+    const handleClickOutside = () => {
+      setOpenContactMenus(new Set());
+    };
+
+    if (openContactMenus.size > 0) {
+      document.addEventListener('click', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('click', handleClickOutside);
+    };
+  }, [openContactMenus.size]);
 
   return (
     <div 
@@ -367,7 +440,7 @@ export function Sidebar({
               className="absolute right-3 top-1/2 -translate-y-1/2 text-white/70 dark:text-gray-400 hover:text-white dark:hover:text-white"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
           )}
@@ -387,7 +460,7 @@ export function Sidebar({
             {filteredContacts.length === 0 && !loadingContacts ? (
               <div className="bg-white/10 dark:bg-gray-800/50 rounded-lg p-4 text-center">
                 <p className="text-sm text-white/80 dark:text-gray-300">
-                  {searchTerm ? 'No conversations matching your search' : 'No conversations yet. Start by adding contacts'}
+                  {searchTerm ? 'No conversations matching your search' : 'No conversations yet. Start chatting with your contacts!'}
                 </p>
               </div>
             ) : loadingContacts ? (
@@ -488,14 +561,85 @@ export function Sidebar({
               <div className="space-y-1">
                 {filteredContacts
                   .filter(c => c.status !== 'pending')
-                  .map(contact => (
-                    <ContactItem
-                      key={contact.contact_id}
-                      contact={contact}
-                      isSelected={selectedContact === contact.contact_id.toString()}
-                      onSelect={handleContactSelect}
-                    />
-                  ))
+                  .map(contact => {
+                    const isMenuOpen = openContactMenus.has(contact.contact_id);
+                    const isRemoving = removingContacts.has(contact.contact_id);
+                    const isConfirming = confirmingRemove === contact.contact_id;
+                    
+                    return (
+                      <div key={contact.contact_id} className="relative">
+                        <div className="flex items-center">
+                          <div className="flex-1">
+                            <ContactItem
+                              contact={contact}
+                              isSelected={selectedContact === contact.contact_id.toString()}
+                              onSelect={handleContactSelect}
+                            />
+                          </div>
+                          
+                          {onRemoveContact && (
+                            <div className="relative">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  toggleContactMenu(contact.contact_id);
+                                }}
+                                disabled={isRemoving}
+                                className="p-1 mx-2 rounded-full hover:bg-white/20 dark:hover:bg-gray-700 text-white/70 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+                                </svg>
+                              </button>
+                              
+                              {isMenuOpen && (
+                                <div 
+                                  className="absolute right-0 top-full mt-1 w-32 bg-white dark:bg-gray-800 shadow-lg rounded-md border border-gray-200 dark:border-gray-700 py-1 z-50"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <button
+                                    onClick={() => showRemoveConfirmation(contact.contact_id)}
+                                    disabled={isRemoving}
+                                    className="w-full text-left px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+                                  >
+                                    <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                    </svg>
+                                    Remove
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Confirmation overlay */}
+                        {isConfirming && (
+                          <div className="absolute inset-0 bg-white/95 dark:bg-gray-800/95 border border-red-200 dark:border-red-800 rounded-lg flex items-center justify-center z-40">
+                            <div className="text-center px-2">
+                              <div className="text-sm font-medium mb-3 text-red-800 dark:text-red-200">
+                                Remove {contact.contact_full_name}?
+                              </div>
+                              <div className="flex justify-center gap-2">
+                                <button
+                                  className="px-3 py-1.5 text-xs rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
+                                  onClick={cancelRemoveContact}
+                                >
+                                  No
+                                </button>
+                                <button
+                                  className="px-3 py-1.5 text-xs rounded bg-red-500 hover:bg-red-600 text-white transition-colors"
+                                  onClick={() => handleRemoveContact(contact.contact_id)}
+                                >
+                                  Yes
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })
                 }
               </div>
             )}
