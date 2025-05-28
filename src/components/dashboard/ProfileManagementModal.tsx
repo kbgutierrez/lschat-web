@@ -33,7 +33,7 @@ export default function ProfileManagementModal({ isOpen, onClose }: ProfileManag
 
   useEffect(() => {
     if (isOpen) {
-      // Load user data from local storage when modal opens
+      
       loadUserData();
     }
   }, [isOpen]);
@@ -44,14 +44,13 @@ export default function ProfileManagementModal({ isOpen, onClose }: ProfileManag
       if (userSessionStr) {
         const userSession = JSON.parse(userSessionStr);
         
-        // Log the entire session data to see what's available
+        
         console.log('User session data:', userSession);
         console.log('User object:', userSession.user);
         
-        // Store full user object for later use
+      
         setCurrentUser(userSession.user);
         
-        // Pre-fill form with available data
         setProfileData({
           firstName: userSession.user.firstName || '',
           middleName: userSession.user.middleName || '',
@@ -111,9 +110,9 @@ export default function ProfileManagementModal({ isOpen, onClose }: ProfileManag
       errors.mobileNumber = 'Mobile number is invalid';
     }
 
-    // Fixed password validation
+  
     if (profileData.password || profileData.confirmPassword) {
-      // If either password field has content, both must be valid
+
       if (!profileData.password) {
         errors.password = 'Password is required when confirmation is provided';
       } else if (profileData.password.length < 6) {
@@ -141,7 +140,7 @@ export default function ProfileManagementModal({ isOpen, onClose }: ProfileManag
       return;
     }
 
-    // Show confirmation dialog instead of submitting immediately
+    
     setShowSaveConfirmation(true);
   };
 
@@ -150,7 +149,7 @@ export default function ProfileManagementModal({ isOpen, onClose }: ProfileManag
     setIsLoading(true);
 
     try {
-      // Get current password from session if needed
+   
       const userSessionStr = localStorage.getItem('userSession');
       let currentPassword = '';
       
@@ -159,7 +158,7 @@ export default function ProfileManagementModal({ isOpen, onClose }: ProfileManag
         currentPassword = userSession.user.password || '';
       }
       
-      // Use current password from session if no new password is provided
+     
       const dataToSubmit = {
         ...profileData,
         password: profileData.password || currentPassword
@@ -171,10 +170,10 @@ export default function ProfileManagementModal({ isOpen, onClose }: ProfileManag
       );
 
       if (response.success) {
-        // Show success message
+  
         setShowSuccessMessage(true);
         
-        // Update local storage with new user data to keep it in sync
+    
         const userSessionStr = localStorage.getItem('userSession');
         if (userSessionStr) {
           const userSession = JSON.parse(userSessionStr);
@@ -188,24 +187,20 @@ export default function ProfileManagementModal({ isOpen, onClose }: ProfileManag
               username: profileData.username,
               email: profileData.email,
               mobileNumber: profileData.mobileNumber,
-              // Don't update password in session if it wasn't changed
               password: profileData.password || userSession.user.password
             }
           };
           localStorage.setItem('userSession', JSON.stringify(updatedUserSession));
           
-          // Also update our current state
           setCurrentUser(updatedUserSession.user);
         }
-        
-        // Clear password fields
+
         setProfileData(prev => ({
           ...prev,
           password: '',
           confirmPassword: ''
         }));
-        
-        // Hide success message and close modal after a delay
+     
         setTimeout(() => {
           setShowSuccessMessage(false);
           onClose();
@@ -223,7 +218,6 @@ export default function ProfileManagementModal({ isOpen, onClose }: ProfileManag
     }
   };
 
-  // Check if content is scrollable on mount and resize
   useEffect(() => {
     if (!isOpen) return;
     
@@ -244,7 +238,6 @@ export default function ProfileManagementModal({ isOpen, onClose }: ProfileManag
     };
   }, [isOpen]);
 
-  // Handle scroll events to show/hide arrow
   const handleScroll = () => {
     const container = scrollContainerRef.current;
     if (!container) return;
@@ -252,7 +245,6 @@ export default function ProfileManagementModal({ isOpen, onClose }: ProfileManag
     setIsAtBottom(container.scrollTop + container.clientHeight >= container.scrollHeight - 20);
   };
 
-  // Smooth scroll down when arrow is clicked
   const handleScrollDown = () => {
     const container = scrollContainerRef.current;
     if (!container) return;
@@ -357,6 +349,7 @@ export default function ProfileManagementModal({ isOpen, onClose }: ProfileManag
                   
                   <div className="space-y-5">
                     <div>
+                  
                       <Input
                         id="username"
                         name="username"
@@ -367,11 +360,9 @@ export default function ProfileManagementModal({ isOpen, onClose }: ProfileManag
                         error={profileErrors.username}
                         required
                         readOnly={true}
-                        className="bg-gray-50 dark:bg-gray-700/50 cursor-not-allowed"
+                        className="bg-gray-500/50 dark:bg-gray-700/50 cursor-not-allowed"
                       />
-                      <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                        Username cannot be changed
-                      </p>
+                  
                     </div>
                     
                     <Input
