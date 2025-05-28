@@ -2,11 +2,14 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { cn } from '@/lib/utils';
-import { User } from '@/lib/clientUtils';
-import { getInitials } from '@/utils/initials';
-import { Group } from '@/lib/groupsApi';
+import { getInitials } from './ContactItem';
+import { contactsAPI } from '@/lib/api';
 import { useIsClient } from '@/lib/clientUtils';
-import { API_BASE_URL, contactsAPI, fetchAPI } from '@/lib/api';
+
+interface ConfirmingAction {
+  id: string;
+  action: 'accept' | 'reject';
+}
 
 type ContactDetails = {
   id: string;
@@ -15,6 +18,21 @@ type ContactDetails = {
   lastSeen: string;
   unread: number;
 };
+interface User {
+  user_id?: string | number;
+  firstName?: string;
+  lastName?: string;
+  username?: string;
+  email?: string;
+}
+
+interface Group {
+  group_id: number;
+  name: string;
+  description?: string;
+  role?: string;
+  pubnub_channel?: string;
+}
 
 interface ChatHeaderProps {
   user: User;
@@ -48,7 +66,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
   const [requestsError, setRequestsError] = useState<string | null>(null);
   const [pendingActions, setPendingActions] = useState<Record<string, string>>({});
   const [actionSuccess, setActionSuccess] = useState<{id: string, action: string} | null>(null);
-  const [confirmingAction, setConfirmingAction] = useState<{id: string, action: 'accept' | 'reject'} | null>(null);
+  const [confirmingAction, setConfirmingAction] = useState<ConfirmingAction | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const requestsMenuRef = useRef<HTMLDivElement>(null);
@@ -59,6 +77,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
   const toggleUserMenu = () => {
     setShowUserMenu(!showUserMenu);
   };
+
   const fetchIncomingRequests = async (showLoading = true) => {
     if (!isClient || !user?.user_id) return;
     
@@ -76,7 +95,6 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
       setRequestsError(e?.message || 'Failed to fetch requests');
       setIncomingRequests([]);
       fetchErrorCountRef.current += 1;
-      
     } finally {
       if (showLoading) {
         setLoadingRequests(false);
@@ -353,7 +371,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                               {pendingActions[req.user_id] === 'accept' ? 'Accepting...' : 'Rejecting...'}
                             </span>
                           </div>
-                        ) : confirmingAction?.id === req.user_id ? (
+                        ) : confirmingAction && confirmingAction.id === req.user_id ? (
                           <div className="bg-white dark:bg-gray-700 p-2 rounded-lg border border-gray-200 dark:border-gray-600">
                             <div className="text-xs font-medium mb-1 text-center text-gray-800 dark:text-gray-200">
                               {confirmingAction.action === 'accept' 
@@ -370,13 +388,13 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                               <button
                                 className={cn(
                                   "px-2 py-1 text-xs rounded text-white transition-colors",
-                                  confirmingAction?.action === 'accept'
+                                  confirmingAction.action === 'accept'
                                     ? "bg-blue-500 hover:bg-blue-600"
                                     : "bg-red-500 hover:bg-red-600"
                                 )}
                                 onClick={confirmAction}
                               >
-                                {confirmingAction?.action === 'accept' ? 'Accept' : 'Reject'}
+                                {confirmingAction.action === 'accept' ? 'Accept' : 'Reject'}
                               </button>
                             </div>
                           </div>
@@ -399,7 +417,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                             >
                               <span className="flex items-center justify-center">
                                 <svg className="w-3 h-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6m0 0l-12 12M6 6l12 12" />
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                                 </svg>
                                 Reject
                               </span>
