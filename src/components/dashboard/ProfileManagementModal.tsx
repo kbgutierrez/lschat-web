@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useRef } from 'react';
 import { Input } from '@/components/ui/Input';
-import { profileManagementAPI } from '@/lib/profileManagementApi';
+import { profileManagementAPI,updateProfilePictureApi } from '@/lib/profileManagementApi';
 
 interface ProfileManagementModalProps {
   isOpen: boolean;
@@ -44,11 +44,9 @@ export default function ProfileManagementModal({ isOpen, onClose }: ProfileManag
       if (userSessionStr) {
         const userSession = JSON.parse(userSessionStr);
         
-        
         console.log('User session data:', userSession);
         console.log('User object:', userSession.user);
         
-      
         setCurrentUser(userSession.user);
         
         setProfileData({
@@ -76,7 +74,6 @@ export default function ProfileManagementModal({ isOpen, onClose }: ProfileManag
       [name]: value
     }));
 
-    // Clear error when user types
     if (profileErrors[name]) {
       setProfileErrors(prev => ({ ...prev, [name]: '' }));
     }
@@ -85,7 +82,6 @@ export default function ProfileManagementModal({ isOpen, onClose }: ProfileManag
   const validateProfile = () => {
     const errors: Record<string, string> = {};
 
-    // Basic validations
     if (!profileData.firstName.trim()) {
       errors.firstName = 'First name is required';
     }
@@ -217,6 +213,52 @@ export default function ProfileManagementModal({ isOpen, onClose }: ProfileManag
       setIsLoading(false);
     }
   };
+
+  const handleProfilePictureChange = async (file: File) => {
+    console.log('userid', currentUser?.user_id);
+    console.log('file', file);
+    if (!file) {
+      console.error('No file selected for profile picture.');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      console.error('File size exceeds 5MB limit.');
+      return;
+    }
+    if (!currentUser?.user_id) {
+      console.error('User ID not found. Please login again.');
+      return;
+    }
+    setIsLoading(true);
+    try {
+      const response = await updateProfilePictureApi.updateProfilePicture(currentUser.user_id, file);
+      if (response.success) {
+        console.log('Profile picture updated successfully:', response);
+        
+        const userSessionStr = localStorage.getItem('userSession');
+        if (userSessionStr) {
+          const userSession = JSON.parse(userSessionStr);
+          const updatedUserSession = {
+            ...userSession,
+            user: {
+              ...userSession.user,
+              profilePicture: response.profilePicture || userSession.user.profilePicture
+            }
+          };
+          localStorage.setItem('userSession', JSON.stringify(updatedUserSession));
+          
+          setCurrentUser(updatedUserSession.user);
+        }
+      } else {
+        console.error('Failed to update profile picture:', response.message);
+      }
+    } catch (error) {
+      console.error('Error updating profile picture:', error);
+    }
+    finally {
+      setIsLoading(false);
+    }
+  }
 
   useEffect(() => {
     if (!isOpen) return;
@@ -446,14 +488,49 @@ export default function ProfileManagementModal({ isOpen, onClose }: ProfileManag
             </div>
             
             <div className="md:w-2/5 mt-6 md:mt-0">
-              <div className="bg-gray-50 dark:bg-gray-700/30 rounded-lg p-5 border border-gray-100 dark:border-gray-600 h-full">
-                <div className="flex items-center mb-6">
-                  <div className="w-16 h-16 rounded-full bg-violet-200 dark:bg-violet-900 flex items-center justify-center text-violet-700 dark:text-violet-300 text-xl font-bold mr-4">
-                    {profileData.firstName && profileData.lastName 
-                      ? `${profileData.firstName[0]}${profileData.lastName[0]}`
-                      : profileData.username?.[0] || 'U'
-                    }
-                  </div>
+              <div className="bg-gray-50  dark:bg-gray-700/30 rounded-lg p-5 border border-gray-100 dark:border-gray-600 h-full">
+                <div className="flex items-center mb-6 cursor-pointer" >
+                    <div className="relative w-16 h-16 mr-4">
+                   
+                    {currentUser?.profilePicture ? (
+                      <img
+                      src={currentUser.profilePicture}
+                      alt="Profile"
+                      className="w-16 h-16 rounded-full object-cover border-2 border-gray-200 dark:border-gray-700"
+                      />
+                    ) : (
+                      <div className="w-16 h-16 rounded-full bg-violet-200 dark:bg-violet-900 flex items-center justify-center text-violet-700 dark:text-violet-300 text-xl font-bold">
+                      {profileData.firstName && profileData.lastName 
+                        ? `${profileData.firstName[0]}${profileData.lastName[0]}`
+                        : profileData.username?.[0] || 'U'
+                      }
+                      </div>
+                    )}
+                    
+                    <input 
+                      type="file" 
+                      id="profilePicture" 
+                      className="hidden" 
+                      accept="image/*"
+                      onChange={(e) => e.target.files?.[0] && handleProfilePictureChange(e.target.files[0])}
+                    />
+                    
+                    <label 
+                      htmlFor="profilePicture" 
+                      className="absolute inset-0 rounded-full cursor-pointer flex items-center justify-center  hover:bg-opacity-20 transition-all duration-200"
+                      title="Change profile picture"
+                    >
+                      {isLoading ? (
+                      <div className="w-full h-full rounded-full flex items-center justify-center bg-black bg-opacity-40">
+                        <span className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full"></span>
+                      </div>
+                      ) : (
+                      <span className="opacity-0 hover:opacity-100 text-white text-xs">
+                        Change
+                      </span>
+                      )}
+                    </label>
+                    </div>
                   <div>
                     <h3 className="text-lg font-medium text-gray-900 dark:text-white">
                       {profileData.firstName} {profileData.lastName}

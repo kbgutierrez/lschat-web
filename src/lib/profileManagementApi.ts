@@ -15,7 +15,9 @@ interface ProfileResponse {
     message: string;
     success: boolean;
     error?: string;
+    profilePicture?: string;
 }
+
 
 export const profileManagementAPI = {
     updateProfile: async (userId: number, userData: ProfileData): Promise<ProfileResponse> => {
@@ -76,3 +78,35 @@ function getAuthToken(): string {
     }
     return '';
 }
+
+export const updateProfilePictureApi = {
+    updateProfilePicture: async (userId: number, file: File): Promise<ProfileResponse> => {
+        const formData = new FormData();
+        formData.append('user_id', userId.toString());
+        formData.append('profile_picture', file);
+
+        try {
+              
+     
+
+            const response = await fetch(`${API_BASE_URL}/api/update-profile-picture`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${getAuthToken()}`
+                },
+                body: formData,
+            });
+            
+            const data = await response.json();
+            
+            if (!data.success) {
+                throw new Error(data.error || 'Failed to update profile picture');
+            }
+            
+            return { success: true, message: data.message };
+        } catch (error: any) {
+            console.error('Profile picture update error:', error);
+            return { success: false, message: error.message };
+        }
+    }
+};

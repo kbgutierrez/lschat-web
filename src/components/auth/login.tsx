@@ -102,6 +102,7 @@ export function Login({ isLoading, setIsLoading }: LoginProps) {
             username: response.user?.username || response.username,
             password: loginData.password,
             email: response.user?.email || response.email,
+            profilePicture: response.user?.profile_picture || response.profilePicture,
           }
         }));
 

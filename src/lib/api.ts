@@ -11,6 +11,7 @@ export interface LoginResponse {
     mobile_number: string;
     last_name: string;
     email: string;
+    profile_picture?: string;
   };
   token?: string;
   firstName?: string;
@@ -20,6 +21,7 @@ export interface LoginResponse {
   user_id?: string;
   username?: string;
   email?: string;
+  profilePicture?: string;
 }
 
 export interface ContactListItem {

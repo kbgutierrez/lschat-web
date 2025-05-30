@@ -24,6 +24,7 @@ interface User {
   lastName?: string;
   username?: string;
   email?: string;
+  profilePicture?: string;
 }
 
 interface Group {
@@ -453,9 +454,18 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
               className="flex items-center hover:cursor-pointer space-x-2 p-1.5 rounded-full hover:bg-violet-50 dark:hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-violet-500"
             >
               <div className="w-9 h-9 pt-0.5 rounded-full bg-violet-200 dark:bg-violet-900 flex items-center justify-center text-violet-700 dark:text-violet-300 text-sm font-medium">
-                {getInitials(user.firstName && user.lastName 
+               {user.profilePicture ? (
+                   <img
+                      src={user.profilePicture}
+                      alt="Profile"
+                      className="w-10 h-10 rounded-full object-cover border-2 border-gray-200 dark:border-gray-700"
+                      />
+                ) : getInitials(user.firstName && user.lastName
                   ? `${user.firstName} ${user.lastName}`
-                  : user.username || 'User')}
+                  : user.username || 'User'
+
+                )}
+                
               </div>
               <div className="hidden md:block text-left">
                 <p className="text-sm font-medium text-gray-800 dark:text-gray-200 leading-tight">
