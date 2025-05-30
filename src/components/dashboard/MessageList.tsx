@@ -2,7 +2,6 @@
 
 import React from 'react';
 import { MessageItem, Message } from './MessageItem';
-import { cn } from '@/lib/utils';
 
 interface MessageListProps {
   messages: Message[];

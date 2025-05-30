@@ -25,19 +25,17 @@ interface MessageItemProps {
 export function MessageItem({ message, contactName, showAvatar, isConsecutive }: MessageItemProps) {
   const { text, time, isOwn } = message;
   
-  // Get user name for initials
+
   const getUserInitials = () => {
-    // Try to get user data from localStorage
     try {
       const userData = localStorage.getItem('userSession');
       if (userData) {
         const parsed = JSON.parse(userData);
         const user = parsed.user || parsed;
         
-        // Handle different ways user name might be stored
         const firstName = user.firstName || user.first_name || '';
         const lastName = user.lastName || user.last_name || '';
-        
+
         if (firstName || lastName) {
           return getInitials(`${firstName} ${lastName}`.trim());
         }
@@ -47,7 +45,7 @@ export function MessageItem({ message, contactName, showAvatar, isConsecutive }:
         }
       }
     } catch (e) {
-      // Silently fail and use default
+      console.error("Error parsing user session data:", e);
     }
     
     return "Me";
