@@ -546,7 +546,7 @@ export function Sidebar({
               data-tab={tab}
               className={cn(
                 "flex-1 py-2 px-1 text-center text-sm font-medium relative z-10 transition-colors",
-                "outline-none focus:outline-none focus:ring-0 focus-visible:outline-none",
+                "outline-none focus:outline-none focus:ring-0 focus-visible:outline-none hover:cursor-pointer",
                 "border-0 shadow-none !ring-0 !ring-offset-0",
                 activeTab === tab 
                   ? "text-white" 
@@ -815,21 +815,21 @@ export function Sidebar({
       </div>
       
       {floatingButtonAction && (
-        <div className="absolute bottom-5 right-5">
+        <div className="absolute bottom-5 hover:cursor-pointer right-5">
           <button
             ref={floatingButtonRef}
             onClick={floatingButtonAction}
             onMouseEnter={() => setIsButtonHovered(true)}
             onMouseLeave={() => setIsButtonHovered(false)}
-            className="grid grid-flow-col auto-cols-min items-center h-10 bg-white/25 dark:bg-gray-700/60 hover:bg-white/30 dark:hover:bg-gray-700/80 text-white rounded-full shadow-md hover:shadow-lg transition-shadow duration-200 overflow-hidden"
+            className="grid grid-flow-col auto-cols-min items-center hover:cursor-pointer h-10 bg-white/25 dark:bg-gray-700/60 hover:bg-white/30 dark:hover:bg-gray-700/80 text-white rounded-full shadow-md hover:shadow-lg transition-shadow duration-200 overflow-hidden"
             style={{ 
               width: '2.5rem',
               opacity: 1
             }}
           >
-            <div className="flex items-center justify-center w-10 h-10">
+            <div className="flex items-center  justify-center w-10 h-10">
               <svg 
-                className="w-5 h-5" 
+                className="w-5 h-5 " 
                 fill="none" 
                 viewBox="0 0 24 24" 
                 stroke="currentColor"

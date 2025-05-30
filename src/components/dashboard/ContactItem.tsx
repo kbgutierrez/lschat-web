@@ -88,7 +88,7 @@ export function ContactItem({ contact, isSelected, onSelect, lastMessage }: Cont
     <button
       ref={buttonRef}
       className={cn(
-        "w-full flex items-center p-3 rounded-lg transition-colors duration-200 mb-1",
+        "w-full flex items-center p-3 rounded-lg transition-colors duration-200 mb-1 cursor-pointer",
         isSelected
           ? "bg-white/20 dark:bg-violet-900/30" 
           : "hover:bg-white/10 dark:hover:bg-gray-800/50",
