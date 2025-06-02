@@ -19,6 +19,14 @@ export interface GroupMessage {
   profile_picture?: string;
 }
 
+export interface GroupMember {
+  user_id: number;
+  name: string;
+  profile_picture?: string;
+  role: string;
+}
+
+
 const middleware = {
   addAuthHeader: (headers: HeadersInit = {}) => {
     if (typeof window === 'undefined') return headers;
@@ -222,5 +230,33 @@ export const groupsAPI = {
       console.error('Send group message error:', error);
       throw error;
     }
+  },
+
+  getGroupMembers: async (groupId: number | string): Promise<{ user_id: number; name: string; profile_picture?: string; role: string }[]> => {
+    if (!groupId) {
+      throw new Error('Group ID is required to fetch members');
+    }
+    
+    try {
+      const headers = middleware.addAuthHeader({
+        'Content-Type': 'application/json',
+      });
+      
+      const url = `${API_BASE_URL}/api/group-members?group_id=${groupId}`;
+      const response = await fetch(url, { headers });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Failed to fetch group members: ${response.status} - ${errorText}`);
+      }
+      
+      const members = await response.json();
+      return members;
+    } catch (error) {
+      console.error('Group members fetch error:', error);
+      throw error;
+    }
   }
+
+
 };

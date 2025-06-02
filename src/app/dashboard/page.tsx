@@ -172,7 +172,7 @@ export default function Dashboard() {
           profilePicture: contactDetails.user_picture || '',
           contactPicture: contactDetails.contact_picture || ''
         });
-        console.log('Selected Contact Details:', contactDetails);
+      
         setSelectedChannel(contactDetails.pubnub_channel);
       }
     }, [selectedContact, contacts, isClient]);
@@ -300,7 +300,6 @@ export default function Dashboard() {
     try {
       fetchTimestampRef.current[fetchKey] = now;
       
-      console.log(`📥 Fetching messages for group: ${selectedGroup} (using groupsAPI.getGroupMessages)`);
       const messages = await groupsAPI.getGroupMessages(selectedGroup);
       if (!isMounted) return;
       console.log(`Retrieved ${messages.length} group messages`);
@@ -1057,6 +1056,7 @@ export default function Dashboard() {
           <RightPanel
             contactDetails={selectedContact ? selectedContactDetails : null}
             groupDetails={selectedGroup ? selectedGroupDetails : null}
+          
             isVisible={isRightPanelVisible}
             onClose={() => setIsRightPanelVisible(false)}
             pendingContacts={pendingContacts}
