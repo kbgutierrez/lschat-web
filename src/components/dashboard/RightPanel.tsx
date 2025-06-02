@@ -232,9 +232,6 @@ export function RightPanel({
                       'https://via.placeholder.com/300/200?text=Image+Not+Found';
 
               const fileName = imgFileMatch ? imgFileMatch[2] : `Image ${index + 1}`;
-
-              console.log('Found group media item:', { url, fileName });
-
               return {
                 id: msg.id.toString(),
                 url,
@@ -434,6 +431,7 @@ export function RightPanel({
       return newSet;
     });
   };
+
 
   useEffect(() => {
     const handleClickOutside = () => {
@@ -869,8 +867,10 @@ export function RightPanel({
                             <p className="text-sm text-gray-600 dark:text-gray-400">{groupDetails.description}</p>
                           </div>
                         )}
+                        
                       </>
                     )}
+
                   </>
                 )}
               </div>

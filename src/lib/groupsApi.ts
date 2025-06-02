@@ -26,6 +26,10 @@ export interface GroupMember {
   role: string;
 }
 
+export interface leaveGroup {
+  group_id: number;
+  user_id: number;
+}
 
 const middleware = {
   addAuthHeader: (headers: HeadersInit = {}) => {
@@ -254,6 +258,37 @@ export const groupsAPI = {
       return members;
     } catch (error) {
       console.error('Group members fetch error:', error);
+      throw error;
+    }
+  },
+
+  leaveGroup: async (groupId: number | string, userId: number | string): Promise<void> => {
+    if (!groupId) {
+      throw new Error('Group ID is required to leave a group');
+    }
+
+    if (!userId) {
+      throw new Error('User ID is required to leave a group');
+    }
+
+    try {
+      const headers = middleware.addAuthHeader({
+        'Content-Type': 'application/json',
+      });
+
+      const url = `${API_BASE_URL}/api/leave-group`;
+      const body = JSON.stringify({ group_id: groupId, user_id: userId });
+      
+      const response = await fetch(url, { method: 'POST', headers, body });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Failed to leave group: ${response.status} - ${errorText}`);
+      }
+
+      console.log(`User ${userId} successfully left group ${groupId}`);
+    } catch (error) {
+      console.error('Leave group error:', error);
       throw error;
     }
   }
