@@ -28,6 +28,8 @@ export type ContactDetails = {
   status: string;
   lastSeen: string;
   unread: number;
+  profilePicture: string;
+  contactPicture: string;
 };
 
 export default function Dashboard() {
@@ -157,21 +159,23 @@ export default function Dashboard() {
   }, [user, isClient, selectedContact, selectedGroup, activeTab]);  // Added activeTab as a dependency
 
   useEffect(() => {
-    if (!isClient || !selectedContact) return;
-
-    const contactDetails = contacts.find(contact => contact.contact_id.toString() === selectedContact);
-    if (contactDetails) {
-      setSelectedContactDetails({
-        id: contactDetails.contact_id.toString(),
-        name: contactDetails.contact_full_name,
-        status: contactDetails.status || 'offline',  
-        lastSeen: 'Unknown',
-        unread: 0
-      });
-      
-      setSelectedChannel(contactDetails.pubnub_channel);
-    }
-  }, [selectedContact, contacts, isClient]);
+      if (!isClient || !selectedContact) return;
+  
+      const contactDetails = contacts.find(contact => contact.contact_id.toString() === selectedContact);
+      if (contactDetails) {
+        setSelectedContactDetails({
+          id: contactDetails.contact_id.toString(),
+          name: contactDetails.contact_full_name,
+          status: contactDetails.status || 'offline',  
+          lastSeen: 'Unknown',
+          unread: 0,
+          profilePicture: contactDetails.user_picture || '',
+          contactPicture: contactDetails.contact_picture || ''
+        });
+        console.log('Selected Contact Details:', contactDetails);
+        setSelectedChannel(contactDetails.pubnub_channel);
+      }
+    }, [selectedContact, contacts, isClient]);
 
   const fetchMessagesFromApi = useCallback(async (skipCache = false, messageData?: any) => {
     if (!selectedChannel || !user || !isMounted) return;
@@ -514,7 +518,9 @@ export default function Dashboard() {
         name: contactDetails.contact_full_name,
         status: contactDetails.status || 'offline',
         lastSeen: 'Unknown',
-        unread: 0
+        unread: 0,
+        profilePicture: contactDetails.contact_picture || '',
+        contactPicture: contactDetails.contact_picture || ''
       });
       
       // Only set the channel if the contact is not pending

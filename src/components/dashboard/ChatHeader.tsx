@@ -17,6 +17,8 @@ type ContactDetails = {
   status: string;
   lastSeen: string;
   unread: number;
+  profilePicture?: string;
+  contactPicture?: string;
 };
 interface User {
   user_id?: string | number;
@@ -211,11 +213,8 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
       setProfilePicture(event.detail.profilePicture);
     };
 
-    // Update profile picture when user prop changes
-    setProfilePicture(user?.profilePicture);
-    
+    setProfilePicture(user?.profilePicture);    
     window.addEventListener('profilePictureUpdated', handleProfilePictureUpdate as EventListener);
-    
     return () => {
       window.removeEventListener('profilePictureUpdated', handleProfilePictureUpdate as EventListener);
     };
@@ -237,7 +236,15 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
           <div className="flex items-center space-x-3">
             <div className="relative">
               <div className="w-10 h-10 rounded-full bg-violet-200 dark:bg-violet-900 flex items-center justify-center text-violet-700 dark:text-violet-300 text-lg font-bold">
-                {getInitials(contactDetails.name)}
+                {contactDetails.contactPicture ? (
+                  <img
+                    src={contactDetails.contactPicture}
+                    alt={contactDetails.name}
+                    className="w-10 h-10 rounded-full object-cover border-2 border-gray-200 dark:border-gray-700"
+                  />
+                ) : (
+                  getInitials(contactDetails.name)
+                )}
               </div>
               <div className={cn(
                 "absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white dark:border-gray-900",

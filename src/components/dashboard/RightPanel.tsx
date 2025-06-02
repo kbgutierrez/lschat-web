@@ -481,8 +481,6 @@ export function RightPanel({
       }
     };
   }, [refreshPendingContacts, isVisible, activeTab, hasContent]);
-
-  // Refresh pending contacts when the panel becomes visible
   useEffect(() => {
     if (isVisible && !hasContent && activeTab === 'contacts' && refreshPendingContacts) {
       refreshPendingContacts();
@@ -491,7 +489,6 @@ export function RightPanel({
   }, [isVisible, hasContent, activeTab, refreshPendingContacts]);
 
   const renderPendingContacts = () => {
-    // Initial load still shows loading indicator
     if (loadingContacts && localPendingContacts.length === 0) {
       return (
         <div className="p-4 flex justify-center">
@@ -673,7 +670,7 @@ export function RightPanel({
     setIsHoveringTab(null);
   };
   
-  // Initialize tab indicator position when component mounts or active tab changes
+  
   useEffect(() => {
     if (!tabIndicatorRef.current || !tabsRef.current) return;
     

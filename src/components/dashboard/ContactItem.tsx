@@ -99,9 +99,17 @@ export function ContactItem({ contact, isSelected, onSelect, lastMessage }: Cont
       disabled={isPending} 
     >
       <div className="relative flex-shrink-0">
-        <div className="w-12 h-12 rounded-full bg-violet-200 dark:bg-violet-900 flex items-center justify-center text-violet-700 dark:text-violet-300 text-base font-bold">
-          {getInitials(contact.contact_full_name)}
-        </div>
+        {contact.contact_picture ? (
+          <img 
+          src={contact.contact_picture} 
+          alt=""
+          className='w-12 h-12 rounded-full object-cover border-2 border-gray-200 dark:border-gray-700'
+          />
+        ) : (
+          <div className="w-12 h-12 rounded-full bg-violet-200 dark:bg-violet-900 flex items-center justify-center text-violet-700 dark:text-violet-300 text-base font-bold">
+            {getInitials(contact.contact_full_name)}
+          </div>
+        )}
         <div className={cn(
           "absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-violet-900 dark:border-gray-900",
           contact.status === 'online' ? 'bg-green-500' : 

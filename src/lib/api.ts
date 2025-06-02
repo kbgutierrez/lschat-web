@@ -32,6 +32,8 @@ export interface ContactListItem {
   pubnub_channel: string;
   status: string;
   email: string;
+  contact_picture: string;
+  user_picture: string;
 }
 
 export interface ChatMessage {
