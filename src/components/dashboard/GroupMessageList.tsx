@@ -24,7 +24,6 @@ export function GroupMessageList({
   endRef,
   currentUserId
 }: GroupMessageListProps) {
-  // Get user name initials from localStorage
   const getUserInitials = () => {
     try {
       const userData = localStorage.getItem('userSession');
@@ -32,7 +31,6 @@ export function GroupMessageList({
         const parsed = JSON.parse(userData);
         const user = parsed.user || parsed;
         
-        // Handle different ways user name might be stored
         const firstName = user.firstName || user.first_name || '';
         const lastName = user.lastName || user.last_name || '';
         
@@ -45,10 +43,9 @@ export function GroupMessageList({
         }
       }
     } catch (e) {
-      // Silently fail and use default
+      console.error("Error parsing user session data:", e);
     }
-    
-    return "U"; // Default fallback
+    return "U"; 
   };
 
   if (isLoading) {
@@ -116,8 +113,6 @@ export function GroupMessageList({
       if (isNaN(date.getTime())) {
         return "Invalid date";
       }
-      
-      // Format to match one-on-one chat format with full date and time
       return new Date(dateStr.replace('Z', '')).toLocaleString('en-PH', { 
         timeZone: 'Asia/Manila',
         year: 'numeric',
