@@ -897,6 +897,25 @@ export default function Dashboard() {
     console.log('Creating new group');
   }, []);
 
+  useEffect(() => {
+    const handleProfilePictureUpdate = (event: CustomEvent) => {
+      if (user) {
+        const updatedUser = {
+          ...user,
+          profilePicture: event.detail.profilePicture
+        };
+        setUser(updatedUser);
+        console.log('Dashboard updated user profile picture:', event.detail.profilePicture);
+      }
+    };
+
+    window.addEventListener('profilePictureUpdated', handleProfilePictureUpdate as EventListener);
+    
+    return () => {
+      window.removeEventListener('profilePictureUpdated', handleProfilePictureUpdate as EventListener);
+    };
+  }, [user]);
+
   if (!isClient) {
     return <div className="min-h-screen bg-violet-50 dark:bg-gray-950"></div>;
   }

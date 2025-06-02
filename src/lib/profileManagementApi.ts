@@ -102,8 +102,8 @@ export const updateProfilePictureApi = {
             if (!data.success) {
                 throw new Error(data.error || 'Failed to update profile picture');
             }
-            
-            return { success: true, message: data.message };
+            console.log('profile picture update data:', data);
+            return { success: true, message: data.message, profilePicture: data.profile_picture || '' };
         } catch (error: any) {
             console.error('Profile picture update error:', error);
             return { success: false, message: error.message };

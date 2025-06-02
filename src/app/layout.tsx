@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "LS Chat App",
+  title: "LSChatApp",
   description: "Connect with friends and colleagues securely",
 };
 

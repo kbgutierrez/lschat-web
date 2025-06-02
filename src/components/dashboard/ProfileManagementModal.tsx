@@ -31,6 +31,11 @@ export default function ProfileManagementModal({ isOpen, onClose }: ProfileManag
 
   const [profileErrors, setProfileErrors] = useState<Record<string, string>>({});
 
+  // Add state for selected image and confirmation
+  const [selectedImage, setSelectedImage] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [showConfirmation, setShowConfirmation] = useState(false);
+
   useEffect(() => {
     if (isOpen) {
       
@@ -233,8 +238,6 @@ export default function ProfileManagementModal({ isOpen, onClose }: ProfileManag
     try {
       const response = await updateProfilePictureApi.updateProfilePicture(currentUser.user_id, file);
       if (response.success) {
-        console.log('Profile picture updated successfully:', response);
-        
         const userSessionStr = localStorage.getItem('userSession');
         if (userSessionStr) {
           const userSession = JSON.parse(userSessionStr);
@@ -248,6 +251,13 @@ export default function ProfileManagementModal({ isOpen, onClose }: ProfileManag
           localStorage.setItem('userSession', JSON.stringify(updatedUserSession));
           
           setCurrentUser(updatedUserSession.user);
+          
+          const profileUpdateEvent = new CustomEvent('profilePictureUpdated', { 
+            detail: { profilePicture: response.profilePicture } 
+          });
+          window.dispatchEvent(profileUpdateEvent);
+          
+          console.log('User session updated with new profile picture');
         }
       } else {
         console.error('Failed to update profile picture:', response.message);
@@ -259,6 +269,36 @@ export default function ProfileManagementModal({ isOpen, onClose }: ProfileManag
       setIsLoading(false);
     }
   }
+
+  // Function to handle file selection
+  const handleFileSelect = (file: File) => {
+    setSelectedImage(file);
+    setImagePreview(URL.createObjectURL(file));
+    setShowConfirmation(true);
+  };
+
+  // Function to confirm image upload
+  const confirmImageUpload = () => {
+    if (selectedImage) {
+      handleProfilePictureChange(selectedImage);
+      resetImageSelection();
+    }
+  };
+
+  // Function to cancel image upload
+  const cancelImageUpload = () => {
+    resetImageSelection();
+  };
+
+  // Reset image selection state
+  const resetImageSelection = () => {
+    if (imagePreview) {
+      URL.revokeObjectURL(imagePreview);
+    }
+    setSelectedImage(null);
+    setImagePreview(null);
+    setShowConfirmation(false);
+  };
 
   useEffect(() => {
     if (!isOpen) return;
@@ -489,7 +529,7 @@ export default function ProfileManagementModal({ isOpen, onClose }: ProfileManag
             
             <div className="md:w-2/5 mt-6 md:mt-0">
               <div className="bg-gray-50  dark:bg-gray-700/30 rounded-lg p-5 border border-gray-100 dark:border-gray-600 h-full">
-                <div className="flex items-center mb-6 cursor-pointer" >
+                <div className="flex items-center mb-6 cursor-pointer">
                     <div className="relative w-16 h-16 mr-4">
                    
                     {currentUser?.profilePicture ? (
@@ -506,15 +546,13 @@ export default function ProfileManagementModal({ isOpen, onClose }: ProfileManag
                       }
                       </div>
                     )}
-                    
                     <input 
                       type="file" 
                       id="profilePicture" 
                       className="hidden" 
                       accept="image/*"
-                      onChange={(e) => e.target.files?.[0] && handleProfilePictureChange(e.target.files[0])}
+                      onChange={(e) => e.target.files?.[0] && handleFileSelect(e.target.files[0])}
                     />
-                    
                     <label 
                       htmlFor="profilePicture" 
                       className="absolute inset-0 rounded-full cursor-pointer flex items-center justify-center  hover:bg-opacity-20 transition-all duration-200"
@@ -603,6 +641,47 @@ export default function ProfileManagementModal({ isOpen, onClose }: ProfileManag
                   onClick={handleConfirmSave}
                 >
                   Save Changes
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Confirmation dialog for profile picture upload */}
+        {showConfirmation && (
+          <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center">
+            <div 
+              className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full shadow-xl animate-fade-in-up"
+              onClick={e => e.stopPropagation()}
+            >
+              <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-3">
+                Update profile picture?
+              </h3>
+              <div className="flex justify-center mb-4">
+                {imagePreview && (
+                  <div className="w-24 h-24 rounded-full overflow-hidden">
+                    <img 
+                      src={imagePreview} 
+                      alt="Profile preview" 
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                )}
+              </div>
+              <div className="flex justify-end space-x-3">
+                <button
+                  type="button"
+                  className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+                  onClick={cancelImageUpload}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="px-4 py-2 bg-violet-600 text-white rounded-lg hover:bg-violet-700 focus:ring-2 focus:ring-offset-2 focus:ring-violet-500"
+                  onClick={confirmImageUpload}
+                >
+                  Confirm
                 </button>
               </div>
             </div>

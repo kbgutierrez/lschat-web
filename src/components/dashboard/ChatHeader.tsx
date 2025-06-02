@@ -74,6 +74,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
   const bellButtonRef = useRef<HTMLButtonElement>(null);
   const isClient = useIsClient();
   const fetchErrorCountRef = useRef<number>(0);
+  const [profilePicture, setProfilePicture] = useState<string | undefined>(user?.profilePicture);
 
   const toggleUserMenu = () => {
     setShowUserMenu(!showUserMenu);
@@ -203,6 +204,22 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
   const cancelAction = () => {
     setConfirmingAction(null);
   };
+
+  useEffect(() => {
+    const handleProfilePictureUpdate = (event: CustomEvent) => {
+      console.log('ChatHeader received profile update:', event.detail.profilePicture);
+      setProfilePicture(event.detail.profilePicture);
+    };
+
+    // Update profile picture when user prop changes
+    setProfilePicture(user?.profilePicture);
+    
+    window.addEventListener('profilePictureUpdated', handleProfilePictureUpdate as EventListener);
+    
+    return () => {
+      window.removeEventListener('profilePictureUpdated', handleProfilePictureUpdate as EventListener);
+    };
+  }, [user?.profilePicture]);
 
   return (
     <header className="h-16 flex items-center justify-between px-4 border-b border-violet-100 dark:border-gray-800 bg-white dark:bg-gray-900 z-10">
@@ -454,16 +471,16 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
               className="flex items-center hover:cursor-pointer space-x-2 p-1.5 rounded-full hover:bg-violet-50 dark:hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-violet-500"
             >
               <div className="w-9 h-9 pt-0.5 rounded-full bg-violet-200 dark:bg-violet-900 flex items-center justify-center text-violet-700 dark:text-violet-300 text-sm font-medium">
-               {user.profilePicture ? (
+               {profilePicture ? (
                    <img
-                      src={user.profilePicture}
+                      src={profilePicture}
                       alt="Profile"
                       className="w-10 h-10 rounded-full object-cover border-2 border-gray-200 dark:border-gray-700"
+                      onError={() => setProfilePicture(undefined)}
                       />
                 ) : getInitials(user.firstName && user.lastName
                   ? `${user.firstName} ${user.lastName}`
                   : user.username || 'User'
-
                 )}
                 
               </div>
