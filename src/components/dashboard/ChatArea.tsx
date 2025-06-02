@@ -9,6 +9,7 @@ import { TypingIndicator } from '@/components/chat/TypingIndicator';
 interface ChatAreaProps {
   selectedContact: string;
   contactName: string;
+  contactPicture?: string; 
   messages: Message[];
   loadingMessages: boolean;
   messageError: string | null;
@@ -23,6 +24,7 @@ interface ChatAreaProps {
 export function ChatArea({
   selectedContact,
   contactName,
+  contactPicture,
   messages,
   loadingMessages,
   messageError,
@@ -105,6 +107,7 @@ export function ChatArea({
             <MessageList 
               messages={messages}
               contactName={contactName}
+              contactPicture={contactPicture}
               isLoading={loadingMessages}
               error={messageError}
               onRetry={handleRetryLoadMessages}

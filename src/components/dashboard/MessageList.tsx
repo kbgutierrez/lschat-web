@@ -6,6 +6,7 @@ import { MessageItem, Message } from './MessageItem';
 interface MessageListProps {
   messages: Message[];
   contactName: string;
+  contactPicture?: string;
   isLoading: boolean;
   error: string | null;
   onRetry: () => void;
@@ -15,6 +16,7 @@ interface MessageListProps {
 export function MessageList({
   messages,
   contactName,
+  contactPicture,
   isLoading,
   error,
   onRetry,
@@ -85,6 +87,7 @@ export function MessageList({
           key={message.id || index}
           message={message}
           contactName={contactName}
+          contactPicture={contactPicture}
           showAvatar={true} 
           isConsecutive={false}
         />

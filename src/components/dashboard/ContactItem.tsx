@@ -14,6 +14,7 @@ export function getInitials(name: string) {
     .slice(0, 2);
 }
 
+
 interface ContactItemProps {
   contact: ContactListItem;
   isSelected: boolean;

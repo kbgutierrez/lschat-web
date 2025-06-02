@@ -84,11 +84,11 @@ export async function fetchAPI<T = any>(
     const response = await fetch(url, { ...options, headers });
     const data = await response.json();
     if (typeof window !== 'undefined') {
-      console.log(`${options.method || 'GET'} ${endpoint}: ${response.status} ${response.ok ? '✓' : '✗'}`);
+      // console.log(`${options.method || 'GET'} ${endpoint}: ${response.status} ${response.ok ? '✓' : '✗'}`);
     }
     
     if (!response.ok) {
-      console.log('response:', response);
+      // console.log('response:', response);
       const errorMessage = data.message || data.error || 
         (response.status === 401 ? 'Invalid username or password' : 'Something went wrong');
       console.log(errorMessage);
@@ -153,7 +153,7 @@ export const contactsAPI = {
       throw new Error('User ID is required to fetch contacts');
     }
     
-    console.log(`Attempting to fetch contacts for user ID: ${userId}`);
+    // console.log(`Attempting to fetch contacts for user ID: ${userId}`);
     try {
       
       await new Promise(resolve => setTimeout(resolve, 300));
@@ -162,9 +162,9 @@ export const contactsAPI = {
       
      
       const filteredContacts = response.filter(contact => contact.contact_id !== Number(userId));
-      console.log('Filtered contacts:', filteredContacts);
-      console.log('pubnub_channel:', filteredContacts.map(contact => contact.pubnub_channel));
-      console.log('Fetched contacts:', filteredContacts.length);
+      // console.log('Filtered contacts:', filteredContacts);
+      // console.log('pubnub_channel:', filteredContacts.map(contact => contact.pubnub_channel));
+      // console.log('Fetched contacts:', filteredContacts.length);
       return filteredContacts;
     } catch (error) {
       console.error('Contact list fetch error:', error);
@@ -261,16 +261,16 @@ export const messagesAPI = {
     const cachedData = messageCache[channelToken];
     
     if (cachedData && now - cachedData.timestamp < MESSAGE_CACHE_TTL) {
-      console.log(`Using cached messages for channel ${channelToken} - ` + 
-        `cache age: ${Math.round((now - cachedData.timestamp)/1000)}s`);
+      // console.log(`Using cached messages for channel ${channelToken} - ` + 
+      //   `cache age: ${Math.round((now - cachedData.timestamp)/1000)}s`);
       return cachedData.data;
     }
     
-    console.log(`🌐 Fetching chat messages for channel: ${channelToken}`);
+    // console.log(`🌐 Fetching chat messages for channel: ${channelToken}`);
     
     try {
       const response = await fetchAPI<ChatMessage[]>(`/api/chatMessages/${channelToken}`, {}, true);
-      console.log(`📥 Retrieved ${response.length} messages from channel ${channelToken}`);
+      // console.log(`📥 Retrieved ${response.length} messages from channel ${channelToken}`);
       
       let hasNewMessages = true;
       if (cachedData) {
@@ -280,7 +280,7 @@ export const messagesAPI = {
       }
       
       if (hasNewMessages) {
-        console.log(`💬 New messages detected in channel ${channelToken}`);
+        // console.log(`💬 New messages detected in channel ${channelToken}`);
       }
       
       messageCache[channelToken] = {

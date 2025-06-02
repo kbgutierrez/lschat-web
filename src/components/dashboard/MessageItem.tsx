@@ -20,11 +20,11 @@ interface MessageItemProps {
   contactName: string;
   showAvatar: boolean;
   isConsecutive: boolean;
+  contactPicture?: string;
 }
 
-export function MessageItem({ message, contactName, showAvatar, isConsecutive }: MessageItemProps) {
+export function MessageItem({ message, contactName,contactPicture, showAvatar, isConsecutive }: MessageItemProps) {
   const { text, time, isOwn } = message;
-  
 
   const getUserInitials = () => {
     try {
@@ -50,17 +50,26 @@ export function MessageItem({ message, contactName, showAvatar, isConsecutive }:
     
     return "Me";
   };
-
+  
   return (
     <div className={cn(
       "flex gap-2",
       isOwn ? "justify-end" : "justify-start",
     )}>
       {!isOwn && showAvatar && (
-        <div className="flex-shrink-0 w-9 h-9 pt-0.5 rounded-full bg-violet-200 dark:bg-violet-900 flex items-center justify-center
-         text-violet-700 dark:text-violet-300 text-sm font-medium overflow-hidden">
-          {getInitials(contactName)}
-        </div>
+        contactPicture ? (
+          <img 
+            src={contactPicture}
+            alt={contactName} 
+            className="flex-shrink-0 w-9 h-9 rounded-full object-cover"
+          />
+        ) : (
+          
+          <div className="flex-shrink-0 w-9 h-9 pt-0.5 rounded-full bg-violet-200 dark:bg-violet-900 flex items-center justify-center
+            text-violet-700 dark:text-violet-300 text-sm font-medium overflow-hidden">
+            {getInitials(contactName)}
+          </div>
+        )
       )}
 
       {!isOwn && !showAvatar && <div className="w-8 flex-shrink-0" />}

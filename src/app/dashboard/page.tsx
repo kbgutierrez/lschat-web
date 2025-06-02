@@ -1001,6 +1001,7 @@ export default function Dashboard() {
               <ChatArea 
                 selectedContact={selectedContact}
                 contactName={selectedContactDetails?.name || ''}
+                contactPicture={selectedContactDetails?.contactPicture || ''}
                 messages={selectedChannel ? messages[selectedChannel] || [] : []}
                 loadingMessages={loadingMessages}
                 messageError={messageError}
