@@ -127,6 +127,7 @@ export function RightPanel({
     };
 
     fetchPubnubChannel();
+    handleGroupMembers();
   }, [contactDetails?.id, groupDetails?.pubnub_channel]);
 
   const fetchMedia = useCallback(async () => {
@@ -384,6 +385,7 @@ export function RightPanel({
   }, [activeRightTab, contactDetails, groupDetails, fetchMedia, fetchFiles]);
 
   const [cancellingRequests, setCancellingRequests] = useState<Set<number>>(new Set());
+  
   const [openMenus, setOpenMenus] = useState<Set<number>>(new Set());
   const [confirmingCancel, setConfirmingCancel] = useState<number | null>(null);
 

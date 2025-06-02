@@ -916,6 +916,25 @@ export default function Dashboard() {
     };
   }, [user]);
 
+  // Add leave group handler
+  const handleLeaveGroup = async (groupId: number) => {
+    if (!user?.user_id) return;
+    try {
+      await groupsAPI.leaveGroup(groupId, user.user_id);
+      // Remove group from state
+      setGroups(prev => prev.filter(g => g.group_id !== groupId));
+      // If currently selected, clear selection
+      if (selectedGroup === groupId) {
+        setSelectedGroup(null);
+        setSelectedGroupDetails(null);
+        setSelectedChannel(null);
+      }
+    } catch (error) {
+      console.error('Failed to leave group:', error);
+      throw error;
+    }
+  };
+
   if (!isClient) {
     return <div className="min-h-screen bg-violet-50 dark:bg-gray-950"></div>;
   }
@@ -953,6 +972,7 @@ export default function Dashboard() {
         onNewContact={handleNewContact} 
         messages={messages}
         onRemoveContact={handleCancelContactRequest}
+        onLeaveGroup={handleLeaveGroup}
         refreshPendingContacts={refreshPendingContacts}
       />
       

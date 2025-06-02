@@ -33,6 +33,7 @@ interface SidebarProps {
   messages?: Record<string, Message[]>;
   onRemoveContact?: (contactId: number) => Promise<void>;
   refreshPendingContacts?: () => void;
+  onLeaveGroup?: (groupId: number) => Promise<void>; 
 }
 
 export function Sidebar({ 
@@ -56,7 +57,8 @@ export function Sidebar({
   onNewContact,
   messages = {},
   onRemoveContact,
-  refreshPendingContacts
+  refreshPendingContacts,
+  onLeaveGroup, 
 }: SidebarProps) {
   const sidebarRef = useRef<HTMLDivElement>(null);
   const tabsRef = useRef<HTMLDivElement>(null);
@@ -73,7 +75,12 @@ export function Sidebar({
   const [confirmingRemove, setConfirmingRemove] = useState<number | null>(null);
   const [lastMessages, setLastMessages] = useState<Record<string, string>>({});
   const [fetchingLastMessages, setFetchingLastMessages] = useState(false);
-  
+
+  // State for group menu
+  const [openGroupMenus, setOpenGroupMenus] = useState<Set<number>>(new Set());
+  const [confirmingLeaveGroup, setConfirmingLeaveGroup] = useState<number | null>(null);
+  const [leavingGroups, setLeavingGroups] = useState<Set<number>>(new Set());
+
   const getLastMessage = useCallback((channelId: string) => {
     if (messages[channelId]?.length) {
       const lastMsg = messages[channelId][messages[channelId].length - 1];
@@ -417,19 +424,48 @@ export function Sidebar({
     });
   };
 
+  // Close menus on outside click
   useEffect(() => {
-    const handleClickOutside = () => {
-      setOpenContactMenus(new Set());
-    };
-
-    if (openContactMenus.size > 0) {
-      document.addEventListener('click', handleClickOutside);
+    const handleClick = () => setOpenGroupMenus(new Set());
+    if (openGroupMenus.size > 0) {
+      document.addEventListener('click', handleClick);
     }
+    return () => document.removeEventListener('click', handleClick);
+  }, [openGroupMenus.size]);
 
-    return () => {
-      document.removeEventListener('click', handleClickOutside);
-    };
-  }, [openContactMenus.size]);
+  const toggleGroupMenu = (groupId: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setOpenGroupMenus(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(groupId)) newSet.delete(groupId);
+      else newSet.add(groupId);
+      return newSet;
+    });
+  };
+
+  const showLeaveGroupConfirm = (groupId: number) => {
+    setConfirmingLeaveGroup(groupId);
+    setOpenGroupMenus(new Set());
+  };
+
+  const cancelLeaveGroup = () => setConfirmingLeaveGroup(null);
+
+  const handleLeaveGroup = async (groupId: number) => {
+    if (!onLeaveGroup) return;
+    setLeavingGroups(prev => new Set(prev).add(groupId));
+    setConfirmingLeaveGroup(null);
+    try {
+      await onLeaveGroup(groupId);
+    } catch (e) {
+      // Optionally handle error
+    } finally {
+      setLeavingGroups(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(groupId);
+        return newSet;
+      });
+    }
+  };
 
   useEffect(() => {
     if (activeTab === 'contacts' && refreshPendingContacts) {
@@ -690,12 +726,68 @@ export function Sidebar({
               </div>
             ) : (
               filteredGroups.map(group => (
-                <GroupItem
-                  key={group.group_id}
-                  group={group}
-                  isSelected={selectedGroup === group.group_id}
-                  onSelect={handleGroupSelect}
-                />
+                <div key={group.group_id} className="relative group flex items-center">
+                  <GroupItem
+                    group={group}
+                    isSelected={selectedGroup === group.group_id}
+                    onSelect={handleGroupSelect}
+                  />
+                  <div className="ml-1">
+                    <button
+                      className="cursor-pointer p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400 dark:text-gray-500"
+                      onClick={e => toggleGroupMenu(group.group_id, e)}
+                      tabIndex={-1}
+                      aria-label="Group menu"
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <circle cx="12" cy="6" r="1.5" />
+                        <circle cx="12" cy="12" r="1.5" />
+                        <circle cx="12" cy="18" r="1.5" />
+                      </svg>
+                    </button>
+                    {openGroupMenus.has(group.group_id) && (
+                      <div
+                        className="absolute right-0 w-40 bg-white dark:bg-gray-800 shadow-lg rounded-md border border-gray-200 dark:border-gray-700 py-1 z-10"
+                        onClick={e => e.stopPropagation()}
+                      >
+                        <button
+                          onClick={() => showLeaveGroupConfirm(group.group_id)}
+                          disabled={leavingGroups.has(group.group_id)}
+                          className="cursor-pointer w-full text-left px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+                        >
+                          <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                          </svg>
+                          {leavingGroups.has(group.group_id) ? 'Leaving...' : 'Leave Group'}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                  {/* Confirmation overlay */}
+                  {confirmingLeaveGroup === group.group_id && (
+                    <div className="absolute inset-0 bg-gray-50 dark:bg-gray-800 border border-red-200 dark:border-red-800 rounded-lg flex items-center justify-center z-20">
+                      <div className="text-center px-2">
+                        <div className="text-sm font-medium mb-3 text-red-800 dark:text-red-200">
+                          Leave group <span className="font-medium">{group.name}</span>?
+                        </div>
+                        <div className="flex justify-center gap-2">
+                          <button
+                            className="px-3 py-1.5 text-xs rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
+                            onClick={cancelLeaveGroup}
+                          >
+                            No
+                          </button>
+                          <button
+                            className="px-3 py-1.5 text-xs rounded bg-red-500 hover:bg-red-600 text-white transition-colors"
+                            onClick={() => handleLeaveGroup(group.group_id)}
+                          >
+                            Yes
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
               ))
             )}
           </div>
