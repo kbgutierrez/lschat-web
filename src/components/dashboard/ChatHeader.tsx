@@ -253,11 +253,6 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
             </div>
             <div>
               <h2 className="text-base font-semibold text-gray-900 dark:text-white">{contactDetails.name}</h2>
-              <p className="text-xs text-gray-500 dark:text-gray-400">
-                {contactDetails.status === 'online' 
-                  ? 'Online now' 
-                  : `Last seen ${contactDetails.lastSeen}`}
-              </p>
             </div>
           </div>
         ) : groupDetails ? (

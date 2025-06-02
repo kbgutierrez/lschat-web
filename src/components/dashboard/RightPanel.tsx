@@ -450,25 +450,20 @@ export function RightPanel({
   useEffect(() => {
     setLocalPendingContacts(pendingContacts);
   }, [pendingContacts]);
-
-  // Set up background refresh timer
   useEffect(() => {
     const setupBackgroundRefresh = () => {
       if (backgroundRefreshTimerRef.current) {
         clearInterval(backgroundRefreshTimerRef.current);
       }
       
-      // Only set up timer if we have the refresh function and right panel is visible
+    
       if (refreshPendingContacts && isVisible && activeTab === 'contacts' && !hasContent) {
         backgroundRefreshTimerRef.current = setInterval(() => {
-          // Only refresh if it's been more than 2.5 seconds since last refresh
-          // This prevents excessive API calls if user is manually refreshing
           if (Date.now() - lastRefreshTimeRef.current > 2500) {
-            // Silent refresh - don't set any loading states
             refreshPendingContacts();
             lastRefreshTimeRef.current = Date.now();
           }
-        }, 5000); // 5 seconds interval
+        }, 5000); 
       }
     };
     
@@ -747,7 +742,16 @@ export function RightPanel({
     >
       {hasContent ? (
         <>
-          <div className="px-4 py-6 border-b border-gray-200 dark:border-gray-800 flex flex-col items-center">
+          <div className="px-4  py-6 border-b border-gray-200 dark:border-gray-800 flex flex-col items-center">
+            {contactDetails?.contactPicture ? (
+              <Image
+               src = {contactDetails.contactPicture}
+                alt={name}
+                width={80}
+                height={80}
+                className="w-20 h-20 rounded-full mb-4 object-cover"
+              />
+             ) : (
             <div className={cn(
               "w-20 h-20 rounded-full flex items-center justify-center text-xl font-bold mb-4",
               contactDetails 
@@ -756,11 +760,10 @@ export function RightPanel({
             )}>
               {initials}
             </div>
-            
-            <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-1">{name}</h3>
-            
+          )}            
+            <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 ">{name}</h3>            
             {contactDetails && (
-              <div className="flex items-center mt-1">
+              <div className="flex items-center ">
                 <span className={cn(
                   "w-2 h-2 rounded-full mr-2",
                   contactDetails.status === 'online' ? 'bg-green-500' : 'bg-gray-400'
@@ -768,7 +771,7 @@ export function RightPanel({
                 <p className="text-sm text-gray-600 dark:text-gray-400">
                   {contactDetails.status === 'online' 
                     ? 'Online now' 
-                    : `Last seen ${contactDetails.lastSeen}`}
+                    : `Offline`}
                 </p>
               </div>
             )}

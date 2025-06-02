@@ -51,6 +51,22 @@ export function MessageItem({ message, contactName,contactPicture, showAvatar, i
     return "Me";
   };
   
+
+const getUserPicture = () => {
+  try {
+    const userData = localStorage.getItem('userSession');
+    if (userData) {
+      const parsed = JSON.parse(userData);
+      const user = parsed.user || parsed;
+      
+      return user.profilePicture || user.profile_picture || '';
+    }
+  } catch (e) {
+    console.error("Error parsing user session data:", e);
+  }
+  return '';
+}
+
   return (
     <div className={cn(
       "flex gap-2",
@@ -90,8 +106,16 @@ export function MessageItem({ message, contactName,contactPicture, showAvatar, i
       </div>
 
       {isOwn && showAvatar && (
-        <div className="flex-shrink-0 w-8 h-8 pt-0.5 rounded-full bg-violet-500 flex items-center justify-center text-white text-sm font-medium overflow-hidden">
-          {getUserInitials()}
+        <div className="flex-shrink-0 w-9 h-9 pt-0.5 rounded-full bg-violet-200 dark:bg-violet-200 flex items-center justify-center">
+          {getUserPicture() ? (
+            <img 
+              src={getUserPicture()} 
+              alt="User Avatar" 
+              className="w-full h-full rounded-full object-cover"
+            />
+          ) : (
+            getUserInitials()
+          )}
         </div>
       )}
 
