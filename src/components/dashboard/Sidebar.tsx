@@ -762,7 +762,7 @@ export function Sidebar({
                               
                               {isMenuOpen && (
                                 <div 
-                                  className="absolute right-0 top-full mt-1 w-32 bg-white dark:bg-gray-800 shadow-lg rounded-md border border-gray-200 dark:border-gray-700 py-1 z-50"
+                                  className="absolute right-0 top-full w-32 bg-white dark:bg-gray-800 shadow-lg rounded-md border border-gray-200 dark:border-gray-700 py-1 z-50"
                                   onClick={(e) => e.stopPropagation()}
                                 >
                                   <button
