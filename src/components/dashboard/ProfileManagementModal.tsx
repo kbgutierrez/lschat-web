@@ -363,7 +363,7 @@ export default function ProfileManagementModal({ isOpen, onClose }: ProfileManag
         <div className="flex justify-between items-center p-5 border-b border-gray-200 dark:border-gray-700">
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Profile Management</h1>
           <button 
-            className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+            className="text-gray-500 cursor-pointer hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
             onClick={onClose}
             aria-label="Close"
           >

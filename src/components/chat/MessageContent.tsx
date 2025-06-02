@@ -560,7 +560,7 @@ export const MessageContent: React.FC<MessageContentProps> = ({ content, classNa
             </div>
             
             <button
-              className="absolute top-4 right-4 p-2 bg-black/50 text-white rounded-full hover:bg-black/70"
+              className="absolute cursor-pointer top-4 right-4 p-2 bg-black/50 text-white rounded-full hover:bg-black/70"
               onClick={() => setShowImageModal(false)}
               title="Close (Esc key)"
             >
