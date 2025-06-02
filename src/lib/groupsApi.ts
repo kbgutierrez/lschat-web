@@ -16,6 +16,7 @@ export interface GroupMessage {
   sender_name: string;
   message: string;
   created_at: string;
+  profile_picture?: string;
 }
 
 const middleware = {
@@ -75,14 +76,12 @@ export const groupsAPI = {
       
       const url = `${API_BASE_URL}/api/groupMessages/${groupId}`;
       const response = await fetch(url, { headers });
-      
+    
       if (!response.ok) {
         const errorText = await response.text();
         throw new Error(`Failed to fetch group messages: ${response.status} - ${errorText}`);
       }
-      
-      const messages: GroupMessage[] = await response.json();
-      
+      const messages: GroupMessage[] = await response.json();      
       return messages;
     } catch (error) {
       console.error('Group messages fetch error:', error);

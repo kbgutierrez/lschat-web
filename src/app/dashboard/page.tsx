@@ -156,7 +156,7 @@ export default function Dashboard() {
     };
 
     fetchContacts();
-  }, [user, isClient, selectedContact, selectedGroup, activeTab]);  // Added activeTab as a dependency
+  }, [user, isClient, selectedContact, selectedGroup, activeTab]); 
 
   useEffect(() => {
       if (!isClient || !selectedContact) return;
@@ -302,24 +302,19 @@ export default function Dashboard() {
       
       console.log(`📥 Fetching messages for group: ${selectedGroup} (using groupsAPI.getGroupMessages)`);
       const messages = await groupsAPI.getGroupMessages(selectedGroup);
-      
       if (!isMounted) return;
-      
-      console.log(`📥 Retrieved ${messages.length} group messages`);
-
-      // Check if we have new messages compared to what's already in state
+      console.log(`Retrieved ${messages.length} group messages`);
       const existingMessages = groupMessages[selectedGroup] || [];
       const hasNewMessages = existingMessages.length !== messages.length ||
         JSON.stringify(existingMessages.map(m => m.id)) !== 
         JSON.stringify(messages.map(m => m.id));
       
       if (hasNewMessages) {
-        console.log('📨 New group messages detected, updating state');
+        console.log('New group messages detected, updating state');
         setGroupMessages(prev => ({
           ...prev,
           [selectedGroup]: messages
         }));
-        
         setTimeout(scrollToBottom, 100);
       } else {
         console.log('📊 No new group messages detected, skipping update');
