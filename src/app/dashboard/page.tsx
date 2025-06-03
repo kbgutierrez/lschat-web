@@ -19,6 +19,7 @@ import { GroupMessageList } from '@/components/dashboard/GroupMessageList';
 import { MessageInput } from '@/components/chat/MessageInput';
 import { RightPanel } from '@/components/dashboard/RightPanel';
 import AddContactModal from '@/components/dashboard/AddContactModal';
+import InviteToGroupModal from '@/components/dashboard/InviteToGroupModal';
 
 type TabType = 'chats' | 'groups' | 'contacts';
 
@@ -70,6 +71,8 @@ export default function Dashboard() {
 
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isAddContactModalOpen, setIsAddContactModalOpen] = useState(false);
+  const [isInviteToGroupModalOpen, setIsInviteToGroupModalOpen] = useState(false);
+  const [inviteToGroupId, setInviteToGroupId] = useState<number | null>(null);
 
   const [groups, setGroups] = useState<GroupData[]>([]);
   const [loadingGroups, setLoadingGroups] = useState(false);
@@ -935,6 +938,23 @@ export default function Dashboard() {
     }
   };
 
+  const openInviteToGroupModal = useCallback((groupId: number) => {
+    setInviteToGroupId(groupId);
+    setIsInviteToGroupModalOpen(true);
+  }, []);
+
+  const handleInviteToGroup = useCallback(async (groupId: number, userId: number) => {
+    if (!user?.user_id) return;
+    
+    try {
+      await groupsAPI.inviteToGroup(groupId, userId);
+      return true;
+    } catch (error) {
+      console.error('Failed to invite user to group:', error);
+      throw error;
+    }
+  }, [user?.user_id]);
+
   if (!isClient) {
     return <div className="min-h-screen bg-violet-50 dark:bg-gray-950"></div>;
   }
@@ -1076,7 +1096,6 @@ export default function Dashboard() {
           <RightPanel
             contactDetails={selectedContact ? selectedContactDetails : null}
             groupDetails={selectedGroup ? selectedGroupDetails : null}
-          
             isVisible={isRightPanelVisible}
             onClose={() => setIsRightPanelVisible(false)}
             pendingContacts={pendingContacts}
@@ -1085,6 +1104,7 @@ export default function Dashboard() {
             loadingContacts={loadingContacts}
             onCancelContactRequest={handleCancelContactRequest}
             refreshPendingContacts={refreshPendingContacts}
+            onInviteToGroup={openInviteToGroupModal}
           />
         </div>
       </main>
@@ -1101,6 +1121,15 @@ export default function Dashboard() {
         existingContacts={contacts}
         currentUserId={user?.user_id}
         onContactAdded={refreshPendingContacts}  
+      />
+
+      <InviteToGroupModal
+        isOpen={isInviteToGroupModalOpen}
+        onClose={() => setIsInviteToGroupModalOpen(false)}
+        contacts={contacts}
+        groupId={inviteToGroupId}
+        onInvite={ handleInviteToGroup }
+        groupName={selectedGroupDetails?.name}
       />
     </div>
   );

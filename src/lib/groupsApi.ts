@@ -31,6 +31,14 @@ export interface leaveGroup {
   user_id: number;
 }
 
+export interface NonGroupMember {
+  user_id: number;
+  first_name: string;
+  last_name: string;
+  mobile_number: string;
+  profile_picture: string | null;
+}
+
 const middleware = {
   addAuthHeader: (headers: HeadersInit = {}) => {
     if (typeof window === 'undefined') return headers;
@@ -291,7 +299,50 @@ export const groupsAPI = {
       console.error('Leave group error:', error);
       throw error;
     }
+  },
+  inviteToGroup: async (groupId: number | string, userId: number | string): Promise<void> => {
+    if (!groupId) {
+      throw new Error('Group ID is required to invite a user');
+    }
+
+    if (!userId) {
+      throw new Error('User ID is required to invite a user');
+    }
+
+    try {
+      const headers = middleware.addAuthHeader({
+        'Content-Type': 'application/json',
+      });
+
+      const url = `${API_BASE_URL}/api/add-group-member`;
+      const body = JSON.stringify({ group_id: groupId, user_id: userId });
+      
+      const response = await fetch(url, { method: 'POST', headers, body });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Failed to invite user to group: ${response.status} - ${errorText}`);
+      }
+
+      console.log(`User ${userId} successfully invited to group ${groupId}`);
+    } catch (error) {
+      console.error('Invite to group error:', error);
+      throw error;
+    }
+  },
+
+  fetchNonGroupMembers: async (groupId: number): Promise<NonGroupMember[]> => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/fetch-not-group-members/${groupId}`);
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch non-group members: ${response.statusText}`);
+      }
+      
+      return await response.json();
+    } catch (error) {
+      console.error('Error fetching non-group members:', error);
+      throw error;
+    }
   }
-
-
-};
+  }

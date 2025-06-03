@@ -24,6 +24,7 @@ interface RightPanelProps {
   loadingContacts?: boolean;
   onCancelContactRequest?: (contactId: number) => Promise<void>;
   refreshPendingContacts?: () => void;
+  onInviteToGroup?: (groupId: number) => void; // Add this prop
 }
 
 interface MediaItem {
@@ -63,7 +64,8 @@ export function RightPanel({
   onContactSelect,
   loadingContacts = false,
   onCancelContactRequest,
-  refreshPendingContacts
+  refreshPendingContacts,
+  onInviteToGroup  // Add this prop
 }: RightPanelProps) {
   const [activeRightTab, setActiveRightTab] = useState<TabType>('info');
   const [media, setMedia] = useState<MediaItem[]>([]);
@@ -209,7 +211,7 @@ export function RightPanel({
 
           mediaItems = messages
             .filter(msg => {
-              console.log('Checking group message:', msg.message?.substring(0, 50));
+              // console.log('Checking group message:', msg.message?.substring(0, 50));
 
               return msg.message?.includes('[Image:') ||
                 msg.message?.includes('JPG File:') ||
@@ -840,11 +842,26 @@ export function RightPanel({
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
                                 </svg>
                               </div>
-                              <div>
-                                <button onClick={handleMembersClick} className="cursor-pointer text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-violet-600 dark:hover:text-violet-400 
-                          outline-0 focus:outline-0 focus:ring-0 focus-visible:outline-0">
-                                  Members
-                                </button>
+                              <div className="flex-1">
+                                <div className="flex items-center justify-between">
+                                  <button onClick={handleMembersClick} className="cursor-pointer text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-violet-600 dark:hover:text-violet-400 
+                    outline-0 focus:outline-0 focus:ring-0 focus-visible:outline-0">
+                                    Members
+                                  </button>
+                                  
+                                  {/* Keep the inline Invite Members button */}
+                                  {groupDetails.role === 'admin' && (
+                                    <button
+                                      onClick={() => onInviteToGroup && onInviteToGroup(groupDetails.group_id)}
+                                      className="ml-2 p-1.5 rounded-full text-violet-600 dark:text-violet-400 hover:bg-violet-100 dark:hover:bg-violet-900/30"
+                                      title="Invite Members"
+                                    >
+                                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+                                      </svg>
+                                    </button>
+                                  )}
+                                </div>
                                 <p className="text-sm text-gray-600 dark:text-gray-400">{groupMembersList.length} participants</p>
                               </div>
                             </div>
