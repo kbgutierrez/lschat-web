@@ -425,20 +425,16 @@ export function Sidebar({
   };
 
   useEffect(() => {
-    const handleClick = () => setOpenGroupMenus(new Set());
-    if (openGroupMenus.size > 0) {
-      document.addEventListener('click', handleClick);
+    const handleClickOutside = () => {
+      setOpenGroupMenus(new Set());
+      setOpenContactMenus(new Set());
+    };
+    
+    if (openGroupMenus.size > 0 || openContactMenus.size > 0) {
+      document.addEventListener('click', handleClickOutside);
+      return () => document.removeEventListener('click', handleClickOutside);
     }
-    return () => document.removeEventListener('click', handleClick);
-  }, [openGroupMenus.size]);
-  useEffect(() => {
-    const handleClick = () => setOpenContactMenus(new Set());
-    if (openContactMenus.size > 0) {
-      document.addEventListener('click', handleClick);
-    }
-    return () => document.removeEventListener('click', handleClick);
-  }, [openContactMenus.size]);
-
+  }, [openGroupMenus.size, openContactMenus.size]);
 
   const toggleGroupMenu = (groupId: number, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -449,10 +445,6 @@ export function Sidebar({
       return newSet;
     });
   };
-
-
-
-
 
   const showLeaveGroupConfirm = (groupId: number) => {
     setConfirmingLeaveGroup(groupId);
