@@ -943,12 +943,11 @@ export default function Dashboard() {
     setIsInviteToGroupModalOpen(true);
   }, []);
 
-  const handleInviteToGroup = useCallback(async (groupId: number, userId: number) => {
+  const handleInviteToGroup = useCallback(async (groupId: number, userId: number, role:string): Promise<void> => {
     if (!user?.user_id) return;
     
     try {
-      await groupsAPI.inviteToGroup(groupId, userId);
-      return true;
+      await groupsAPI.inviteToGroup(groupId, userId, role);
     } catch (error) {
       console.error('Failed to invite user to group:', error);
       throw error;

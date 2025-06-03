@@ -300,7 +300,7 @@ export const groupsAPI = {
       throw error;
     }
   },
-  inviteToGroup: async (groupId: number | string, userId: number | string): Promise<void> => {
+  inviteToGroup: async (groupId: number | string, userId: number | string, role: string): Promise<void> => {
     if (!groupId) {
       throw new Error('Group ID is required to invite a user');
     }
