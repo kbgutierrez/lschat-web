@@ -66,15 +66,15 @@ export const groupsAPI = {
       const headers = middleware.addAuthHeader({
         'Content-Type': 'application/json',
       });
-      
+
       const url = `${API_BASE_URL}/api/fetch-groups?user_id=${userId}`;
       const response = await fetch(url, { headers });
-      
+
       if (!response.ok) {
         const errorText = await response.text();
         throw new Error(`Failed to fetch groups: ${response.status} - ${errorText}`);
       }
-      
+
       const groups: Group[] = await response.json();
       console.log('Fetched groups pubnub channel:', groups.map(group => group.pubnub_channel));
       return groups;
@@ -88,20 +88,20 @@ export const groupsAPI = {
     if (!groupId) {
       throw new Error('Group ID is required to fetch messages');
     }
-    
+
     try {
       const headers = middleware.addAuthHeader({
         'Content-Type': 'application/json',
       });
-      
+
       const url = `${API_BASE_URL}/api/groupMessages/${groupId}`;
       const response = await fetch(url, { headers });
-    
+
       if (!response.ok) {
         const errorText = await response.text();
         throw new Error(`Failed to fetch group messages: ${response.status} - ${errorText}`);
       }
-      const messages: GroupMessage[] = await response.json();      
+      const messages: GroupMessage[] = await response.json();
       return messages;
     } catch (error) {
       console.error('Group messages fetch error:', error);
@@ -117,10 +117,10 @@ export const groupsAPI = {
     if (!userId) {
       throw new Error('User ID is required to send a message');
     }
-    
+
     try {
       const headers = middleware.addAuthHeader();
-      
+
       // If there's a file, use FormData instead of JSON
       if (file) {
         const formData = new FormData();
@@ -129,32 +129,32 @@ export const groupsAPI = {
         formData.append('message_content', message);
         formData.append('message_type', 'text');
         formData.append('file', file);
-        
+
         const url = `${API_BASE_URL}/api/sendGroupMessage`;
-        const response = await fetch(url, { 
+        const response = await fetch(url, {
           method: 'POST',
           headers,  // Browser will set content-type for FormData
           body: formData
         });
-        
+
         if (!response.ok) {
           const errorText = await response.text();
           throw new Error(`Failed to send group message: ${response.status} - ${errorText}`);
         }
-        
+
         const sentMessage: GroupMessage = await response.json();
-        
+
         // Try to send a PubNub notification
         try {
           const groupDetails = await groupsAPI.getGroups(userId);
           const thisGroup = groupDetails.find(g => g.group_id.toString() === groupId.toString());
-          
+
           if (thisGroup && thisGroup.pubnub_channel) {
             console.log('🔔 Sending PubNub notification for group file message on channel:', thisGroup.pubnub_channel);
             const uniqueId = `${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-            
+
             await publishMessage(
-              thisGroup.pubnub_channel, 
+              thisGroup.pubnub_channel,
               {
                 type: 'NEW_MESSAGE',
                 action: 'new_message',
@@ -171,7 +171,7 @@ export const groupsAPI = {
         } catch (pubnubError) {
           console.error('Failed to send PubNub notification for group message:', pubnubError);
         }
-        
+
         return sentMessage;
       } else {
         // Text-only message
@@ -181,9 +181,9 @@ export const groupsAPI = {
           message_content: message,
           message_type: 'text'
         });
-        
+
         const url = `${API_BASE_URL}/api/sendGroupMessage`;
-        const response = await fetch(url, { 
+        const response = await fetch(url, {
           method: 'POST',
           headers: {
             ...headers,
@@ -191,32 +191,32 @@ export const groupsAPI = {
           },
           body
         });
-        
+
         if (!response.ok) {
           const errorText = await response.text();
           throw new Error(`Failed to send group message: ${response.status} - ${errorText}`);
         }
-        
+
         const sentMessage: GroupMessage = await response.json();
-        
+
         // Try to send a PubNub notification
         try {
           const groupDetails = await groupsAPI.getGroups(userId);
           const thisGroup = groupDetails.find(g => g.group_id.toString() === groupId.toString());
-          
+
           if (thisGroup && thisGroup.pubnub_channel) {
             console.log('🔔 Sending PubNub notification for group text message on channel:', thisGroup.pubnub_channel);
             const uniqueId = `${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-            
+
             // Add more detailed debugging
             console.log('Publishing notification with data:', {
               group_id: String(groupId),
               channel: thisGroup.pubnub_channel,
               uniqueId: uniqueId
             });
-            
+
             await publishMessage(
-              thisGroup.pubnub_channel, 
+              thisGroup.pubnub_channel,
               {
                 type: 'NEW_MESSAGE',
                 action: 'new_message',
@@ -235,7 +235,7 @@ export const groupsAPI = {
         } catch (pubnubError) {
           console.error('Failed to send PubNub notification for group message:', pubnubError);
         }
-        
+
         return sentMessage;
       }
     } catch (error) {
@@ -248,20 +248,20 @@ export const groupsAPI = {
     if (!groupId) {
       throw new Error('Group ID is required to fetch members');
     }
-    
+
     try {
       const headers = middleware.addAuthHeader({
         'Content-Type': 'application/json',
       });
-      
+
       const url = `${API_BASE_URL}/api/group-members?group_id=${groupId}`;
       const response = await fetch(url, { headers });
-      
+
       if (!response.ok) {
         const errorText = await response.text();
         throw new Error(`Failed to fetch group members: ${response.status} - ${errorText}`);
       }
-      
+
       const members = await response.json();
       return members;
     } catch (error) {
@@ -286,7 +286,7 @@ export const groupsAPI = {
 
       const url = `${API_BASE_URL}/api/leave-group`;
       const body = JSON.stringify({ group_id: groupId, user_id: userId });
-      
+
       const response = await fetch(url, { method: 'POST', headers, body });
 
       if (!response.ok) {
@@ -316,7 +316,7 @@ export const groupsAPI = {
 
       const url = `${API_BASE_URL}/api/add-group-member`;
       const body = JSON.stringify({ group_id: groupId, user_id: userId });
-      
+
       const response = await fetch(url, { method: 'POST', headers, body });
 
       if (!response.ok) {
@@ -334,15 +334,43 @@ export const groupsAPI = {
   fetchNonGroupMembers: async (groupId: number): Promise<NonGroupMember[]> => {
     try {
       const response = await fetch(`${API_BASE_URL}/api/fetch-not-group-members/${groupId}`);
-      
+
       if (!response.ok) {
         throw new Error(`Failed to fetch non-group members: ${response.statusText}`);
       }
-      
+
       return await response.json();
     } catch (error) {
       console.error('Error fetching non-group members:', error);
       throw error;
     }
+  },
+  createGroup: async (name: string, description: string, userId: number | string): Promise<Group> => {
+    if (!name || !userId) {
+      throw new Error('Group name and user ID are required to create a group');
+    }
+
+    try {
+      const headers = middleware.addAuthHeader({
+        'Content-Type': 'application/json',
+      });
+
+      const body = JSON.stringify({ name, description, user_id: userId });
+      const url = `${API_BASE_URL}/api/create-group`;
+
+      const response = await fetch(url, { method: 'POST', headers, body });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Failed to create group: ${response.status} - ${errorText}`);
+      }
+
+      const newGroup: Group = await response.json();
+      console.log('New group created:', newGroup);
+      return newGroup;
+    } catch (error) {
+      console.error('Create group error:', error);
+      throw error;
+    }
   }
-  }
+}
