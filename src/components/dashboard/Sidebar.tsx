@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback, useRef, useEffect, memo, useMemo } from 'react';
+import React, { useState, useCallback, useRef, useEffect, memo, useMemo, use } from 'react';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
 import { ContactListItem, messagesAPI } from '@/lib/api'; 
@@ -424,7 +424,6 @@ export function Sidebar({
     });
   };
 
-  // Close menus on outside click
   useEffect(() => {
     const handleClick = () => setOpenGroupMenus(new Set());
     if (openGroupMenus.size > 0) {
@@ -432,6 +431,14 @@ export function Sidebar({
     }
     return () => document.removeEventListener('click', handleClick);
   }, [openGroupMenus.size]);
+  useEffect(() => {
+    const handleClick = () => setOpenContactMenus(new Set());
+    if (openContactMenus.size > 0) {
+      document.addEventListener('click', handleClick);
+    }
+    return () => document.removeEventListener('click', handleClick);
+  }, [openContactMenus.size]);
+
 
   const toggleGroupMenu = (groupId: number, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -442,6 +449,10 @@ export function Sidebar({
       return newSet;
     });
   };
+
+
+
+
 
   const showLeaveGroupConfirm = (groupId: number) => {
     setConfirmingLeaveGroup(groupId);
@@ -845,7 +856,7 @@ export function Sidebar({
                                   toggleContactMenu(contact.contact_id);
                                 }}
                                 disabled={isRemoving}
-                                className="p-1 mx-2 rounded-full hover:bg-white/20 dark:hover:bg-gray-700 text-white/70 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="cursor-pointer p-1 mx-2 rounded-full hover:bg-white/20 dark:hover:bg-gray-700 text-white/70 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed"
                               >
                                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
@@ -860,7 +871,7 @@ export function Sidebar({
                                   <button
                                     onClick={() => showRemoveConfirmation(contact.contact_id)}
                                     disabled={isRemoving}
-                                    className="w-full text-left px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+                                    className="cursor-pointer w-full text-left px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
                                   >
                                     <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
