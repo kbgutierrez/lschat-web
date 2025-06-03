@@ -34,6 +34,7 @@ interface SidebarProps {
   onRemoveContact?: (contactId: number) => Promise<void>;
   refreshPendingContacts?: () => void;
   onLeaveGroup?: (groupId: number) => Promise<void>; 
+  isCreateGroupModalOpen?: boolean;
 }
 
 export function Sidebar({ 
@@ -59,6 +60,7 @@ export function Sidebar({
   onRemoveContact,
   refreshPendingContacts,
   onLeaveGroup, 
+  isCreateGroupModalOpen = false,
 }: SidebarProps) {
   const sidebarRef = useRef<HTMLDivElement>(null);
   const tabsRef = useRef<HTMLDivElement>(null);
@@ -484,6 +486,30 @@ export function Sidebar({
     
     if (!tabsElement || !indicatorElement) {
       setActiveTab(tab);
+      return;
+    }
+
+    const handleOpenCreateGroupModal = () => {
+      if (onNewGroup) {
+        onNewGroup();
+      }
+
+      setActiveTab('groups');
+      if (tabsElement) {
+        const targetTabElement = tabsElement.querySelector(`[data-tab="groups"]`);
+        if (targetTabElement) {
+          const targetRect = targetTabElement.getBoundingClientRect();
+          gsap.to(indicatorElement, {
+            left: targetRect.left - tabsElement.getBoundingClientRect().left,
+            width: targetRect.width,
+            duration: 0.2,
+            ease: 'power2.inOut'
+          });
+        }
+      }
+    }
+    if (tab === 'groups' && isCreateGroupModalOpen) {
+      handleOpenCreateGroupModal();
       return;
     }
     

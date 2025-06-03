@@ -20,6 +20,7 @@ import { MessageInput } from '@/components/chat/MessageInput';
 import { RightPanel } from '@/components/dashboard/RightPanel';
 import AddContactModal from '@/components/dashboard/AddContactModal';
 import InviteToGroupModal from '@/components/dashboard/InviteToGroupModal';
+import CreateGroupModal from '@/components/dashboard/CreateGroupModal';
 
 type TabType = 'chats' | 'groups' | 'contacts';
 
@@ -83,9 +84,13 @@ export default function Dashboard() {
   const [loadingGroupMessages, setLoadingGroupMessages] = useState(false);
   const [groupMessageError, setGroupMessageError] = useState<string | null>(null);
   const [selectedGroupDetails, setSelectedGroupDetails] = useState<Group | null>(null);
+  const [isCreateGroupModalOpen, setIsCreateGroupModalOpen] = useState(false);
 
   // Add state to control right panel visibility
   const [isRightPanelVisible, setIsRightPanelVisible] = useState(false);
+
+
+
 
   const scrollToBottom = useCallback(() => {
     if (!messagesEndRef.current) return;
@@ -898,6 +903,7 @@ export default function Dashboard() {
   
   const handleNewGroup = useCallback(() => {
     console.log('Creating new group');
+    setIsCreateGroupModalOpen(true); // Add this line to open the modal
   }, []);
 
   useEffect(() => {
@@ -954,6 +960,21 @@ export default function Dashboard() {
     }
   }, [user?.user_id]);
 
+  const handleCreateGroup = useCallback(async (name: string, description: string) => {
+    if (!user?.user_id) return;
+    
+    try {
+      // Here you would call your API to create a group
+      // For now, just close the modal
+      setIsCreateGroupModalOpen(false);
+      
+      // After real implementation, you would refresh the groups list
+      // fetchGroups();
+    } catch (error) {
+      console.error('Failed to create group:', error);
+    }
+  }, [user?.user_id]);
+
   if (!isClient) {
     return <div className="min-h-screen bg-violet-50 dark:bg-gray-950"></div>;
   }
@@ -993,6 +1014,7 @@ export default function Dashboard() {
         onRemoveContact={handleCancelContactRequest}
         onLeaveGroup={handleLeaveGroup}
         refreshPendingContacts={refreshPendingContacts}
+        isCreateGroupModalOpen={isCreateGroupModalOpen}
       />
       
       {isMobileSidebarOpen && (
@@ -1130,6 +1152,11 @@ export default function Dashboard() {
         onInvite={ handleInviteToGroup }
         groupName={selectedGroupDetails?.name}
       />
+      <CreateGroupModal
+        isOpen={isCreateGroupModalOpen}
+        onClose={() => setIsCreateGroupModalOpen(false)}
+        onCreate={handleNewGroup}
+        />
     </div>
   );
 }
