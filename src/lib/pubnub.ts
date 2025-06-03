@@ -142,7 +142,7 @@ export function subscribeToChannels(
       if (statusEvent.category === 'PNNetworkDownCategory' || 
           statusEvent.category === 'PNTimeoutCategory' ||
           statusEvent.category === 'PNNetworkIssuesCategory') {
-        console.error('PubNub connection issue, will attempt reconnection');
+        console.log('PubNub connection issue, will attempt reconnection');
       }
       
       if (listener.status) listener.status(statusEvent);

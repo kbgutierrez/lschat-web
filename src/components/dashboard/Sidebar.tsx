@@ -567,7 +567,7 @@ export function Sidebar({
     <div 
       ref={sidebarRef}
       className={cn(
-        "w-80 bg-gradient-to-b from-violet-700 to-violet-900 dark:from-gray-900 dark:to-gray-900",
+        "w-80  bg-gradient-to-b from-violet-700 to-violet-900 dark:from-gray-900 dark:to-gray-900",
         "flex flex-col h-full fixed md:relative left-0 top-0 z-30 md:z-10",
         "transform transition-transform duration-300 ease-in-out gpu-accelerated",
         isOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0",
