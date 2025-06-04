@@ -415,5 +415,36 @@ export const groupsAPI = {
       console.error('Group invitations fetch error:', error);
       throw error;
     }
+  },
+  respondToGroupInvitation: async (groupId: number | string, userId: number | string, response: 'accept' | 'reject'): Promise<void> => {
+    if (!groupId) {
+      throw new Error('Group ID is required to respond to an invitation');
+    }
+
+    if (!userId) {
+      throw new Error('User ID is required to respond to an invitation');
+    }
+
+    try {
+      const headers = middleware.addAuthHeader({
+        'Content-Type': 'application/json',
+      });
+
+      const body = JSON.stringify({ group_id: groupId, user_id: userId, response });
+
+      console.log('Responding to group invitation with body:', body);
+      const url = `${API_BASE_URL}/api/respond-to-group-invitation`;
+      const responseApi = await fetch(url, { method: 'POST', headers, body });
+
+      if (!responseApi.ok) {
+        const errorText = await responseApi.text();
+        throw new Error(`Failed to respond to group invitation: ${responseApi.status} - ${errorText}`);
+      }
+
+      console.log(`User ${userId} successfully responded to group invitation for group ${groupId}`);
+    } catch (error) {
+      console.error('Respond to group invitation error:', error);
+      throw error;
+    }
   }
 }
