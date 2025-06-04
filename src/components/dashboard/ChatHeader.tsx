@@ -54,6 +54,7 @@ interface ChatHeaderProps {
   channelId?: string | null;
   pubnubConnected?: boolean;
   lastMessage?: any;
+  onGroupInvitationAccepted?: () => void; // Add this new prop
 }
 
 export const ChatHeader: React.FC<ChatHeaderProps> = ({ 
@@ -66,7 +67,8 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
   onToggleRightPanel,
   channelId,
   pubnubConnected,
-  lastMessage
+  lastMessage,
+  onGroupInvitationAccepted
 }) => {
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showRequestsMenu, setShowRequestsMenu] = useState(false);
@@ -294,6 +296,11 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
         id: invitationId,
         action: action
       });
+      
+      // Call the callback if an invitation was accepted
+      if (action === 'accept' && onGroupInvitationAccepted) {
+        onGroupInvitationAccepted();
+      }
       
       setTimeout(() => {
         setGroupActionSuccess(null);

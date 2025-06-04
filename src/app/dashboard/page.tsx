@@ -852,6 +852,32 @@ export default function Dashboard() {
     }
   }, [selectedChannel, fetchMessagesFromApi]);
 
+  // Add a function to refresh groups
+  const refreshGroups = useCallback(async () => {
+    if (!isClient || !user || !user.user_id) return;
+    
+    try {
+      setLoadingGroups(true);
+      setGroupError(null);
+      
+      console.log("Refreshing groups for user ID:", user.user_id);
+      const groupsList = await groupsAPI.getGroups(user.user_id);
+      
+      const enhancedGroups: GroupData[] = groupsList.map(group => ({
+        ...group,
+        lastMessage: "",
+        lastMessageTime: new Date(group.created_at).toLocaleDateString()
+      }));
+
+      setGroups(enhancedGroups);
+    } catch (error) {
+      console.error('Error refreshing groups:', error);
+      setGroupError(error instanceof Error ? error.message : 'Failed to refresh groups');
+    } finally {
+      setLoadingGroups(false);
+    }
+  }, [user, isClient, setGroups, setLoadingGroups, setGroupError]);
+
   useEffect(() => {
     if (!isClient || !user) return;
 
@@ -1080,6 +1106,7 @@ export default function Dashboard() {
           channelId={selectedChannel}
           pubnubConnected={isSubscribed}
           lastMessage={lastPubnubMessage}
+          onGroupInvitationAccepted={refreshGroups} // Add this new prop
         />
         
         {selectedChannel && (
