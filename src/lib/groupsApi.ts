@@ -40,13 +40,12 @@ export interface NonGroupMember {
 }
 
 export interface GroupInvitation {
-  invitation_id: number;
-  group_id: number;
+  group_id : number;
   group_name: string;
-  invited_by: number;
+  description: string;
+  role: string;
   inviter_name: string;
-  created_at: string;
-  status: string;
+  inviter_profile_picture?: string;
   }
 
 const middleware = {
