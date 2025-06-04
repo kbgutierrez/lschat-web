@@ -33,6 +33,7 @@ interface User {
   username?: string;
   email?: string;
   profilePicture?: string;
+  is_admin?: number
 }
 
 interface Group {
@@ -833,7 +834,17 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                   </svg>
                   Profile Management
                   </button>
-             
+             {user.is_admin && (
+              <button
+              className='w-full text-left hover:cursor-pointer px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center'
+              >
+                  {/* user management */}
+                  <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  User Management
+              </button>
+             )}
                 <button
                   onClick={onLogout}
                   className="w-full text-left hover:cursor-pointer px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center"
