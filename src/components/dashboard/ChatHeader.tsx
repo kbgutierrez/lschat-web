@@ -54,7 +54,7 @@ interface ChatHeaderProps {
   channelId?: string | null;
   pubnubConnected?: boolean;
   lastMessage?: any;
-  onGroupInvitationAccepted?: () => void; // Add this new prop
+  onGroupInvitationAccepted?: () => void; 
 }
 
 export const ChatHeader: React.FC<ChatHeaderProps> = ({ 
