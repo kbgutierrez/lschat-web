@@ -12,6 +12,11 @@ interface ConfirmingAction {
   action: 'accept' | 'reject';
 }
 
+interface ConfirmingGroupAction {
+  id: number;
+  action: 'accept' | 'reject';
+}
+
 type ContactDetails = {
   id: string;
   name: string;
@@ -86,6 +91,11 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
   const [groupInvitesError, setGroupInvitesError] = useState<string | null>(null);
   const groupInvitesMenuRef = useRef<HTMLDivElement>(null);
   const groupInvitesButtonRef = useRef<HTMLButtonElement>(null);
+  
+  // New state for group invitation actions
+  const [pendingGroupActions, setPendingGroupActions] = useState<Record<number, string>>({});
+  const [groupActionSuccess, setGroupActionSuccess] = useState<{id: number, action: string} | null>(null);
+  const [confirmingGroupAction, setConfirmingGroupAction] = useState<ConfirmingGroupAction | null>(null);
 
   const toggleUserMenu = () => {
     setShowUserMenu(!showUserMenu);
@@ -253,6 +263,57 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
     setConfirmingAction(null);
   };
 
+  const handleGroupInvitationAction = (invitationId: number, action: 'accept' | 'reject') => {
+    setConfirmingGroupAction({ id: invitationId, action });
+  };
+
+  const confirmGroupAction = async () => {
+    if (!confirmingGroupAction || !user?.user_id) return;
+
+    const { id: invitationId, action } = confirmingGroupAction;
+    
+    try {
+      setPendingGroupActions(prev => ({
+        ...prev,
+        [invitationId]: action
+      }));
+      
+      setConfirmingGroupAction(null);
+      setGroupInvitesError(null);
+      
+      await groupsAPI.respondToGroupInvitation(
+        invitationId,
+        user.user_id,
+        action
+      );
+      
+      // Remove the invitation from the list
+      setGroupInvitations(prev => prev.filter(inv => inv.group_id !== invitationId));
+      
+      setGroupActionSuccess({
+        id: invitationId,
+        action: action
+      });
+      
+      setTimeout(() => {
+        setGroupActionSuccess(null);
+      }, 3000);
+    } catch (error) {
+      console.error(`Failed to ${action} group invitation:`, error);
+      setGroupInvitesError(`Failed to ${action} invitation. Please try again.`);
+    } finally {
+      setPendingGroupActions(prev => {
+        const updated = {...prev};
+        delete updated[invitationId];
+        return updated;
+      });
+    }
+  };
+  
+  const cancelGroupAction = () => {
+    setConfirmingGroupAction(null);
+  };
+
   useEffect(() => {
     const handleProfilePictureUpdate = (event: CustomEvent) => {
       console.log('ChatHeader received profile update:', event.detail.profilePicture);
@@ -375,6 +436,17 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                 )}
               </div>
               
+              {groupActionSuccess && (
+                <div className="mx-3 my-2 p-3 text-sm bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 rounded-md border border-green-200 dark:border-green-800 flex items-center">
+                  <svg className="w-5 h-5 mr-2 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span>
+                    Group invitation {groupActionSuccess.action === 'accept' ? 'accepted' : 'rejected'} successfully.
+                  </span>
+                </div>
+              )}
+              
               {groupInvitesError && (
                 <div className="mx-3 my-2 p-3 text-sm bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-md border border-red-200 dark:border-red-800 flex items-center">
                   <svg className="w-5 h-5 mr-2 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -384,7 +456,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                 </div>
               )}
               
-              {!loadingGroupInvites && groupInvitations.length === 0 && !groupInvitesError && (
+              {!loadingGroupInvites && groupInvitations.length === 0 && !groupInvitesError && !groupActionSuccess && (
                 <div className="p-8 text-center text-gray-500 dark:text-gray-400 flex flex-col items-center">
                   <svg className="w-12 h-12 mb-3 text-gray-300 dark:text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
@@ -401,7 +473,12 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                   {groupInvitations.map((invitation) => (
                     <div 
                       key={invitation.group_id} 
-                      className="px-3 py-2 border-b border-gray-100 dark:border-gray-700 last:border-b-0 transition-colors hover:bg-gray-50 dark:hover:bg-gray-800/80"
+                      className={cn(
+                        "px-3 py-2 border-b border-gray-100 dark:border-gray-700 last:border-b-0 transition-colors",
+                        pendingGroupActions[invitation.group_id] ? "bg-gray-50 dark:bg-gray-800/60" : 
+                        confirmingGroupAction?.id === invitation.group_id ? "bg-violet-50 dark:bg-violet-900/20" : 
+                        "hover:bg-gray-50 dark:hover:bg-gray-800/80"
+                      )}
                     >
                       <div className="flex items-center">
                         <div className="w-9 h-9 rounded-full bg-blue-500 dark:bg-blue-700 flex items-center justify-center text-white text-sm font-medium mr-3">
@@ -430,34 +507,70 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                         </div>
                       </div>
                       
-                      <div className="mt-2 flex gap-2">
-                        <button
-                          className="flex-1 px-2 py-1 text-xs rounded-md bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors"
-                          disabled={true}
-                        >
-                          <span className="flex items-center justify-center opacity-60">
-                            <svg className="w-3 h-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      <div className="mt-2">
+                        {pendingGroupActions[invitation.group_id] ? (
+                          <div className="flex items-center justify-center p-1 text-violet-600 dark:text-violet-400">
+                            <svg className="animate-spin h-4 w-4 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                             </svg>
-                            Accept
-                          </span>
-                        </button>
-                        <button
-                          className="flex-1 px-2 py-1 text-xs rounded-md bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors"
-                          disabled={true}
-                        >
-                          <span className="flex items-center justify-center opacity-60">
-                            <svg className="w-3 h-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                            Reject
-                          </span>
-                        </button>
-                      </div>
-                      <div className="mt-1 text-center">
-                        <span className="text-xs text-gray-500 dark:text-gray-400 italic">
-                          (Action functionality coming soon)
-                        </span>
+                            <span className="text-xs">
+                              {pendingGroupActions[invitation.group_id] === 'accept' ? 'Accepting...' : 'Rejecting...'}
+                            </span>
+                          </div>
+                        ) : confirmingGroupAction && confirmingGroupAction.id === invitation.group_id ? (
+                          <div className="bg-white dark:bg-gray-700 p-2 rounded-lg border border-gray-200 dark:border-gray-600">
+                            <div className="text-xs font-medium mb-1 text-center text-gray-800 dark:text-gray-200">
+                              {confirmingGroupAction.action === 'accept' 
+                                ? 'Accept group invitation?' 
+                                : 'Reject group invitation?'}
+                            </div>
+                            <div className="flex justify-center gap-2">
+                              <button
+                                className="px-2 py-1 text-xs rounded border border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                                onClick={cancelGroupAction}
+                              >
+                                Cancel
+                              </button>
+                              <button
+                                className={cn(
+                                  "px-2 py-1 text-xs rounded text-white transition-colors",
+                                  confirmingGroupAction.action === 'accept'
+                                    ? "bg-blue-500 hover:bg-blue-600"
+                                    : "bg-red-500 hover:bg-red-600"
+                                )}
+                                onClick={confirmGroupAction}
+                              >
+                                {confirmingGroupAction.action === 'accept' ? 'Accept' : 'Reject'}
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="flex gap-2">
+                            <button
+                              className="flex-1 px-2 py-1 text-xs rounded-md bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors"
+                              onClick={() => handleGroupInvitationAction(invitation.group_id, 'accept')}
+                            >
+                              <span className="flex items-center justify-center">
+                                <svg className="w-3 h-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                </svg>
+                                Accept
+                              </span>
+                            </button>
+                            <button
+                              className="flex-1 px-2 py-1 text-xs rounded-md bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors"
+                              onClick={() => handleGroupInvitationAction(invitation.group_id, 'reject')}
+                            >
+                              <span className="flex items-center justify-center">
+                                <svg className="w-3 h-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                                Reject
+                              </span>
+                            </button>
+                          </div>
+                        )}
                       </div>
                     </div>
                   ))}
