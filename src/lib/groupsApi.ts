@@ -39,6 +39,16 @@ export interface NonGroupMember {
   profile_picture: string | null;
 }
 
+export interface GroupInvitation {
+  invitation_id: number;
+  group_id: number;
+  group_name: string;
+  invited_by: number;
+  inviter_name: string;
+  created_at: string;
+  status: string;
+  }
+
 const middleware = {
   addAuthHeader: (headers: HeadersInit = {}) => {
     if (typeof window === 'undefined') return headers;
@@ -315,7 +325,7 @@ export const groupsAPI = {
       });
 
       const url = `${API_BASE_URL}/api/add-group-member`;
-      const body = JSON.stringify({ group_id: groupId, user_id: userId });
+      const body = JSON.stringify({ group_id: groupId, user_id: userId ,role: 'member'});
 
       const response = await fetch(url, { method: 'POST', headers, body });
 
@@ -380,6 +390,31 @@ export const groupsAPI = {
       return newGroup;
     } catch (error) {
       console.error('Create group error:', error);
+      throw error;
+    }
+  },
+  getGroupInvitations: async (userId: number | string): Promise<GroupInvitation[]> => {
+    if (!userId) {
+      throw new Error('User ID is required to fetch group invitations');
+    }
+
+    try {
+      const headers = middleware.addAuthHeader({
+        'Content-Type': 'application/json',
+      });
+
+      const url = `${API_BASE_URL}/api/group-invitations?user_id=${userId}`;
+      const response = await fetch(url, { headers });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Failed to fetch group invitations: ${response.status} - ${errorText}`);
+      }
+
+      const invitations = await response.json();
+      return invitations;
+    } catch (error) {
+      console.error('Group invitations fetch error:', error);
       throw error;
     }
   }
