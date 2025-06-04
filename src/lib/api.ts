@@ -12,6 +12,11 @@ export interface LoginResponse {
     last_name: string;
     email: string;
     profile_picture?: string;
+    is_admin?: number;
+    can_announce?: number;
+    permission_type?: string;
+    is_logged_in?: number;
+    last_logged_in?: string;
   };
   token?: string;
   firstName?: string;
@@ -22,6 +27,11 @@ export interface LoginResponse {
   username?: string;
   email?: string;
   profilePicture?: string;
+  isAdmin?: number;
+  canAnnounce?: number;
+  permissionType?: string;
+  isLoggedIn?: number;
+  lastLoggedIn?: string;
 }
 
 export interface ContactListItem {

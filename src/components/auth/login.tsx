@@ -103,6 +103,11 @@ export function Login({ isLoading, setIsLoading }: LoginProps) {
             password: loginData.password,
             email: response.user?.email || response.email,
             profilePicture: response.user?.profile_picture || response.profilePicture,
+            is_admin: response.user?.is_admin || response.isAdmin,
+            can_announce: response.user?.can_announce || response.canAnnounce,
+            permission_type: response.user?.permission_type || response.permissionType,
+            is_logged_in: response.user?.is_logged_in || response.isLoggedIn,
+            last_logged_in: response.user?.last_logged_in || response.lastLoggedIn,
           }
         }));
 
