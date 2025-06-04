@@ -333,6 +333,7 @@ export const groupsAPI = {
 
   fetchNonGroupMembers: async (groupId: number): Promise<NonGroupMember[]> => {
     try {
+      console.log('Fetching non-group members for group ID:', groupId);
       const response = await fetch(`${API_BASE_URL}/api/fetch-not-group-members/${groupId}`);
 
       if (!response.ok) {

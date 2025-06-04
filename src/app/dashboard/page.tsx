@@ -88,7 +88,8 @@ export default function Dashboard() {
 
   // Add state to control right panel visibility
   const [isRightPanelVisible, setIsRightPanelVisible] = useState(false);
-
+  const [isNewlyCreatedGroup, setIsNewlyCreatedGroup] = useState(false);
+  const [showInviteToast, setShowInviteToast] = useState(false);
 
 
 
@@ -995,6 +996,19 @@ export default function Dashboard() {
         setSelectedGroupDetails(freshGroup);
         setSelectedChannel(freshGroup.pubnub_channel);
         setActiveTab('groups');
+        
+        // Step 7: Show the right panel and mark as newly created
+        setIsRightPanelVisible(true);
+        setIsNewlyCreatedGroup(true);
+        
+        // Show the toast notification
+        setShowInviteToast(true);
+        
+        // Reset the new group flag after 5 seconds
+        setTimeout(() => {
+          setIsNewlyCreatedGroup(false);
+          setShowInviteToast(false);
+        }, 5000);
       } else {
         console.error('Created group not found in fetched groups list');
       }
@@ -1156,6 +1170,7 @@ export default function Dashboard() {
             onCancelContactRequest={handleCancelContactRequest}
             refreshPendingContacts={refreshPendingContacts}
             onInviteToGroup={openInviteToGroupModal}
+            isNewGroup={isNewlyCreatedGroup}
           />
         </div>
       </main>
@@ -1185,8 +1200,51 @@ export default function Dashboard() {
       <CreateGroupModal
         isOpen={isCreateGroupModalOpen}
         onClose={() => setIsCreateGroupModalOpen(false)}
-        onCreate={handleCreateGroup}  // This was incorrectly passing handleNewGroup instead of handleCreateGroup
-        />
+        onCreate={handleCreateGroup}
+      />
+
+      {/* Improved toast notification */}
+      {showInviteToast && (
+        <div className="fixed top-4 right-4 max-w-sm bg-white dark:bg-gray-800 rounded-lg shadow-lg border-l-4 border-violet-500 dark:border-violet-600 overflow-hidden z-50 animate-slide-in-right">
+          <div className="px-4 py-3 flex items-center">
+            <div className="shrink-0 bg-violet-100 dark:bg-violet-900/30 p-2 rounded-full mr-3">
+              <svg className="w-5 h-5 text-violet-600 dark:text-violet-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <div className="flex-1 mr-2">
+              <p className="font-medium text-gray-900 dark:text-white">Group created successfully!</p>
+              <p className="text-sm text-gray-600 dark:text-gray-300">Add members using the invite button in the right panel</p>
+            </div>
+            <button 
+              onClick={() => setShowInviteToast(false)}
+              className="shrink-0 text-gray-400 hover:text-gray-500 dark:hover:text-gray-300"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+          <div className="h-1 bg-violet-500 dark:bg-violet-600 animate-toast-timer"></div>
+        </div>
+      )}
+      
+      <style jsx global>{`
+        @keyframes slide-in-right {
+          from { opacity: 0; transform: translateX(100%); }
+          to { opacity: 1; transform: translateX(0); }
+        }
+        .animate-slide-in-right {
+          animation: slide-in-right 0.3s ease-out forwards;
+        }
+        @keyframes toast-timer {
+          from { width: 100%; }
+          to { width: 0%; }
+        }
+        .animate-toast-timer {
+          animation: toast-timer 5s linear forwards;
+        }
+      `}</style>
     </div>
   );
 }

@@ -24,7 +24,8 @@ interface RightPanelProps {
   loadingContacts?: boolean;
   onCancelContactRequest?: (contactId: number) => Promise<void>;
   refreshPendingContacts?: () => void;
-  onInviteToGroup?: (groupId: number) => void; // Add this prop
+  onInviteToGroup?: (groupId: number) => void; 
+  isNewGroup?: boolean; 
 }
 
 interface MediaItem {
@@ -65,7 +66,8 @@ export function RightPanel({
   loadingContacts = false,
   onCancelContactRequest,
   refreshPendingContacts,
-  onInviteToGroup  // Add this prop
+  onInviteToGroup, // Add this prop
+  isNewGroup = false, // Add default value
 }: RightPanelProps) {
   const [activeRightTab, setActiveRightTab] = useState<TabType>('info');
   const [media, setMedia] = useState<MediaItem[]>([]);
@@ -83,6 +85,7 @@ export function RightPanel({
   const tabsRef = useRef<HTMLDivElement>(null);
   const tabIndicatorRef = useRef<HTMLDivElement>(null);
   const tabContentRef = useRef<HTMLDivElement>(null);
+  const inviteButtonRef = useRef<HTMLButtonElement>(null); // Add ref for invite button
 
   const name = contactDetails?.name || groupDetails?.name || 'No Selection';
   const initials = name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
@@ -642,6 +645,26 @@ export function RightPanel({
     }
   }, [activeRightTab]);
 
+  // Add effect to animate the invite button when a new group is created
+  useEffect(() => {
+    if (isNewGroup && inviteButtonRef.current && groupDetails) {
+      // Create a subtle highlight animation for the invite button
+      const timeline = gsap.timeline();
+      
+      timeline.to(inviteButtonRef.current, {
+        backgroundColor: 'rgba(139, 92, 246, 0.3)',
+        boxShadow: '0 0 0 3px rgba(139, 92, 246, 0.25)',
+        duration: 0.5,
+        repeat: 3,
+        yoyo: true
+      });
+      
+      return () => {
+        timeline.kill();
+      };
+    }
+  }, [isNewGroup, groupDetails]);
+
   return (
     <div
       className={cn(
@@ -852,7 +875,8 @@ export function RightPanel({
                                   {/* Keep the inline Invite Members button */}
                                   {groupDetails.role === 'admin' && (
                                     <button
-                                      onClick={() => onInviteToGroup && onInviteToGroup(groupDetails.group_id)}
+                                      ref={inviteButtonRef}
+                                      onClick={() => onInviteToGroup && groupDetails && onInviteToGroup(groupDetails.group_id)}
                                       className="ml-2 p-1.5 rounded-full text-violet-600 dark:text-violet-400 hover:bg-violet-100 dark:hover:bg-violet-900/30"
                                       title="Invite Members"
                                     >
