@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useMemo } from 'react';
 import { cn } from '@/lib/utils';
 import { ContactListItem } from '@/lib/api';
 import { gsap } from 'gsap';
@@ -86,6 +86,28 @@ export function ContactItem({ contact, isSelected, onSelect, lastMessage }: Cont
 
   const isPending = contact.status === 'pending';
 
+  const formattedLastMessage = useMemo(() => {
+    if (!lastMessage) return "";
+    
+    // Check if the message contains image patterns
+    const isImage = /\[Image:/i.test(lastMessage) || 
+                   /\[(JPG|PNG|GIF|JPEG)\s*File:/i.test(lastMessage) ||
+                   /\.(jpg|jpeg|png|gif)/i.test(lastMessage) ||
+                   lastMessage.includes('image/');
+    
+    if (isImage) {
+      return "Sent an image";
+    }
+    
+    // Check if it's a file
+    const isFile = /\[File:/i.test(lastMessage);
+    if (isFile) {
+      return "Sent a file";
+    }
+    
+    return lastMessage;
+  }, [lastMessage]);
+
   return (
     <button
       ref={buttonRef}
@@ -129,7 +151,7 @@ export function ContactItem({ contact, isSelected, onSelect, lastMessage }: Cont
           )}
         </div>
         <p className="text-sm text-white/70 dark:text-gray-400 truncate">
-          {isPending ? "Waiting for approval" : lastMessage || ""}
+          {isPending ? "Waiting for approval" : formattedLastMessage}
         </p>
       </div>
     </button>
