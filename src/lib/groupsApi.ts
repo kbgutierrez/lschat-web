@@ -401,10 +401,9 @@ export const groupsAPI = {
       const headers = middleware.addAuthHeader({
         'Content-Type': 'application/json',
       });
-
-      const url = `${API_BASE_URL}/api/group-invitations?user_id=${userId}`;
-      const response = await fetch(url, { headers });
-
+      const response = await fetch(`${API_BASE_URL}/api/group-invitations/${userId}`);
+  
+     
       if (!response.ok) {
         const errorText = await response.text();
         throw new Error(`Failed to fetch group invitations: ${response.status} - ${errorText}`);
