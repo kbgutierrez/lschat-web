@@ -55,14 +55,14 @@ interface ChatHeaderProps {
   channelId?: string | null;
   pubnubConnected?: boolean;
   lastMessage?: any;
-  onGroupInvitationAccepted?: () => void; 
+  onGroupInvitationAccepted?: () => void;
 }
 
-export const ChatHeader: React.FC<ChatHeaderProps> = ({ 
-  user, 
+export const ChatHeader: React.FC<ChatHeaderProps> = ({
+  user,
   contactDetails,
   groupDetails,
-  onToggleSidebar, 
+  onToggleSidebar,
   onLogout,
   onOpenProfileModal,
   onToggleRightPanel,
@@ -77,7 +77,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
   const [loadingRequests, setLoadingRequests] = useState(false);
   const [requestsError, setRequestsError] = useState<string | null>(null);
   const [pendingActions, setPendingActions] = useState<Record<string, string>>({});
-  const [actionSuccess, setActionSuccess] = useState<{id: string, action: string} | null>(null);
+  const [actionSuccess, setActionSuccess] = useState<{ id: string, action: string } | null>(null);
   const [confirmingAction, setConfirmingAction] = useState<ConfirmingAction | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -86,7 +86,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
   const isClient = useIsClient();
   const fetchErrorCountRef = useRef<number>(0);
   const [profilePicture, setProfilePicture] = useState<string | undefined>(user?.profilePicture);
-  
+
   // New state for group invitations
   const [groupInvitations, setGroupInvitations] = useState<GroupInvitation[]>([]);
   const [showGroupInvitesMenu, setShowGroupInvitesMenu] = useState(false);
@@ -94,10 +94,10 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
   const [groupInvitesError, setGroupInvitesError] = useState<string | null>(null);
   const groupInvitesMenuRef = useRef<HTMLDivElement>(null);
   const groupInvitesButtonRef = useRef<HTMLButtonElement>(null);
-  
+
   // New state for group invitation actions
   const [pendingGroupActions, setPendingGroupActions] = useState<Record<number, string>>({});
-  const [groupActionSuccess, setGroupActionSuccess] = useState<{id: number, action: string} | null>(null);
+  const [groupActionSuccess, setGroupActionSuccess] = useState<{ id: number, action: string } | null>(null);
   const [confirmingGroupAction, setConfirmingGroupAction] = useState<ConfirmingGroupAction | null>(null);
 
   const toggleUserMenu = () => {
@@ -106,13 +106,13 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
 
   const fetchIncomingRequests = async (showLoading = true) => {
     if (!isClient || !user?.user_id) return;
-    
+
     if (showLoading) {
       setLoadingRequests(true);
     }
-    
+
     setRequestsError(null);
-    
+
     try {
       const data = await contactsAPI.fetchIncomingRequests(user.user_id);
       setIncomingRequests(data);
@@ -130,13 +130,13 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
 
   const fetchGroupInvitations = async (showLoading = true) => {
     if (!isClient || !user?.user_id) return;
-    
+
     if (showLoading) {
       setLoadingGroupInvites(true);
     }
-    
+
     setGroupInvitesError(null);
-    
+
     try {
       const data = await groupsAPI.getGroupInvitations(user.user_id);
       setGroupInvitations(data);
@@ -159,12 +159,12 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
 
   useEffect(() => {
     if (!user?.user_id) return;
-    
+
     const interval = setInterval(() => {
       fetchIncomingRequests(false);
       fetchGroupInvitations(false);
     }, 15000);
-    
+
     return () => clearInterval(interval);
   }, [user?.user_id, isClient]);
 
@@ -180,7 +180,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
     const handleOutsideClick = (event: MouseEvent) => {
       if (
         showUserMenu &&
-        menuRef.current && 
+        menuRef.current &&
         buttonRef.current &&
         !menuRef.current.contains(event.target as Node) &&
         !buttonRef.current.contains(event.target as Node)
@@ -208,7 +208,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
     };
 
     document.addEventListener('mousedown', handleOutsideClick);
-    
+
     return () => {
       document.removeEventListener('mousedown', handleOutsideClick);
     };
@@ -222,30 +222,30 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
     if (!confirmingAction || !user?.user_id) return;
 
     const { id: requesterId, action } = confirmingAction;
-    
+
     try {
       setPendingActions(prev => ({
         ...prev,
         [requesterId]: action
       }));
-      
+
       setConfirmingAction(null);
       setRequestsError(null);
-      
+
       const response = await contactsAPI.updateContactRequest(
         user.user_id,
         requesterId,
         action
       );
-      
+
       if (response) {
         setIncomingRequests(prev => prev.filter(req => req.user_id.toString() !== requesterId.toString()));
-        
+
         setActionSuccess({
           id: requesterId,
           action: action
         });
-        
+
         setTimeout(() => {
           setActionSuccess(null);
         }, 3000);
@@ -255,13 +255,13 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
       setRequestsError(`Failed to ${action} request. Please try again.`);
     } finally {
       setPendingActions(prev => {
-        const updated = {...prev};
+        const updated = { ...prev };
         delete updated[requesterId];
         return updated;
       });
     }
   };
-  
+
   const cancelAction = () => {
     setConfirmingAction(null);
   };
@@ -274,35 +274,35 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
     if (!confirmingGroupAction || !user?.user_id) return;
 
     const { id: invitationId, action } = confirmingGroupAction;
-    
+
     try {
       setPendingGroupActions(prev => ({
         ...prev,
         [invitationId]: action
       }));
-      
+
       setConfirmingGroupAction(null);
       setGroupInvitesError(null);
-      
+
       await groupsAPI.respondToGroupInvitation(
         invitationId,
         user.user_id,
         action
       );
-      
+
       // Remove the invitation from the list
       setGroupInvitations(prev => prev.filter(inv => inv.group_id !== invitationId));
-      
+
       setGroupActionSuccess({
         id: invitationId,
         action: action
       });
-      
+
       // Call the callback if an invitation was accepted
       if (action === 'accept' && onGroupInvitationAccepted) {
         onGroupInvitationAccepted();
       }
-      
+
       setTimeout(() => {
         setGroupActionSuccess(null);
       }, 3000);
@@ -311,13 +311,13 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
       setGroupInvitesError(`Failed to ${action} invitation. Please try again.`);
     } finally {
       setPendingGroupActions(prev => {
-        const updated = {...prev};
+        const updated = { ...prev };
         delete updated[invitationId];
         return updated;
       });
     }
   };
-  
+
   const cancelGroupAction = () => {
     setConfirmingGroupAction(null);
   };
@@ -328,7 +328,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
       setProfilePicture(event.detail.profilePicture);
     };
 
-    setProfilePicture(user?.profilePicture);    
+    setProfilePicture(user?.profilePicture);
     window.addEventListener('profilePictureUpdated', handleProfilePictureUpdate as EventListener);
     return () => {
       window.removeEventListener('profilePictureUpdated', handleProfilePictureUpdate as EventListener);
@@ -338,7 +338,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
   return (
     <header className="h-16 flex items-center justify-between px-4 border-b border-violet-100 dark:border-gray-800 bg-white dark:bg-gray-900 z-10">
       <div className="flex items-center space-x-3">
-        <button 
+        <button
           className="md:hidden p-2 rounded-md hover:bg-violet-50 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300"
           onClick={onToggleSidebar}
         >
@@ -346,7 +346,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
           </svg>
         </button>
-        
+
         {contactDetails ? (
           <div className="flex items-center space-x-3">
             <div className="relative">
@@ -399,11 +399,11 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
           </div>
         )}
       </div>
-      
+
       <div className="flex-1 flex items-center">
-          <div className='relative mr-2'>
-     
-          </div>
+        <div className='relative mr-2'>
+
+        </div>
       </div>
       <div className="flex items-center">
         {/* Group invites button */}
@@ -413,8 +413,8 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
             onClick={() => setShowGroupInvitesMenu((v) => !v)}
             className={cn(
               "p-2 rounded-full hover:bg-violet-50 dark:hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-violet-500 transition-all duration-200",
-              groupInvitations.length > 0 
-                ? "text-violet-600 dark:text-violet-400" 
+              groupInvitations.length > 0
+                ? "text-violet-600 dark:text-violet-400"
                 : "text-gray-500"
             )}
             aria-label="Group invitations"
@@ -443,7 +443,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                   </svg>
                 )}
               </div>
-              
+
               {groupActionSuccess && (
                 <div className="mx-3 my-2 p-3 text-sm bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 rounded-md border border-green-200 dark:border-green-800 flex items-center">
                   <svg className="w-5 h-5 mr-2 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -454,7 +454,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                   </span>
                 </div>
               )}
-              
+
               {groupInvitesError && (
                 <div className="mx-3 my-2 p-3 text-sm bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-md border border-red-200 dark:border-red-800 flex items-center">
                   <svg className="w-5 h-5 mr-2 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -463,7 +463,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                   <span>{groupInvitesError}</span>
                 </div>
               )}
-              
+
               {!loadingGroupInvites && groupInvitations.length === 0 && !groupInvitesError && !groupActionSuccess && (
                 <div className="p-8 text-center text-gray-500 dark:text-gray-400 flex flex-col items-center">
                   <svg className="w-12 h-12 mb-3 text-gray-300 dark:text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -475,17 +475,17 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                   </p>
                 </div>
               )}
-              
+
               {groupInvitations.length > 0 && (
                 <div className="max-h-[400px] overflow-y-auto">
                   {groupInvitations.map((invitation) => (
-                    <div 
-                      key={invitation.group_id} 
+                    <div
+                      key={invitation.group_id}
                       className={cn(
                         "px-3 py-2 border-b border-gray-100 dark:border-gray-700 last:border-b-0 transition-colors",
-                        pendingGroupActions[invitation.group_id] ? "bg-gray-50 dark:bg-gray-800/60" : 
-                        confirmingGroupAction?.id === invitation.group_id ? "bg-violet-50 dark:bg-violet-900/20" : 
-                        "hover:bg-gray-50 dark:hover:bg-gray-800/80"
+                        pendingGroupActions[invitation.group_id] ? "bg-gray-50 dark:bg-gray-800/60" :
+                          confirmingGroupAction?.id === invitation.group_id ? "bg-violet-50 dark:bg-violet-900/20" :
+                            "hover:bg-gray-50 dark:hover:bg-gray-800/80"
                       )}
                     >
                       <div className="flex items-center">
@@ -504,9 +504,9 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                           <div className="text-xs text-gray-600 dark:text-gray-400 mt-1.5 flex items-center">
                             <span className="mr-1">Invited by:</span>
                             {invitation.inviter_profile_picture ? (
-                              <img 
-                                src={invitation.inviter_profile_picture} 
-                                alt={invitation.inviter_name} 
+                              <img
+                                src={invitation.inviter_profile_picture}
+                                alt={invitation.inviter_name}
                                 className="w-4 h-4 rounded-full mr-1"
                               />
                             ) : null}
@@ -514,7 +514,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                           </div>
                         </div>
                       </div>
-                      
+
                       <div className="mt-2">
                         {pendingGroupActions[invitation.group_id] ? (
                           <div className="flex items-center justify-center p-1 text-violet-600 dark:text-violet-400">
@@ -529,8 +529,8 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                         ) : confirmingGroupAction && confirmingGroupAction.id === invitation.group_id ? (
                           <div className="bg-white dark:bg-gray-700 p-2 rounded-lg border border-gray-200 dark:border-gray-600">
                             <div className="text-xs font-medium mb-1 text-center text-gray-800 dark:text-gray-200">
-                              {confirmingGroupAction.action === 'accept' 
-                                ? 'Accept group invitation?' 
+                              {confirmingGroupAction.action === 'accept'
+                                ? 'Accept group invitation?'
                                 : 'Reject group invitation?'}
                             </div>
                             <div className="flex justify-center gap-2">
@@ -593,8 +593,8 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
             onClick={() => setShowRequestsMenu((v) => !v)}
             className={cn(
               "p-2 rounded-full hover:bg-violet-50 dark:hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-violet-500 transition-all duration-200",
-              incomingRequests.length > 0 
-                ? "text-violet-600 dark:text-violet-400" 
+              incomingRequests.length > 0
+                ? "text-violet-600 dark:text-violet-400"
                 : "text-gray-500"
             )}
             aria-label="Incoming contact requests"
@@ -623,7 +623,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                   </svg>
                 )}
               </div>
-              
+
               {actionSuccess && (
                 <div className="mx-3 my-2 p-3 text-sm bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 rounded-md border border-green-200 dark:border-green-800 flex items-center">
                   <svg className="w-5 h-5 mr-2 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -634,7 +634,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                   </span>
                 </div>
               )}
-              
+
               {requestsError && (
                 <div className="mx-3 my-2 p-3 text-sm bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-md border border-red-200 dark:border-red-800 flex items-center">
                   <svg className="w-5 h-5 mr-2 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -643,7 +643,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                   <span>{requestsError}</span>
                 </div>
               )}
-              
+
               {!loadingRequests && incomingRequests.length === 0 && !requestsError && !actionSuccess && (
                 <div className="p-8 text-center text-gray-500 dark:text-gray-400 flex flex-col items-center">
                   <svg className="w-12 h-12 mb-3 text-gray-300 dark:text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -655,17 +655,17 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                   </p>
                 </div>
               )}
-              
+
               {incomingRequests.length > 0 && (
                 <div className="max-h-[400px] overflow-y-auto">
                   {incomingRequests.map((req) => (
-                    <div 
-                      key={req.user_id} 
+                    <div
+                      key={req.user_id}
                       className={cn(
                         "px-3 py-2 border-b border-gray-100 dark:border-gray-700 last:border-b-0 transition-colors",
-                        pendingActions[req.user_id] ? "bg-gray-50 dark:bg-gray-800/60" : 
-                        confirmingAction?.id === req.user_id ? "bg-violet-50 dark:bg-violet-900/20" : 
-                        "hover:bg-gray-50 dark:hover:bg-gray-800/80"
+                        pendingActions[req.user_id] ? "bg-gray-50 dark:bg-gray-800/60" :
+                          confirmingAction?.id === req.user_id ? "bg-violet-50 dark:bg-violet-900/20" :
+                            "hover:bg-gray-50 dark:hover:bg-gray-800/80"
                       )}
                     >
                       <div className="flex items-center">
@@ -681,7 +681,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                           </div>
                         </div>
                       </div>
-                      
+
                       <div className="mt-2">
                         {pendingActions[req.user_id] ? (
                           <div className="flex items-center justify-center p-1 text-violet-600 dark:text-violet-400">
@@ -696,8 +696,8 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                         ) : confirmingAction && confirmingAction.id === req.user_id ? (
                           <div className="bg-white dark:bg-gray-700 p-2 rounded-lg border border-gray-200 dark:border-gray-600">
                             <div className="text-xs font-medium mb-1 text-center text-gray-800 dark:text-gray-200">
-                              {confirmingAction.action === 'accept' 
-                                ? 'Accept contact request?' 
+                              {confirmingAction.action === 'accept'
+                                ? 'Accept contact request?'
                                 : 'Reject contact request?'}
                             </div>
                             <div className="flex justify-center gap-2">
@@ -754,7 +754,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
             </div>
           )}
         </div>
-        
+
         <div className="flex items-center">
           {(contactDetails || groupDetails) && (
             <button
@@ -767,7 +767,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
               </svg>
             </button>
           )}
-          
+
           <div className="relative ">
             <button
               ref={buttonRef}
@@ -775,22 +775,22 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
               className="flex items-center hover:cursor-pointer space-x-2 p-1.5 rounded-full hover:bg-violet-50 dark:hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-violet-500"
             >
               <div className="w-9 h-9 pt-0.5 rounded-full bg-violet-200 dark:bg-violet-900 flex items-center justify-center text-violet-700 dark:text-violet-300 text-sm font-medium">
-               {profilePicture ? (
-                   <img
-                      src={profilePicture}
-                      alt="Profile"
-                      className="w-10 h-10 rounded-full object-cover border-2 border-gray-200 dark:border-gray-700"
-                      onError={() => setProfilePicture(undefined)}
-                      />
+                {profilePicture ? (
+                  <img
+                    src={profilePicture}
+                    alt="Profile"
+                    className="w-10 h-10 rounded-full object-cover border-2 border-gray-200 dark:border-gray-700"
+                    onError={() => setProfilePicture(undefined)}
+                  />
                 ) : getInitials(user.firstName && user.lastName
                   ? `${user.firstName} ${user.lastName}`
                   : user.username || 'User'
                 )}
-                
+
               </div>
               <div className="hidden md:block text-left">
                 <p className="text-sm font-medium text-gray-800 dark:text-gray-200 leading-tight">
-                  {user.firstName && user.lastName 
+                  {user.firstName && user.lastName
                     ? `${user.firstName} ${user.lastName}`
                     : user.username || 'User'}
                 </p>
@@ -804,15 +804,15 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
               </svg>
             </button>
-            
+
             {showUserMenu && (
-              <div 
+              <div
                 ref={menuRef}
                 className="absolute right-0 top-full mt-1 w-56 bg-white dark:bg-gray-800 shadow-lg rounded-md border border-gray-200 dark:border-gray-700 py-1 z-10"
               >
                 <div className="px-4 py-2 border-b border-gray-200 dark:border-gray-700">
                   <p className="text-sm font-medium text-gray-800 dark:text-gray-200">
-                    {user.firstName && user.lastName 
+                    {user.firstName && user.lastName
                       ? `${user.firstName} ${user.lastName}`
                       : user.username || 'User'}
                   </p>
@@ -822,29 +822,29 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                     </p>
                   )}
                 </div>
-                  <button 
+                <button
                   className='w-full text-left hover:cursor-pointer px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center'
                   onClick={() => {
                     setShowUserMenu(false);
                     onOpenProfileModal();
                   }}
-                  >
+                >
                   <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                   </svg>
                   Profile Management
+                </button>
+                {user.is_admin && (
+                  <button
+                    className='w-full text-left hover:cursor-pointer px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center'
+                  >
+                    {/* user management */}
+                    <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                    User Management
                   </button>
-             {user.is_admin && (
-              <button
-              className='w-full text-left hover:cursor-pointer px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center'
-              >
-                  {/* user management */}
-                  <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  User Management
-              </button>
-             )}
+                )}
                 <button
                   onClick={onLogout}
                   className="w-full text-left hover:cursor-pointer px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center"
