@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils';
 import { getInitials } from './ContactItem';
 import { contactsAPI } from '@/lib/api';
 import { useIsClient } from '@/lib/clientUtils';
+import { groupsAPI, GroupInvitation } from '@/lib/groupsApi';
 
 interface ConfirmingAction {
   id: string;
@@ -77,6 +78,14 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
   const isClient = useIsClient();
   const fetchErrorCountRef = useRef<number>(0);
   const [profilePicture, setProfilePicture] = useState<string | undefined>(user?.profilePicture);
+  
+  // New state for group invitations
+  const [groupInvitations, setGroupInvitations] = useState<GroupInvitation[]>([]);
+  const [showGroupInvitesMenu, setShowGroupInvitesMenu] = useState(false);
+  const [loadingGroupInvites, setLoadingGroupInvites] = useState(false);
+  const [groupInvitesError, setGroupInvitesError] = useState<string | null>(null);
+  const groupInvitesMenuRef = useRef<HTMLDivElement>(null);
+  const groupInvitesButtonRef = useRef<HTMLButtonElement>(null);
 
   const toggleUserMenu = () => {
     setShowUserMenu(!showUserMenu);
@@ -106,9 +115,32 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
     }
   };
 
+  const fetchGroupInvitations = async (showLoading = true) => {
+    if (!isClient || !user?.user_id) return;
+    
+    if (showLoading) {
+      setLoadingGroupInvites(true);
+    }
+    
+    setGroupInvitesError(null);
+    
+    try {
+      const data = await groupsAPI.getGroupInvitations(user.user_id);
+      setGroupInvitations(data);
+    } catch (e: any) {
+      setGroupInvitesError(e?.message || 'Failed to fetch group invitations');
+      setGroupInvitations([]);
+    } finally {
+      if (showLoading) {
+        setLoadingGroupInvites(false);
+      }
+    }
+  };
+
   useEffect(() => {
     if (user?.user_id) {
       fetchIncomingRequests();
+      fetchGroupInvitations();
     }
   }, [user?.user_id, isClient]);
 
@@ -117,7 +149,8 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
     
     const interval = setInterval(() => {
       fetchIncomingRequests(false);
-    }, 10000);
+      fetchGroupInvitations(false);
+    }, 15000);
     
     return () => clearInterval(interval);
   }, [user?.user_id, isClient]);
@@ -125,6 +158,10 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
   useEffect(() => {
     if (showRequestsMenu) fetchIncomingRequests();
   }, [showRequestsMenu, isClient, user?.user_id]);
+
+  useEffect(() => {
+    if (showGroupInvitesMenu) fetchGroupInvitations();
+  }, [showGroupInvitesMenu, isClient, user?.user_id]);
 
   useEffect(() => {
     const handleOutsideClick = (event: MouseEvent) => {
@@ -146,6 +183,15 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
       ) {
         setShowRequestsMenu(false);
       }
+      if (
+        showGroupInvitesMenu &&
+        groupInvitesMenuRef.current &&
+        groupInvitesButtonRef.current &&
+        !groupInvitesMenuRef.current.contains(event.target as Node) &&
+        !groupInvitesButtonRef.current.contains(event.target as Node)
+      ) {
+        setShowGroupInvitesMenu(false);
+      }
     };
 
     document.addEventListener('mousedown', handleOutsideClick);
@@ -153,7 +199,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
     return () => {
       document.removeEventListener('mousedown', handleOutsideClick);
     };
-  }, [showUserMenu, showRequestsMenu]);
+  }, [showUserMenu, showRequestsMenu, showGroupInvitesMenu]);
 
   const handleRequestAction = (requesterId: string, action: 'accept' | 'reject') => {
     setConfirmingAction({ id: requesterId, action });
@@ -291,15 +337,136 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
           </div>
       </div>
       <div className="flex items-center">
-                    <button className='p-2 rounded-full text-gray-500 hover:bg-violet-50 dark:hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-violet-500 transition-all duration-200 mr-2'>
-              {/* incoming group invites */}
-              <svg className="w-5 h-5 text-gray-500 dark:text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-              </svg>
-
-            </button>
+        {/* Group invites button */}
         <div className="relative mr-2">
+          <button
+            ref={groupInvitesButtonRef}
+            onClick={() => setShowGroupInvitesMenu((v) => !v)}
+            className={cn(
+              "p-2 rounded-full hover:bg-violet-50 dark:hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-violet-500 transition-all duration-200",
+              groupInvitations.length > 0 
+                ? "text-violet-600 dark:text-violet-400" 
+                : "text-gray-500"
+            )}
+            aria-label="Group invitations"
+          >
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+            </svg>
+            {groupInvitations.length > 0 && (
+              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center shadow-sm animate-pulse-once">
+                {groupInvitations.length}
+              </span>
+            )}
+          </button>
 
+          {showGroupInvitesMenu && (
+            <div
+              ref={groupInvitesMenuRef}
+              className="absolute right-0 top-full mt-1 w-80 bg-white dark:bg-gray-800 shadow-xl rounded-lg border border-gray-200 dark:border-gray-700 py-1 z-20 overflow-hidden"
+            >
+              <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex items-center">
+                <span className="font-medium text-gray-800 dark:text-gray-200">Group Invitations</span>
+                {loadingGroupInvites && (
+                  <svg className="ml-2 animate-spin h-4 w-4 text-violet-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                )}
+              </div>
+              
+              {groupInvitesError && (
+                <div className="mx-3 my-2 p-3 text-sm bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-md border border-red-200 dark:border-red-800 flex items-center">
+                  <svg className="w-5 h-5 mr-2 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span>{groupInvitesError}</span>
+                </div>
+              )}
+              
+              {!loadingGroupInvites && groupInvitations.length === 0 && !groupInvitesError && (
+                <div className="p-8 text-center text-gray-500 dark:text-gray-400 flex flex-col items-center">
+                  <svg className="w-12 h-12 mb-3 text-gray-300 dark:text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                  </svg>
+                  <span className="text-sm">No group invitations</span>
+                  <p className="text-xs mt-1 text-gray-400 dark:text-gray-500">
+                    When someone invites you to join a group, you'll see it here
+                  </p>
+                </div>
+              )}
+              
+              {groupInvitations.length > 0 && (
+                <div className="max-h-[400px] overflow-y-auto">
+                  {groupInvitations.map((invitation) => (
+                    <div 
+                      key={invitation.group_id} 
+                      className="px-3 py-2 border-b border-gray-100 dark:border-gray-700 last:border-b-0 transition-colors hover:bg-gray-50 dark:hover:bg-gray-800/80"
+                    >
+                      <div className="flex items-center">
+                        <div className="w-9 h-9 rounded-full bg-blue-500 dark:bg-blue-700 flex items-center justify-center text-white text-sm font-medium mr-3">
+                          {getInitials(invitation.group_name)}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium text-gray-900 dark:text-white truncate">
+                            <span className="truncate">{invitation.group_name}</span>
+                          </div>
+                          {invitation.description && (
+                            <div className="text-xs text-gray-500 dark:text-gray-400 mt-1 truncate">
+                              {invitation.description}
+                            </div>
+                          )}
+                          <div className="text-xs text-gray-600 dark:text-gray-400 mt-1.5 flex items-center">
+                            <span className="mr-1">Invited by:</span>
+                            {invitation.inviter_profile_picture ? (
+                              <img 
+                                src={invitation.inviter_profile_picture} 
+                                alt={invitation.inviter_name} 
+                                className="w-4 h-4 rounded-full mr-1"
+                              />
+                            ) : null}
+                            <span className="font-medium">{invitation.inviter_name}</span>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="mt-2 flex gap-2">
+                        <button
+                          className="flex-1 px-2 py-1 text-xs rounded-md bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors"
+                          disabled={true}
+                        >
+                          <span className="flex items-center justify-center opacity-60">
+                            <svg className="w-3 h-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                            </svg>
+                            Accept
+                          </span>
+                        </button>
+                        <button
+                          className="flex-1 px-2 py-1 text-xs rounded-md bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors"
+                          disabled={true}
+                        >
+                          <span className="flex items-center justify-center opacity-60">
+                            <svg className="w-3 h-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                            Reject
+                          </span>
+                        </button>
+                      </div>
+                      <div className="mt-1 text-center">
+                        <span className="text-xs text-gray-500 dark:text-gray-400 italic">
+                          (Action functionality coming soon)
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+        <div className="relative mr-2">
           <button
             ref={bellButtonRef}
             onClick={() => setShowRequestsMenu((v) => !v)}
@@ -320,6 +487,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
               </span>
             )}
           </button>
+
           {showRequestsMenu && (
             <div
               ref={requestsMenuRef}
