@@ -5,10 +5,11 @@ import { cn } from '@/lib/utils';
 import { ContactListItem } from '@/lib/api';
 import { gsap } from 'gsap';
 
-export function getInitials(name: string) {
+export function getInitials(name?: string): string {
+  if (!name) return "";
   return name
     .split(' ')
-    .map(n => n[0])
+    .map(word => word[0])
     .join('')
     .toUpperCase()
     .slice(0, 2);

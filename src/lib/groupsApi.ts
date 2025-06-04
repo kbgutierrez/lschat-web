@@ -355,7 +355,16 @@ export const groupsAPI = {
         'Content-Type': 'application/json',
       });
 
-      const body = JSON.stringify({ name, description, user_id: userId });
+      // Generate a unique PubNub channel for the group
+      const pubnubChannel = `group-${Date.now()}`;
+
+      const body = JSON.stringify({ 
+        name, 
+        description, 
+        created_by: userId,  // Changed from user_id to created_by
+        pubnub_channel: pubnubChannel 
+      });
+      
       const url = `${API_BASE_URL}/api/create-group`;
 
       const response = await fetch(url, { method: 'POST', headers, body });

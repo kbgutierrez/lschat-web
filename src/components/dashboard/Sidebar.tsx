@@ -488,30 +488,6 @@ export function Sidebar({
       setActiveTab(tab);
       return;
     }
-
-    const handleOpenCreateGroupModal = () => {
-      if (onNewGroup) {
-        onNewGroup();
-      }
-
-      setActiveTab('groups');
-      if (tabsElement) {
-        const targetTabElement = tabsElement.querySelector(`[data-tab="groups"]`);
-        if (targetTabElement) {
-          const targetRect = targetTabElement.getBoundingClientRect();
-          gsap.to(indicatorElement, {
-            left: targetRect.left - tabsElement.getBoundingClientRect().left,
-            width: targetRect.width,
-            duration: 0.2,
-            ease: 'power2.inOut'
-          });
-        }
-      }
-    }
-    if (tab === 'groups' && isCreateGroupModalOpen) {
-      handleOpenCreateGroupModal();
-      return;
-    }
     
     const currentTabElement = tabsElement.querySelector(`[data-tab="${activeTab}"]`);
     const targetTabElement = tabsElement.querySelector(`[data-tab="${tab}"]`);

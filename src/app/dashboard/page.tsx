@@ -964,16 +964,46 @@ export default function Dashboard() {
     if (!user?.user_id) return;
     
     try {
-      // Here you would call your API to create a group
-      // For now, just close the modal
+      console.log('Creating group:', name, description);
+      
+      // Step 1: Create the group via API
+      const newGroup = await groupsAPI.createGroup(name, description, user.user_id);
+      console.log('Group created successfully:', newGroup);
+      
+      // Step 2: Close the modal immediately
       setIsCreateGroupModalOpen(false);
       
-      // After real implementation, you would refresh the groups list
-      // fetchGroups();
+      // Step 3: Immediately fetch the complete groups list to ensure UI consistency
+      const groupsList = await groupsAPI.getGroups(user.user_id);
+      
+      const enhancedGroups: GroupData[] = groupsList.map(group => ({
+        ...group,
+        lastMessage: "",
+        lastMessageTime: new Date(group.created_at).toLocaleDateString()
+      }));
+      
+      // Step 4: Update the groups state with fresh data from server
+      setGroups(enhancedGroups);
+      
+      // Step 5: Find the newly created group in the fetched list
+      const freshGroup = groupsList.find(g => g.group_id === newGroup.group_id);
+      
+      if (freshGroup) {
+        // Step 6: Set the selected group details and navigate to it
+        setSelectedGroup(freshGroup.group_id);
+        setSelectedContact(null);
+        setSelectedGroupDetails(freshGroup);
+        setSelectedChannel(freshGroup.pubnub_channel);
+        setActiveTab('groups');
+      } else {
+        console.error('Created group not found in fetched groups list');
+      }
+      
     } catch (error) {
       console.error('Failed to create group:', error);
+      throw error;
     }
-  }, [user?.user_id]);
+  }, [user?.user_id, setActiveTab]);
 
   if (!isClient) {
     return <div className="min-h-screen bg-violet-50 dark:bg-gray-950"></div>;
@@ -1155,7 +1185,7 @@ export default function Dashboard() {
       <CreateGroupModal
         isOpen={isCreateGroupModalOpen}
         onClose={() => setIsCreateGroupModalOpen(false)}
-        onCreate={handleNewGroup}
+        onCreate={handleCreateGroup}  // This was incorrectly passing handleNewGroup instead of handleCreateGroup
         />
     </div>
   );
