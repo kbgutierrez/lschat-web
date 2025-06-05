@@ -21,6 +21,7 @@ import { RightPanel } from '@/components/dashboard/RightPanel';
 import AddContactModal from '@/components/dashboard/AddContactModal';
 import InviteToGroupModal from '@/components/dashboard/InviteToGroupModal';
 import CreateGroupModal from '@/components/dashboard/CreateGroupModal';
+import  UserManagementModal  from '@/components/dashboard/UserManagementModal';
 
 type TabType = 'chats' | 'groups' | 'contacts';
 
@@ -71,6 +72,7 @@ export default function Dashboard() {
   const fetchTimestampRef = useRef<Record<string, number>>({});
 
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [isUserManagementModalOpen, setIsUserManagementModalOpen] = useState(false);
   const [isAddContactModalOpen, setIsAddContactModalOpen] = useState(false);
   const [isInviteToGroupModalOpen, setIsInviteToGroupModalOpen] = useState(false);
   const [inviteToGroupId, setInviteToGroupId] = useState<number | null>(null);
@@ -510,6 +512,10 @@ export default function Dashboard() {
   const handleOpenProfileModal = () => {
     setIsProfileModalOpen(true);
   };
+
+  const handleUserManagementModal = () => {
+    setIsUserManagementModalOpen(true);
+  }
 
   const handleContactSelect = (id: string) => {
     setSelectedContact(id);
@@ -1102,11 +1108,12 @@ export default function Dashboard() {
           onToggleSidebar={() => setIsMobileSidebarOpen(true)}
           onLogout={handleLogout}
           onOpenProfileModal={handleOpenProfileModal}
+          onOpenUserManagementModal={handleUserManagementModal}
           onToggleRightPanel={() => setIsRightPanelVisible(!isRightPanelVisible)}
           channelId={selectedChannel}
           pubnubConnected={isSubscribed}
           lastMessage={lastPubnubMessage}
-          onGroupInvitationAccepted={refreshGroups} // Add this new prop
+          onGroupInvitationAccepted={refreshGroups} 
         />
         
         {selectedChannel && (
@@ -1205,6 +1212,10 @@ export default function Dashboard() {
       <ProfileManagementModal 
         isOpen={isProfileModalOpen}
         onClose={() => setIsProfileModalOpen(false)}
+      />
+      <UserManagementModal
+        isOpen={isUserManagementModalOpen}
+        onClose={() => setIsUserManagementModalOpen(false)}
       />
 
       <AddContactModal

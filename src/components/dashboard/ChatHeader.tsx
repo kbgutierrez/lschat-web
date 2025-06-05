@@ -51,6 +51,7 @@ interface ChatHeaderProps {
   onToggleSidebar: () => void;
   onLogout: () => void;
   onOpenProfileModal: () => void;
+  onOpenUserManagementModal?: () => void;
   onToggleRightPanel: () => void;
   channelId?: string | null;
   pubnubConnected?: boolean;
@@ -65,6 +66,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
   onToggleSidebar,
   onLogout,
   onOpenProfileModal,
+  onOpenUserManagementModal,
   onToggleRightPanel,
   channelId,
   pubnubConnected,
@@ -837,6 +839,10 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                 {user.is_admin && (
                   <button
                     className='w-full text-left hover:cursor-pointer px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center'
+                    onClick={() => {
+                      setShowUserMenu(false);
+                      onOpenUserManagementModal?.();
+                    }}
                   >
                     {/* user management */}
                     <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
