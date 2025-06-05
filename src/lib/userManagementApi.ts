@@ -26,7 +26,19 @@ export interface UsersResponse {
   users: User[];
   pagination: PaginationData;
 }
+export interface Group {
+    group_id: number;
+    name: string;
+    description: string;
+}
 
+export interface AnnouncementPermissionsResponse {
+    success: boolean;
+    userId: number;
+    permissionType: string;
+    groups: Group[];
+    users: User[];
+}
 const middleware = {
   addAuthHeader: (headers: HeadersInit = {}) => {
     if (typeof window === 'undefined') return headers;
@@ -45,75 +57,97 @@ const middleware = {
   }
 };
 
+
+
 export const userManagementAPI = {
-  fetchUsers: async (page: number = 1, perPage: number = 10): Promise<UsersResponse> => {
-    try {
-      const headers = middleware.addAuthHeader({
-        'Content-Type': 'application/json',
-      });
+        fetchUsers: async (page: number = 1, perPage: number = 10): Promise<UsersResponse> => {
+                try {
+                        const headers = middleware.addAuthHeader({
+                                'Content-Type': 'application/json',
+                        });
 
-      const url = `${API_BASE_URL}/api/admin/users?page=${page}&perPage=${perPage}`;
-      const response = await fetch(url, { headers });
+                        const url = `${API_BASE_URL}/api/admin/users?page=${page}&perPage=${perPage}`;
+                        const response = await fetch(url, { headers });
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Failed to fetch users: ${response.status} - ${errorText}`);
-      }
+                        if (!response.ok) {
+                                const errorText = await response.text();
+                                throw new Error(`Failed to fetch users: ${response.status} - ${errorText}`);
+                        }
 
-      const data: UsersResponse = await response.json();
-      return data;
-    } catch (error) {
-      console.error('Error fetching users:', error);
-      throw error;
-    }
-  },
-  toggleCanAnnounce: async (userId: string, currentValue: number): Promise<User> => {
-    try {
-      const headers = middleware.addAuthHeader({
-        'Content-Type': 'application/json',
-      });
+                        const data: UsersResponse = await response.json();
+                        return data;
+                } catch (error) {
+                        console.error('Error fetching users:', error);
+                        throw error;
+                }
+        },
+        toggleCanAnnounce: async (userId: string, currentValue: number): Promise<User> => {
+                try {
+                        const headers = middleware.addAuthHeader({
+                                'Content-Type': 'application/json',
+                        });
 
-      const url = `${API_BASE_URL}/api/admin/users/update/can_announce/${userId}`;
-      const response = await fetch(url, {
-        method: 'PUT',
-        headers,
-        body: JSON.stringify({ can_announce: currentValue === 1 ? 0 : 1 }),
-      });
-      console.log('Toggle Can Announce Response:', response);
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Failed to update user permissions: ${response.status} - ${errorText}`);
-      }
+                        const url = `${API_BASE_URL}/api/admin/users/update/can_announce/${userId}`;
+                        const response = await fetch(url, {
+                                method: 'PUT',
+                                headers,
+                                body: JSON.stringify({ can_announce: currentValue === 1 ? 0 : 1 }),
+                        });
+                        console.log('Toggle Can Announce Response:', response);
+                        if (!response.ok) {
+                                const errorText = await response.text();
+                                throw new Error(`Failed to update user permissions: ${response.status} - ${errorText}`);
+                        }
 
-      const updatedUser: User = await response.json();
-      return updatedUser;
-    } catch (error) {
-      console.error('Error updating user permissions:', error);
-      throw error;
-    }
-  },
-  fetchGroups: async (page: number = 1, perPage: number = 10): Promise<{ success: boolean; groups: string[] }> => {
-    try {
-      const headers = middleware.addAuthHeader({
-        'Content-Type': 'application/json',
-      });
+                        const updatedUser: User = await response.json();
+                        return updatedUser;
+                } catch (error) {
+                        console.error('Error updating user permissions:', error);
+                        throw error;
+                }
+        },
+        fetchGroups: async (page: number = 1, perPage: number = 10): Promise<{ success: boolean; groups: string[] }> => {
+                try {
+                        const headers = middleware.addAuthHeader({
+                                'Content-Type': 'application/json',
+                        });
 
-      const url = `${API_BASE_URL}/api/admin/groups?page=${page}&limit=${perPage}`;
-      const response = await fetch(url, { headers });
+                        const url = `${API_BASE_URL}/api/admin/groups?page=${page}&limit=${perPage}`;
+                        const response = await fetch(url, { headers });
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Failed to fetch groups: ${response.status} - ${errorText}`);
-      }
+                        if (!response.ok) {
+                                const errorText = await response.text();
+                                throw new Error(`Failed to fetch groups: ${response.status} - ${errorText}`);
+                        }
 
-      const data = await response.json();
-      return data;
-    } catch (error) {
-      console.error('Error fetching groups:', error);
-      throw error;
-    }
-  }
-  
+                        const data = await response.json();
+                        return data;
+                } catch (error) {
+                        console.error('Error fetching groups:', error);
+                        throw error;
+                }
+        },
+        fetchAnnouncementPermissions: async (userId: string): Promise<AnnouncementPermissionsResponse> => {
+                try {
+                        const headers = middleware.addAuthHeader({
+                                'Content-Type': 'application/json',
+                        });
+
+                        const url = `${API_BASE_URL}/api/admin/fetch/announcement-permissions/${userId}`;
+                        const response = await fetch(url, { headers });
+
+                        if (!response.ok) {
+                                const errorText = await response.text();
+                                throw new Error(`Failed to fetch announcement permissions: ${response.status} - ${errorText}`);
+                        }
+
+                        const data: AnnouncementPermissionsResponse = await response.json();
+                        return data;
+                } catch (error) {
+                        console.error('Error fetching announcement permissions:', error);
+                        throw error;
+                }
+        }
 };
 
 
