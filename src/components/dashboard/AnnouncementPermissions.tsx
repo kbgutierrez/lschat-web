@@ -42,6 +42,8 @@ interface AnnouncementPermissionsProps {
   onUpdateAnnounceScope: (userId: string, scope: 'everyone' | 'groups' | 'users') => void;
   onToggleGroup: (userId: string, groupId: number) => void;
   onToggleUser: (userId: string, targetUserId: number) => void;
+  onSelectAllGroups?: (userId: string, selectAll: boolean) => void;
+  onSelectAllUsers?: (userId: string, selectAll: boolean) => void;
 }
 
 export default function AnnouncementPermissions({
@@ -53,19 +55,42 @@ export default function AnnouncementPermissions({
   onUpdateAnnounceScope,
   onToggleGroup,
   onToggleUser,
+  onSelectAllGroups,
+  onSelectAllUsers,
 }: AnnouncementPermissionsProps) {
   if (!user || !settings) return null;
 
   const userId = user.user_id.toString();
-function getInitials(name?: string): string {
-  if (!name) return "";
-  return name
-    .split(' ')
-    .map(word => word[0])
-    .join('')
-    .toUpperCase()
-    .slice(0, 2);
-}
+
+  // Calculate select all states for groups
+  const allGroupsSelected = availableGroups.length > 0 && settings.selectedGroups.length === availableGroups.length;
+  const someGroupsSelected = settings.selectedGroups.length > 0 && settings.selectedGroups.length < availableGroups.length;
+  
+  // Calculate select all states for users
+  const allUsersSelected = availableUsers.length > 0 && settings.selectedUsers.length === availableUsers.length;
+  const someUsersSelected = settings.selectedUsers.length > 0 && settings.selectedUsers.length < availableUsers.length;
+
+  const handleSelectAllGroups = () => {
+    if (onSelectAllGroups) {
+      onSelectAllGroups(userId, !allGroupsSelected);
+    }
+  };
+
+  const handleSelectAllUsers = () => {
+    if (onSelectAllUsers) {
+      onSelectAllUsers(userId, !allUsersSelected);
+    }
+  };
+
+  function getInitials(name?: string): string {
+    if (!name) return "";
+    return name
+      .split(' ')
+      .map(word => word[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2);
+  }
 
   return (
     <div className="bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-lg p-5 mb-6">
@@ -156,22 +181,42 @@ function getInitials(name?: string): string {
               <div className="border border-gray-300 dark:border-gray-700 rounded-lg p-4 bg-white dark:bg-gray-800">
                 <div className="mb-3 flex justify-between items-center">
                   <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">Select Groups</h3>
+                  {availableGroups.length > 0 && (
+                    <label className="flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        className="form-checkbox rounded text-violet-600 focus:ring-violet-500 dark:bg-gray-700 dark:border-gray-600"
+                        checked={allGroupsSelected}
+                        ref={(input) => {
+                          if (input) input.indeterminate = someGroupsSelected;
+                        }}
+                        onChange={handleSelectAllGroups}
+                      />
+                      <span className="ml-2 text-sm text-gray-600 dark:text-gray-400">
+                        Select All ({settings.selectedGroups.length}/{availableGroups.length})
+                      </span>
+                    </label>
+                  )}
                 </div>
                 <div className="max-h-72 h-60 overflow-y-auto pr-2 custom-scrollbar">
                   {availableGroups.length > 0 ? (
-                    availableGroups.map(group => (
-                      <label key={group.group_id} className="flex items-center">
-                        <input
-                          type="checkbox"
-                          className="form-checkbox rounded text-violet-600 focus:ring-violet-500 dark:bg-gray-700 dark:border-gray-600"
-                          checked={settings.selectedGroups.includes(group.group_id)}
-                          onChange={() => onToggleGroup(userId, group.group_id)}
-                        />
-                        <span className="ml-2 text-sm text-gray-700 dark:text-gray-300">{group.name}</span>
-                      </label>
-                    ))
+                    <div className="space-y-2">
+                      {availableGroups.map(group => (
+                        <label key={group.group_id} className="flex items-center p-2 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer">
+                          <input
+                            type="checkbox"
+                            className="form-checkbox rounded text-violet-600 focus:ring-violet-500 dark:bg-gray-700 dark:border-gray-600"
+                            checked={settings.selectedGroups.includes(group.group_id)}
+                            onChange={() => onToggleGroup(userId, group.group_id)}
+                          />
+                          <span className="ml-3 text-sm font-medium text-gray-800 dark:text-gray-200">{group.name}</span>
+                        </label>
+                      ))}
+                    </div>
                   ) : (
-                    <p className="text-sm text-gray-500 dark:text-gray-400 italic">No groups available</p>
+                    <div className="flex items-center justify-center py-6 text-center bg-gray-50 dark:bg-gray-700/30 rounded-md">
+                      <p className="text-sm text-gray-500 dark:text-gray-400">No groups available</p>
+                    </div>
                   )}
                 </div>
               </div>
@@ -181,6 +226,22 @@ function getInitials(name?: string): string {
                 <div className="border border-gray-300 dark:border-gray-700 rounded-lg p-4 bg-white dark:bg-gray-800">
                     <div className="mb-3 flex justify-between items-center">
                       <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">Select Users</h3>
+                      {availableUsers.length > 0 && (
+                        <label className="flex items-center cursor-pointer">
+                          <input
+                            type="checkbox"
+                            className="form-checkbox rounded text-violet-600 focus:ring-violet-500 dark:bg-gray-700 dark:border-gray-600"
+                            checked={allUsersSelected}
+                            ref={(input) => {
+                              if (input) input.indeterminate = someUsersSelected;
+                            }}
+                            onChange={handleSelectAllUsers}
+                          />
+                          <span className="ml-2 text-sm text-gray-600 dark:text-gray-400">
+                            Select All ({settings.selectedUsers.length}/{availableUsers.length})
+                          </span>
+                        </label>
+                      )}
                     </div>
                     <div className="max-h-72 h-60 overflow-y-auto pr-2 custom-scrollbar">
                         {availableUsers.length > 0 ? (

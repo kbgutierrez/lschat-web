@@ -244,6 +244,26 @@ export default function UserManagementModal({
         });
     };
 
+    const handleSelectAllGroups = (userId: string, selectAll: boolean) => {
+        setUserSettings(prev => ({
+            ...prev,
+            [userId]: {
+                ...prev[userId],
+                selectedGroups: selectAll ? availableGroups.map(g => g.group_id) : []
+            }
+        }));
+    };
+
+    const handleSelectAllUsers = (userId: string, selectAll: boolean) => {
+        setUserSettings(prev => ({
+            ...prev,
+            [userId]: {
+                ...prev[userId],
+                selectedUsers: selectAll ? availableUsers.map(u => u.user_id) : []
+            }
+        }));
+    };
+
     const filteredUsers = users.filter(user => {
         if (!searchTerm) return true;
 
@@ -558,13 +578,15 @@ export default function UserManagementModal({
                                                 >
                                                     <AnnouncementPermissions
                                                         user={selectedUser}
-                                                        settings={selectedUserSettings}
+                                                        settings={userSettings[selectedUser.user_id.toString()]}
                                                         availableGroups={availableGroups}
                                                         availableUsers={availableUsers}
                                                         onToggleAnnouncePermission={toggleAnnouncePermission}
                                                         onUpdateAnnounceScope={updateAnnounceScope}
                                                         onToggleGroup={toggleGroup}
                                                         onToggleUser={toggleUser}
+                                                        onSelectAllGroups={handleSelectAllGroups}
+                                                        onSelectAllUsers={handleSelectAllUsers}
                                                     />
                                                 </motion.div>
                                             )}
