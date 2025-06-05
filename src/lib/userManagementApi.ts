@@ -79,7 +79,7 @@ export const userManagementAPI = {
         headers,
         body: JSON.stringify({ can_announce: currentValue === 1 ? 0 : 1 }),
       });
-
+      console.log('Toggle Can Announce Response:', response);
       if (!response.ok) {
         const errorText = await response.text();
         throw new Error(`Failed to update user permissions: ${response.status} - ${errorText}`);

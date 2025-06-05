@@ -1,15 +1,12 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { cn } from '@/lib/utils';
 import { userManagementAPI, User, PaginationData } from '@/lib/userManagementApi';
+import { cn } from '@/lib/utils';
 
-interface UserAnnouncementSettings {
-  canAnnounce: boolean;
-  announceScope: 'everyone' | 'groups' | 'users';
-  selectedGroups: number[];
-  selectedUsers: number[];
-  isExpanded: boolean;
+interface UserManagementModalProps {
+  isOpen: boolean;
+  onClose: () => void;
 }
 
 interface GroupOption {
@@ -22,9 +19,12 @@ interface UserOption {
   name: string;
 }
 
-interface UserManagementModalProps {
-  isOpen: boolean;
-  onClose: () => void;
+interface UserAnnouncementSettings {
+  canAnnounce: boolean;
+  isExpanded: boolean;
+  announceScope: 'everyone' | 'groups' | 'users';
+  selectedGroups: number[];
+  selectedUsers: number[];
 }
 
 export default function UserManagementModal({
@@ -60,21 +60,44 @@ export default function UserManagementModal({
 
       fetchUsers(1);
  
-      setAvailableGroups([
-        { group_id: 1, name: 'Marketing Team' },
-        { group_id: 2, name: 'Development Team' },
-        { group_id: 3, name: 'Sales Department' },
-        { group_id: 4, name: 'Customer Support' },
-        { group_id: 5, name: 'Human Resources' }
-      ]);
+      // Fetch available groups from API
+      const fetchGroups = async () => {
+        try {
+          const response = await userManagementAPI.fetchGroups();
+          if (response.success && response.groups) {
+            const groupOptions: GroupOption[] = response.groups.map((group: any, index: number) => ({
+              group_id: group.group_id || index + 1,
+              name: group.name || 'Unknown Group'
+            }));
+            setAvailableGroups(groupOptions);
+          }
+        } catch (err) {
+          console.error('Error fetching groups:', err);
+          // Don't show error to user, just use empty array
+          setAvailableGroups([]);
+        }
+      };
       
-      setAvailableUsers([
-        { user_id: 101, name: 'Alice Johnson' },
-        { user_id: 102, name: 'Bob Smith' },
-        { user_id: 103, name: 'Carol Williams' },
-        { user_id: 104, name: 'Dave Brown' },
-        { user_id: 105, name: 'Eve Davis' }
-      ]);
+      // Fetch available users to use as announcement targets
+      const fetchAvailableUsers = async () => {
+        try {
+          const response = await userManagementAPI.fetchUsers(1, 100); // Get up to 100 users
+          if (response.success && response.users) {
+            const userOptions: UserOption[] = response.users.map(user => ({
+              user_id: user.user_id,
+              name: `${user.first_name} ${user.last_name}`.trim() || user.username
+            }));
+            setAvailableUsers(userOptions);
+          }
+        } catch (err) {
+          console.error('Error fetching available users:', err);
+          // Don't show error to user, just use empty array
+          setAvailableUsers([]);
+        }
+      };
+      
+      fetchGroups();
+      fetchAvailableUsers();
     }
   }, [isOpen]);
   
@@ -105,12 +128,12 @@ export default function UserManagementModal({
   
       const initialSettings: Record<string, UserAnnouncementSettings> = {};
       response.users.forEach(user => {
-        initialSettings[user.user_id] = {
-          canAnnounce: !!user.can_announce,
-          announceScope: 'everyone',
+        initialSettings[user.user_id.toString()] = {
+          canAnnounce: user.can_announce === 1,
+          isExpanded: false,
+          announceScope: 'everyone', // default scope
           selectedGroups: [],
-          selectedUsers: [],
-          isExpanded: false
+          selectedUsers: []
         };
       });
       
@@ -137,7 +160,16 @@ export default function UserManagementModal({
       const updatePromises = Object.entries(userSettings).map(async ([userId, settings]) => {
         const numericUserId = parseInt(userId, 10);
         
-  
+        // Find the user to get current can_announce value
+        const user = users.find(u => u.user_id === numericUserId);
+        if (user) {
+          // Only make API call if the setting has changed
+          if ((user.can_announce === 1) !== settings.canAnnounce) {
+            await userManagementAPI.toggleCanAnnounce(userId, user.can_announce);
+          }
+          // Additional settings (groups, users, scope) would need separate API calls
+          // which aren't available in the current API
+        }
       });
       
       await Promise.all(updatePromises);
@@ -150,14 +182,20 @@ export default function UserManagementModal({
   };
   
   const toggleAnnouncePermission = (userId: string) => {
-    setUserSettings(prev => ({
-      ...prev,
-      [userId]: {
-        ...prev[userId],
-        canAnnounce: !prev[userId].canAnnounce,
-        isExpanded: !prev[userId].canAnnounce 
-      }
-    }));
+    setUserSettings(prev => {
+      // Find the user to get current can_announce value
+      const user = users.find(u => u.user_id.toString() === userId);
+      const previousSetting = prev[userId]?.canAnnounce || false;
+      
+      return {
+        ...prev,
+        [userId]: {
+          ...prev[userId],
+          canAnnounce: !previousSetting,
+          isExpanded: !previousSetting // Open the settings panel if turning on
+        }
+      };
+    });
   };
   
   const toggleExpand = (userId: string) => {
