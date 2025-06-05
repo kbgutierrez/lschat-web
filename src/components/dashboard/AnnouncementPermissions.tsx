@@ -153,9 +153,11 @@ function getInitials(name?: string): string {
             </div>
 
             {settings.announceScope === 'groups' && (
-              <div className="border dark:border-gray-700 rounded-lg p-4 bg-white dark:bg-gray-800">
-                <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Select Groups:</h4>
-                <div className="space-y-2 max-h-60 overflow-y-auto">
+              <div className="border border-gray-300 dark:border-gray-700 rounded-lg p-4 bg-white dark:bg-gray-800">
+                <div className="mb-3 flex justify-between items-center">
+                  <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">Select Groups</h3>
+                </div>
+                <div className="max-h-72 h-60 overflow-y-auto pr-2 custom-scrollbar">
                   {availableGroups.length > 0 ? (
                     availableGroups.map(group => (
                       <label key={group.group_id} className="flex items-center">
@@ -176,9 +178,11 @@ function getInitials(name?: string): string {
             )}
 
             {settings.announceScope === 'users' && (
-                <div className="border dark:border-gray-700 rounded-lg p-4 bg-white dark:bg-gray-800">
-                    <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Select Users:</h4>
-                    <div className="max-h-72 overflow-y-auto pr-2">
+                <div className="border border-gray-300 dark:border-gray-700 rounded-lg p-4 bg-white dark:bg-gray-800">
+                    <div className="mb-3 flex justify-between items-center">
+                      <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">Select Users</h3>
+                    </div>
+                    <div className="max-h-72 h-60 overflow-y-auto pr-2 custom-scrollbar">
                         {availableUsers.length > 0 ? (
                             <div className="grid gap-2">
                                 {availableUsers.map(u => (

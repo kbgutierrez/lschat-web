@@ -293,7 +293,7 @@ export default function UserManagementModal({
         >
               <motion.div
                 ref={modalRef}
-                className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-8xl border border-gray-200 dark:border-gray-700 h-[100vh] max-h-[100vh] flex flex-col overflow-hidden"
+                className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-full border border-gray-200 dark:border-gray-700 h-[100vh] max-h-[100vh] flex flex-col overflow-hidden"
                 initial={{ scale: 0.95, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 exit={{ scale: 0.95, opacity: 0 }}
