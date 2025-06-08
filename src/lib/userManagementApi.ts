@@ -127,7 +127,7 @@ export const userManagementAPI = {
                         throw error;
                 }
         },
-        fetchAnnouncementPermissions: async (userId: string): Promise<AnnouncementPermissionsResponse> => {
+        fetchAnnouncementPermissions: async (userId: number): Promise<AnnouncementPermissionsResponse> => {
                 try {
                         const headers = middleware.addAuthHeader({
                                 'Content-Type': 'application/json',
