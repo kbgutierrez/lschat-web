@@ -134,7 +134,7 @@ export default function UserManagementModal({
                 setUserSettings(prev => {
                     const userIdStr = userId.toString();
                     const currentSettings = prev[userIdStr] || {
-                        canAnnounce: true,
+                        canAnnounce: false,
                         announceScope: 'everyone',
                         selectedGroups: [],
                         selectedUsers: []
@@ -152,11 +152,15 @@ export default function UserManagementModal({
                     const selectedGroups = permissionsResponse.groups.map(group => group.group_id);
                     const selectedUsers = permissionsResponse.users.map(user => user.user_id);
                     
+                    // Find the user in our users array to get their current can_announce value
+                    const userObj = users.find(u => u.user_id === userId);
+                    
                     return {
                         ...prev,
                         [userIdStr]: {
                             ...currentSettings,
-                            canAnnounce: true, // If permissions exist, user can announce
+                            // Only set canAnnounce based on the user's actual setting
+                            canAnnounce: userObj ? userObj.can_announce === 1 : currentSettings.canAnnounce,
                             announceScope,
                             selectedGroups,
                             selectedUsers
@@ -258,13 +262,43 @@ export default function UserManagementModal({
     };
 
     const updateAnnounceScope = (userId: string, scope: 'everyone' | 'groups' | 'users') => {
-        setUserSettings(prev => ({
-            ...prev,
-            [userId]: {
-                ...prev[userId],
-                announceScope: scope
+        setUserSettings(prev => {
+            const currentSettings = {...prev[userId]};
+            
+            // When changing scope, clear previous selections
+            if (scope === 'everyone') {
+                // Clear both groups and users when setting to everyone
+                return {
+                    ...prev,
+                    [userId]: {
+                        ...currentSettings,
+                        announceScope: scope,
+                        selectedGroups: [],
+                        selectedUsers: []
+                    }
+                };
+            } else if (scope === 'groups') {
+                // Clear selected users when changing to groups
+                return {
+                    ...prev,
+                    [userId]: {
+                        ...currentSettings,
+                        announceScope: scope,
+                        selectedUsers: [] // Clear users when switching to groups
+                    }
+                };
+            } else { // 'users'
+                // Clear selected groups when changing to users
+                return {
+                    ...prev,
+                    [userId]: {
+                        ...currentSettings,
+                        announceScope: scope,
+                        selectedGroups: [] // Clear groups when switching to users
+                    }
+                };
             }
-        }));
+        });
     };
 
     const toggleGroup = (userId: string, groupId: number) => {
