@@ -8,6 +8,7 @@ import { ContactItem } from './ContactItem';
 import { GroupItem, GroupData } from './GroupItem';
 import { gsap } from 'gsap';
 import { Message } from './MessageItem';
+import SpeedDial from './SpeedDial';
 
 type TabType = 'chats' | 'groups' | 'contacts';
 
@@ -35,6 +36,8 @@ interface SidebarProps {
   refreshPendingContacts?: () => void;
   onLeaveGroup?: (groupId: number) => Promise<void>; 
   isCreateGroupModalOpen?: boolean;
+  user?: any;
+  onCreateAnnouncement?: () => void;
 }
 
 export function Sidebar({ 
@@ -61,6 +64,8 @@ export function Sidebar({
   refreshPendingContacts,
   onLeaveGroup, 
   isCreateGroupModalOpen = false,
+  user,
+  onCreateAnnouncement
 }: SidebarProps) {
   const sidebarRef = useRef<HTMLDivElement>(null);
   const tabsRef = useRef<HTMLDivElement>(null);
@@ -540,419 +545,423 @@ export function Sidebar({
   }, [activeTab, setActiveTab]);
 
   return (
-    <div 
-      ref={sidebarRef}
-      className={cn(
-        "w-80  bg-gradient-to-b from-violet-700 to-violet-900 dark:from-gray-900 dark:to-gray-900",
-        "flex flex-col h-full fixed md:relative left-0 top-0 z-30 md:z-10",
-        "transform transition-transform duration-300 ease-in-out gpu-accelerated",
-        isOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0",
-        "shadow-lg md:shadow-none"
-      )}
-    >
-      <div className="p-3 flex items-center justify-between border-b border-violet-600/30 dark:border-gray-800">
-        <div className="flex items-center space-x-3">
-          <div className="relative w-10 h-10 shrink-0">
-            <Image
-              src="/images/logo-no-label.png"
-              alt="LSChat Logo"
-              fill
-              sizes="40px"
-              className="object-contain"
+    <>
+      <div 
+        ref={sidebarRef}
+        className={cn(
+          "w-80  bg-gradient-to-b from-violet-700 to-violet-900 dark:from-gray-900 dark:to-gray-900",
+          "flex flex-col h-full fixed md:relative left-0 top-0 z-30 md:z-10",
+          "transform transition-transform duration-300 ease-in-out gpu-accelerated",
+          isOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0",
+          "shadow-lg md:shadow-none"
+        )}
+      >
+        <div className="p-3 flex items-center justify-between border-b border-violet-600/30 dark:border-gray-800">
+          <div className="flex items-center space-x-3">
+            <div className="relative w-10 h-10 shrink-0">
+              <Image
+                src="/images/logo-no-label.png"
+                alt="LSChat Logo"
+                fill
+                sizes="40px"
+                className="object-contain"
+              />
+            </div>
+            <h1 className="text-lg font-bold text-yellow-300 dark:text-yellow-300">
+              LS<span className="text-white dark:text-white">Chat</span><span className='text-purple-300 dark:text-purple-400'>App</span>
+            </h1>
+          </div>
+          
+          <button 
+            onClick={onClose}
+            className="md:hidden p-2 rounded-full text-white/80 hover:text-white hover:bg-violet-800/50 dark:hover:bg-gray-800"
+          >
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        
+        <div className="px-2 pt-3 pb-2 relative">
+          <div 
+            ref={tabsRef}
+            className="flex items-center justify-around relative"
+          >
+            {(['chats', 'groups', 'contacts'] as TabType[]).map((tab) => (
+              <button
+                key={tab}
+                data-tab={tab}
+                className={cn(
+                  "flex-1 py-2 px-1 text-center text-sm font-medium relative z-10 transition-colors",
+                  "outline-none focus:outline-none focus:ring-0 focus-visible:outline-none hover:cursor-pointer",
+                  "border-0 shadow-none !ring-0 !ring-offset-0",
+                  activeTab === tab 
+                    ? "text-white" 
+                    : "text-white/70 hover:text-white/90",
+                  isHoveringTab === tab && activeTab !== tab && "text-white/90"
+                )}
+                style={{ 
+                  boxShadow: 'none',
+                  outline: 'none'
+                }}
+                onClick={() => handleTabClick(tab)}
+                onMouseEnter={() => handleTabHover(tab)}
+                onMouseLeave={handleTabLeave}
+              >
+                <div className="flex flex-col items-center gap-1 outline-none border-none">
+                  {tab === 'chats' && (
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={activeTab === tab ? 2.2 : 1.8} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                    </svg>
+                  )}
+                  {tab === 'groups' && (
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={activeTab === tab ? 2.2 : 1.8} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                    </svg>
+                  )}
+                  {tab === 'contacts' && (
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={activeTab === tab ? 2.2 : 1.8} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                  )}
+                  {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                </div>
+              </button>
+            ))}
+            
+            <div 
+              ref={tabIndicatorRef}
+              className="absolute bottom-0 h-1 bg-white rounded-full transition-none" 
+              style={{ width: '33.33%', left: '0%' }}
             />
           </div>
-          <h1 className="text-lg font-bold text-yellow-300 dark:text-yellow-300">
-            LS<span className="text-white dark:text-white">Chat</span><span className='text-purple-300 dark:text-purple-400'>App</span>
-          </h1>
         </div>
         
-        <button 
-          onClick={onClose}
-          className="md:hidden p-2 rounded-full text-white/80 hover:text-white hover:bg-violet-800/50 dark:hover:bg-gray-800"
-        >
-          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
-      </div>
-      
-      <div className="px-2 pt-3 pb-2 relative">
-        <div 
-          ref={tabsRef}
-          className="flex items-center justify-around relative"
-        >
-          {(['chats', 'groups', 'contacts'] as TabType[]).map((tab) => (
-            <button
-              key={tab}
-              data-tab={tab}
-              className={cn(
-                "flex-1 py-2 px-1 text-center text-sm font-medium relative z-10 transition-colors",
-                "outline-none focus:outline-none focus:ring-0 focus-visible:outline-none hover:cursor-pointer",
-                "border-0 shadow-none !ring-0 !ring-offset-0",
-                activeTab === tab 
-                  ? "text-white" 
-                  : "text-white/70 hover:text-white/90",
-                isHoveringTab === tab && activeTab !== tab && "text-white/90"
-              )}
-              style={{ 
-                boxShadow: 'none',
-                outline: 'none'
-              }}
-              onClick={() => handleTabClick(tab)}
-              onMouseEnter={() => handleTabHover(tab)}
-              onMouseLeave={handleTabLeave}
-            >
-              <div className="flex flex-col items-center gap-1 outline-none border-none">
-                {tab === 'chats' && (
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={activeTab === tab ? 2.2 : 1.8} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                  </svg>
-                )}
-                {tab === 'groups' && (
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={activeTab === tab ? 2.2 : 1.8} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                  </svg>
-                )}
-                {tab === 'contacts' && (
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={activeTab === tab ? 2.2 : 1.8} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
-                  </svg>
-                )}
-                {tab.charAt(0).toUpperCase() + tab.slice(1)}
-              </div>
-            </button>
-          ))}
-          
-          <div 
-            ref={tabIndicatorRef}
-            className="absolute bottom-0 h-1 bg-white rounded-full transition-none" 
-            style={{ width: '33.33%', left: '0%' }}
-          />
-        </div>
-      </div>
-      
-      <div className="p-3">
-        <div className="relative">
-          <input
-            type="text"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder={`Search ${activeTab}...`}
-            className="w-full bg-white/10 dark:bg-gray-800 text-white placeholder-white/60 dark:placeholder-gray-400 border-0 rounded-full py-2 pl-10 pr-4 focus:ring-2 focus:ring-white/25 focus:bg-white/15 dark:focus:bg-gray-700 transition-all duration-200"
-          />
-          <div className="absolute left-3 top-1/2 -translate-y-1/2 text-white/70 dark:text-gray-400">
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-          </div>
-          {searchTerm && (
-            <button 
-              onClick={() => setSearchTerm('')}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-white/70 dark:text-gray-400 hover:text-white dark:hover:text-white"
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+        <div className="p-3">
+          <div className="relative">
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder={`Search ${activeTab}...`}
+              className="w-full bg-white/10 dark:bg-gray-800 text-white placeholder-white/60 dark:placeholder-gray-400 border-0 rounded-full py-2 pl-10 pr-4 focus:ring-2 focus:ring-white/25 focus:bg-white/15 dark:focus:bg-gray-700 transition-all duration-200"
+            />
+            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-white/70 dark:text-gray-400">
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
-            </button>
-          )}
-        </div>
-      </div>
-      
-      <div 
-        ref={tabContentRef}
-        className="flex-1 overflow-y-auto no-scrollbar scrollbar-thin scrollbar-track-transparent scrollbar-thumb-white/20 hover:scrollbar-thumb-white/30 px-3 pb-28" 
-      >
-        {activeTab === 'chats' && (
-          <div className="space-y-1 py-2">
-            <h3 className="text-xs uppercase tracking-wider text-white/60 dark:text-gray-400 font-medium px-2 mb-2">
-              Recent Conversations
-            </h3>
-            
-            {filteredContacts.length === 0 && !loadingContacts ? (
-              <div className="bg-white/10 dark:bg-gray-800/50 rounded-lg p-4 text-center">
-                <p className="text-sm text-white/80 dark:text-gray-300">
-                  {searchTerm ? 'No conversations matching your search' : 'No conversations yet. Start by adding contacts'}
-                </p>
-              </div>
-            ) : loadingContacts ? (
-              <div className="flex justify-center py-8">
-                <div className="animate-pulse flex space-x-2">
-                  <div className="h-2 w-2 bg-white/70 dark:bg-gray-400 rounded-full"></div>
-                  <div className="h-2 w-2 bg-white/70 dark:bg-gray-400 rounded-full animation-delay-200"></div>
-                  <div className="h-2 w-2 bg-white/70 dark:bg-gray-400 rounded-full animation-delay-500"></div>
-                </div>
-              </div>
-            ) : apiError ? (
-              <div className="bg-red-900/20 border border-red-800 rounded-lg p-3 text-center">
-                <p className="text-sm text-red-200">Error: {apiError}</p>
-              </div>
-            ) : (
-              !loadingContacts && !apiError && filteredContacts.map(contact => {
-                const contactChannel = contact.pubnub_channel || '';
-                const lastMsg = getLastMessage(contactChannel);
-                
-                return (
-                  <ContactItem
-                    key={contact.contact_id}
-                    contact={contact}
-                    isSelected={selectedContact === contact.contact_id.toString()}
-                    onSelect={handleContactSelect}
-                    lastMessage={lastMsg}
-                  />
-                );
-              })
+            </div>
+            {searchTerm && (
+              <button 
+                onClick={() => setSearchTerm('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-white/70 dark:text-gray-400 hover:text-white dark:hover:text-white"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
             )}
           </div>
-        )}
+        </div>
         
-        {activeTab === 'groups' && (
-          <div className="space-y-1 py-2">
-            <h3 className="text-xs uppercase tracking-wider text-white/60 dark:text-gray-400 font-medium px-2 mb-2">
-              Your Groups
-            </h3>
-            
-            {filteredGroups.length === 0 && !loadingGroups ? (
-              <div className="bg-white/10 dark:bg-gray-800/50 rounded-lg p-4 text-center">
-                <p className="text-sm text-white/80 dark:text-gray-300">
-                  {searchTerm ? 'No groups matching your search' : 'No groups yet. Create a new group to get started!'}
-                </p>
-              </div>
-            ) : loadingGroups ? (
-              <div className="flex justify-center py-8">
-                <div className="animate-pulse flex space-x-2">
-                  <div className="h-2 w-2 bg-white/70 dark:bg-gray-400 rounded-full"></div>
-                  <div className="h-2 w-2 bg-white/70 dark:bg-gray-400 rounded-full animation-delay-200"></div>
-                  <div className="h-2 w-2 bg-white/70 dark:bg-gray-400 rounded-full animation-delay-500"></div>
+        <div 
+          ref={tabContentRef}
+          className="flex-1 overflow-y-auto no-scrollbar scrollbar-thin scrollbar-track-transparent scrollbar-thumb-white/20 hover:scrollbar-thumb-white/30 px-3 pb-28" 
+        >
+          {activeTab === 'chats' && (
+            <div className="space-y-1 py-2">
+              <h3 className="text-xs uppercase tracking-wider text-white/60 dark:text-gray-400 font-medium px-2 mb-2">
+                Recent Conversations
+              </h3>
+              
+              {filteredContacts.length === 0 && !loadingContacts ? (
+                <div className="bg-white/10 dark:bg-gray-800/50 rounded-lg p-4 text-center">
+                  <p className="text-sm text-white/80 dark:text-gray-300">
+                    {searchTerm ? 'No conversations matching your search' : 'No conversations yet. Start by adding contacts'}
+                  </p>
                 </div>
-              </div>
-            ) : groupError ? (
-              <div className="bg-red-900/20 border border-red-800 rounded-lg p-3 text-center">
-                <p className="text-sm text-red-200">Error: {groupError}</p>
-              </div>
-            ) : (
-              filteredGroups.map(group => (
-                <div key={group.group_id} className="relative group flex items-center">
-                  <GroupItem
-                    group={group}
-                    isSelected={selectedGroup === group.group_id}
-                    onSelect={handleGroupSelect}
-                  />
-                  <div className="ml-1">
-                    <button
-                      className="cursor-pointer p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400 dark:text-gray-500"
-                      onClick={e => toggleGroupMenu(group.group_id, e)}
-                      tabIndex={-1}
-                      aria-label="Group menu"
-                    >
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <circle cx="12" cy="6" r="1.5" />
-                        <circle cx="12" cy="12" r="1.5" />
-                        <circle cx="12" cy="18" r="1.5" />
-                      </svg>
-                    </button>
-                    {openGroupMenus.has(group.group_id) && (
-                      <div
-                        className="absolute right-0 w-40 bg-white dark:bg-gray-800 shadow-lg rounded-md border border-gray-200 dark:border-gray-700 py-1 z-10"
-                        onClick={e => e.stopPropagation()}
+              ) : loadingContacts ? (
+                <div className="flex justify-center py-8">
+                  <div className="animate-pulse flex space-x-2">
+                    <div className="h-2 w-2 bg-white/70 dark:bg-gray-400 rounded-full"></div>
+                    <div className="h-2 w-2 bg-white/70 dark:bg-gray-400 rounded-full animation-delay-200"></div>
+                    <div className="h-2 w-2 bg-white/70 dark:bg-gray-400 rounded-full animation-delay-500"></div>
+                  </div>
+                </div>
+              ) : apiError ? (
+                <div className="bg-red-900/20 border border-red-800 rounded-lg p-3 text-center">
+                  <p className="text-sm text-red-200">Error: {apiError}</p>
+                </div>
+              ) : (
+                !loadingContacts && !apiError && filteredContacts.map(contact => {
+                  const contactChannel = contact.pubnub_channel || '';
+                  const lastMsg = getLastMessage(contactChannel);
+                  
+                  return (
+                    <ContactItem
+                      key={contact.contact_id}
+                      contact={contact}
+                      isSelected={selectedContact === contact.contact_id.toString()}
+                      onSelect={handleContactSelect}
+                      lastMessage={lastMsg}
+                    />
+                  );
+                })
+              )}
+            </div>
+          )}
+          
+          {activeTab === 'groups' && (
+            <div className="space-y-1 py-2">
+              <h3 className="text-xs uppercase tracking-wider text-white/60 dark:text-gray-400 font-medium px-2 mb-2">
+                Your Groups
+              </h3>
+              
+              {filteredGroups.length === 0 && !loadingGroups ? (
+                <div className="bg-white/10 dark:bg-gray-800/50 rounded-lg p-4 text-center">
+                  <p className="text-sm text-white/80 dark:text-gray-300">
+                    {searchTerm ? 'No groups matching your search' : 'No groups yet. Create a new group to get started!'}
+                  </p>
+                </div>
+              ) : loadingGroups ? (
+                <div className="flex justify-center py-8">
+                  <div className="animate-pulse flex space-x-2">
+                    <div className="h-2 w-2 bg-white/70 dark:bg-gray-400 rounded-full"></div>
+                    <div className="h-2 w-2 bg-white/70 dark:bg-gray-400 rounded-full animation-delay-200"></div>
+                    <div className="h-2 w-2 bg-white/70 dark:bg-gray-400 rounded-full animation-delay-500"></div>
+                  </div>
+                </div>
+              ) : groupError ? (
+                <div className="bg-red-900/20 border border-red-800 rounded-lg p-3 text-center">
+                  <p className="text-sm text-red-200">Error: {groupError}</p>
+                </div>
+              ) : (
+                filteredGroups.map(group => (
+                  <div key={group.group_id} className="relative group flex items-center">
+                    <GroupItem
+                      group={group}
+                      isSelected={selectedGroup === group.group_id}
+                      onSelect={handleGroupSelect}
+                    />
+                    <div className="ml-1">
+                      <button
+                        className="cursor-pointer p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400 dark:text-gray-500"
+                        onClick={e => toggleGroupMenu(group.group_id, e)}
+                        tabIndex={-1}
+                        aria-label="Group menu"
                       >
-                        <button
-                          onClick={() => showLeaveGroupConfirm(group.group_id)}
-                          disabled={leavingGroups.has(group.group_id)}
-                          className="cursor-pointer w-full text-left px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <circle cx="12" cy="6" r="1.5" />
+                          <circle cx="12" cy="12" r="1.5" />
+                          <circle cx="12" cy="18" r="1.5" />
+                        </svg>
+                      </button>
+                      {openGroupMenus.has(group.group_id) && (
+                        <div
+                          className="absolute right-0 w-40 bg-white dark:bg-gray-800 shadow-lg rounded-md border border-gray-200 dark:border-gray-700 py-1 z-10"
+                          onClick={e => e.stopPropagation()}
                         >
-                          <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                          </svg>
-                          {leavingGroups.has(group.group_id) ? 'Leaving...' : 'Leave Group'}
-                        </button>
+                          <button
+                            onClick={() => showLeaveGroupConfirm(group.group_id)}
+                            disabled={leavingGroups.has(group.group_id)}
+                            className="cursor-pointer w-full text-left px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+                          >
+                            <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                            </svg>
+                            {leavingGroups.has(group.group_id) ? 'Leaving...' : 'Leave Group'}
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                    {/* Confirmation overlay */}
+                    {confirmingLeaveGroup === group.group_id && (
+                      <div className="absolute inset-0 bg-gray-50 dark:bg-gray-800 border border-red-200 dark:border-red-800 rounded-lg flex items-center justify-center z-20">
+                        <div className="text-center px-2">
+                          <div className="text-sm font-medium mb-3 text-red-800 dark:text-red-200">
+                            Leave group <span className="font-medium">{group.name}</span>?
+                          </div>
+                          <div className="flex justify-center gap-2">
+                            <button
+                              className="px-3 py-1.5 text-xs rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
+                              onClick={cancelLeaveGroup}
+                            >
+                              No
+                            </button>
+                            <button
+                              className="px-3 py-1.5 text-xs rounded bg-red-500 hover:bg-red-600 text-white transition-colors"
+                              onClick={() => handleLeaveGroup(group.group_id)}
+                            >
+                              Yes
+                            </button>
+                          </div>
+                        </div>
                       </div>
                     )}
                   </div>
-                  {/* Confirmation overlay */}
-                  {confirmingLeaveGroup === group.group_id && (
-                    <div className="absolute inset-0 bg-gray-50 dark:bg-gray-800 border border-red-200 dark:border-red-800 rounded-lg flex items-center justify-center z-20">
-                      <div className="text-center px-2">
-                        <div className="text-sm font-medium mb-3 text-red-800 dark:text-red-200">
-                          Leave group <span className="font-medium">{group.name}</span>?
-                        </div>
-                        <div className="flex justify-center gap-2">
-                          <button
-                            className="px-3 py-1.5 text-xs rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
-                            onClick={cancelLeaveGroup}
-                          >
-                            No
-                          </button>
-                          <button
-                            className="px-3 py-1.5 text-xs rounded bg-red-500 hover:bg-red-600 text-white transition-colors"
-                            onClick={() => handleLeaveGroup(group.group_id)}
-                          >
-                            Yes
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  )}
+                ))
+              )}
+            </div>
+          )}
+          
+          {activeTab === 'contacts' && (
+            <div className="space-y-1 py-2">
+              <h3 className="text-xs uppercase tracking-wider text-white/60 dark:text-gray-400 font-medium px-2 mb-2">
+                Your Contacts
+              </h3>
+              
+              {filteredContacts.length === 0 && !loadingContacts ? (
+                <div className="bg-white/10 dark:bg-gray-800/50 rounded-lg p-4 text-center">
+                  <p className="text-sm text-white/80 dark:text-gray-300">
+                    {searchTerm ? 'No contacts matching your search' : 'No contacts yet. Add your first contact to start chatting!'}
+                  </p>
                 </div>
-              ))
-            )}
-          </div>
-        )}
-        
-        {activeTab === 'contacts' && (
-          <div className="space-y-1 py-2">
-            <h3 className="text-xs uppercase tracking-wider text-white/60 dark:text-gray-400 font-medium px-2 mb-2">
-              Your Contacts
-            </h3>
-            
-            {filteredContacts.length === 0 && !loadingContacts ? (
-              <div className="bg-white/10 dark:bg-gray-800/50 rounded-lg p-4 text-center">
-                <p className="text-sm text-white/80 dark:text-gray-300">
-                  {searchTerm ? 'No contacts matching your search' : 'No contacts yet. Add your first contact to start chatting!'}
-                </p>
-              </div>
-            ) : loadingContacts ? (
-              <div className="flex justify-center py-8">
-                <div className="animate-pulse flex space-x-2">
-                  <div className="h-2 w-2 bg-white/70 dark:bg-gray-400 rounded-full"></div>
-                  <div className="h-2 w-2 bg-white/70 dark:bg-gray-400 rounded-full animation-delay-200"></div>
-                  <div className="h-2 w-2 bg-white/70 dark:bg-gray-400 rounded-full animation-delay-500"></div>
+              ) : loadingContacts ? (
+                <div className="flex justify-center py-8">
+                  <div className="animate-pulse flex space-x-2">
+                    <div className="h-2 w-2 bg-white/70 dark:bg-gray-400 rounded-full"></div>
+                    <div className="h-2 w-2 bg-white/70 dark:bg-gray-400 rounded-full animation-delay-200"></div>
+                    <div className="h-2 w-2 bg-white/70 dark:bg-gray-400 rounded-full animation-delay-500"></div>
+                  </div>
                 </div>
-              </div>
-            ) : apiError ? (
-              <div className="bg-red-900/20 border border-red-800 rounded-lg p-3 text-center">
-                <p className="text-sm text-red-200">Error: {apiError}</p>
-              </div>
-            ) : (
-              <div className="space-y-1">
-                {filteredContacts
-                  .filter(c => c.status !== 'pending')
-                  .map(contact => {
-                    const isMenuOpen = openContactMenus.has(contact.contact_id);
-                    const isRemoving = removingContacts.has(contact.contact_id);
-                    const isConfirming = confirmingRemove === contact.contact_id;
-                    
-                    return (
-                      <div key={contact.contact_id} className="relative">
-                        <div className="flex items-center">
-                          <div className="flex-1">
-                            <ContactItem
-                              contact={contact}
-                              isSelected={selectedContact === contact.contact_id.toString()}
-                              onSelect={handleContactSelect}
-                            />
-                          </div>
-                          
-                          {onRemoveContact && (
-                            <div className="relative">
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  toggleContactMenu(contact.contact_id);
-                                }}
-                                disabled={isRemoving}
-                                className="cursor-pointer p-1 mx-2 rounded-full hover:bg-white/20 dark:hover:bg-gray-700 text-white/70 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed"
-                              >
-                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
-                                </svg>
-                              </button>
-                              
-                              {isMenuOpen && (
-                                <div 
-                                  className="absolute right-0 top-full w-32 bg-white dark:bg-gray-800 shadow-lg rounded-md border border-gray-200 dark:border-gray-700 py-1 z-50"
-                                  onClick={(e) => e.stopPropagation()}
+              ) : apiError ? (
+                <div className="bg-red-900/20 border border-red-800 rounded-lg p-3 text-center">
+                  <p className="text-sm text-red-200">Error: {apiError}</p>
+                </div>
+              ) : (
+                <div className="space-y-1">
+                  {filteredContacts
+                    .filter(c => c.status !== 'pending')
+                    .map(contact => {
+                      const isMenuOpen = openContactMenus.has(contact.contact_id);
+                      const isRemoving = removingContacts.has(contact.contact_id);
+                      const isConfirming = confirmingRemove === contact.contact_id;
+                      
+                      return (
+                        <div key={contact.contact_id} className="relative">
+                          <div className="flex items-center">
+                            <div className="flex-1">
+                              <ContactItem
+                                contact={contact}
+                                isSelected={selectedContact === contact.contact_id.toString()}
+                                onSelect={handleContactSelect}
+                              />
+                            </div>
+                            
+                            {onRemoveContact && (
+                              <div className="relative">
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    toggleContactMenu(contact.contact_id);
+                                  }}
+                                  disabled={isRemoving}
+                                  className="cursor-pointer p-1 mx-2 rounded-full hover:bg-white/20 dark:hover:bg-gray-700 text-white/70 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
-                                  <button
-                                    onClick={() => showRemoveConfirmation(contact.contact_id)}
-                                    disabled={isRemoving}
-                                    className="cursor-pointer w-full text-left px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+                                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+                                  </svg>
+                                </button>
+                                
+                                {isMenuOpen && (
+                                  <div 
+                                    className="absolute right-0 top-full w-32 bg-white dark:bg-gray-800 shadow-lg rounded-md border border-gray-200 dark:border-gray-700 py-1 z-50"
+                                    onClick={(e) => e.stopPropagation()}
                                   >
-                                    <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                    </svg>
-                                    Remove
+                                    <button
+                                      onClick={() => showRemoveConfirmation(contact.contact_id)}
+                                      disabled={isRemoving}
+                                      className="cursor-pointer w-full text-left px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+                                    >
+                                      <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                      </svg>
+                                      Remove
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+
+                          {isConfirming && (
+                            <div className="absolute inset-0 bg-white/95 dark:bg-gray-800/95 border border-red-200 dark:border-red-800 rounded-lg flex items-center justify-center z-40">
+                              <div className="text-center px-2">
+                                <div className="text-sm font-medium mb-3 text-red-800 dark:text-red-200">
+                                  Remove {contact.contact_full_name}?
+                                </div>
+                                <div className="flex justify-center gap-2">
+                                  <button
+                                    className="px-3 py-1.5 text-xs rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
+                                    onClick={cancelRemoveContact}
+                                  >
+                                    No
+                                  </button>
+                                  <button
+                                    className="px-3 py-1.5 text-xs rounded bg-red-500 hover:bg-red-600 text-white transition-colors"
+                                    onClick={() => handleRemoveContact(contact.contact_id)}
+                                  >
+                                    Yes
                                   </button>
                                 </div>
-                              )}
+                              </div>
                             </div>
                           )}
                         </div>
-
-                        {isConfirming && (
-                          <div className="absolute inset-0 bg-white/95 dark:bg-gray-800/95 border border-red-200 dark:border-red-800 rounded-lg flex items-center justify-center z-40">
-                            <div className="text-center px-2">
-                              <div className="text-sm font-medium mb-3 text-red-800 dark:text-red-200">
-                                Remove {contact.contact_full_name}?
-                              </div>
-                              <div className="flex justify-center gap-2">
-                                <button
-                                  className="px-3 py-1.5 text-xs rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
-                                  onClick={cancelRemoveContact}
-                                >
-                                  No
-                                </button>
-                                <button
-                                  className="px-3 py-1.5 text-xs rounded bg-red-500 hover:bg-red-600 text-white transition-colors"
-                                  onClick={() => handleRemoveContact(contact.contact_id)}
-                                >
-                                  Yes
-                                </button>
-                              </div>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })
-                }
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-      
-      {floatingButtonAction && (
-        <div className="absolute bottom-5 hover:cursor-pointer right-5">
-          <button
-            ref={floatingButtonRef}
-            onClick={floatingButtonAction}
-            onMouseEnter={() => setIsButtonHovered(true)}
-            onMouseLeave={() => setIsButtonHovered(false)}
-            className="grid grid-flow-col auto-cols-min items-center hover:cursor-pointer h-10 bg-white/25 dark:bg-gray-700/60 hover:bg-white/30 dark:hover:bg-gray-700/80 text-white rounded-full shadow-md hover:shadow-lg transition-shadow duration-200 overflow-hidden"
-            style={{ 
-              width: '2.5rem',
-              opacity: 1
-            }}
-          >
-            <div className="flex items-center  justify-center w-10 h-10">
-              <svg 
-                className="w-5 h-5 " 
-                fill="none" 
-                viewBox="0 0 24 24" 
-                stroke="currentColor"
-              >
-                {activeTab === 'chats' && (
-                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                )}
-                {activeTab === 'groups' && (
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                )}
-                {activeTab === 'contacts' && (
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
-                )}
-              </svg>
+                      );
+                    })
+                  }
+                </div>
+              )}
             </div>
-            
-            <span 
-              ref={buttonLabelRef}
-              className="pr-3 whitespace-nowrap font-medium text-sm"
-              style={{ opacity: 0, visibility: 'hidden' }}
-            >
-              {floatingButtonLabel}
-            </span>
-          </button>
+          )}
         </div>
-      )}
-    </div>
+        
+        {/* Position SpeedDial at bottom right of sidebar */}
+        <div className="absolute bottom-6 right-6 z-10">
+          <SpeedDial 
+            actions={[
+              {
+                icon: (
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" 
+                      d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                  </svg>
+                ),
+                label: "New Contact",
+                onClick: onNewContact|| (() => {}),
+                bgColor: "bg-green-500",
+                color: "text-white"
+              },
+              {
+                icon: (
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" 
+                      d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                ),
+                label: "New Group",
+                onClick: onNewGroup || (() => {}),
+                bgColor: "bg-blue-500",
+                color: "text-white"
+              },
+              {
+                icon: (
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" 
+                      d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" />
+                  </svg>
+                ),
+                label: "Create Announcement",
+                onClick: onCreateAnnouncement || (() => {}),
+                bgColor: "bg-gradient-to-r from-purple-500 to-violet-600",
+                color: "text-white",
+                show: user?.can_announce === 1
+              }
+            ]}
+          />
+        </div>
+      </div>
+    </>
   );
 }

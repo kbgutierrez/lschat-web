@@ -22,6 +22,7 @@ import AddContactModal from '@/components/dashboard/AddContactModal';
 import InviteToGroupModal from '@/components/dashboard/InviteToGroupModal';
 import CreateGroupModal from '@/components/dashboard/CreateGroupModal';
 import  UserManagementModal  from '@/components/dashboard/UserManagementModal';
+import CreateAnnouncementModal from '@/components/dashboard/CreateAnnouncementModal';
 
 type TabType = 'chats' | 'groups' | 'contacts';
 
@@ -92,6 +93,7 @@ export default function Dashboard() {
   const [isRightPanelVisible, setIsRightPanelVisible] = useState(false);
   const [isNewlyCreatedGroup, setIsNewlyCreatedGroup] = useState(false);
   const [showInviteToast, setShowInviteToast] = useState(false);
+  const [isAnnouncementModalOpen, setIsAnnouncementModalOpen] = useState(false);
 
 
 
@@ -1090,6 +1092,8 @@ export default function Dashboard() {
         onLeaveGroup={handleLeaveGroup}
         refreshPendingContacts={refreshPendingContacts}
         isCreateGroupModalOpen={isCreateGroupModalOpen}
+        user={user}
+        onCreateAnnouncement={() => setIsAnnouncementModalOpen(true)}
       />
       
       {isMobileSidebarOpen && (
@@ -1238,6 +1242,10 @@ export default function Dashboard() {
         isOpen={isCreateGroupModalOpen}
         onClose={() => setIsCreateGroupModalOpen(false)}
         onCreate={handleCreateGroup}
+      />
+      <CreateAnnouncementModal 
+        isOpen={isAnnouncementModalOpen}
+        onClose={() => setIsAnnouncementModalOpen(false)}
       />
 
       {/* Improved toast notification */}
