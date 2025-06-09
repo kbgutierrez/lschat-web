@@ -147,6 +147,43 @@ export const userManagementAPI = {
                         console.error('Error fetching announcement permissions:', error);
                         throw error;
                 }
+        },
+        updateAnnouncementPermissions: async (
+                userId: number,
+                permissionType: 'everyone' | 'byGroup' | 'byUser',
+                groups: number[] = [],
+                users: number[] = []
+        ): Promise<any> => {
+                try {
+                        const headers = middleware.addAuthHeader({
+                                'Content-Type': 'application/json',
+                        });
+
+                        const url = `${API_BASE_URL}/api/admin/update/announcement-permissions`;
+                        const body = JSON.stringify({
+                                user_id: userId,
+                                permission_type: permissionType,
+                                groups,
+                                users
+                        });
+
+                        const response = await fetch(url, {
+                                method: 'POST',
+                                headers,
+                                body
+                        });
+
+                        if (!response.ok) {
+                                const errorText = await response.text();
+                                throw new Error(`Failed to update announcement permissions: ${response.status} - ${errorText}`);
+                        }
+
+                        const result = await response.json();
+                        return result;
+                } catch (error) {
+                        console.error('Error updating announcement permissions:', error);
+                        throw error;
+                }
         }
 };
 

@@ -38,6 +38,9 @@ export default function UserManagementModal({
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState<string | null>(null);
+    const [showConfirmation, setShowConfirmation] = useState(false);
+    const [showErrorAlert, setShowErrorAlert] = useState(false);
+    const [showSuccessAlert, setShowSuccessAlert] = useState(false);
 
     const [users, setUsers] = useState<User[]>([]);
     const [pagination, setPagination] = useState<PaginationData>({
@@ -50,6 +53,7 @@ export default function UserManagementModal({
     const [availableGroups, setAvailableGroups] = useState<GroupOption[]>([]);
     const [availableUsers, setAvailableUsers] = useState<UserOption[]>([]);
     const [userSettings, setUserSettings] = useState<Record<string, UserAnnouncementSettings>>({});
+    const [defaultSettings, setDefaultSettings] = useState<Record<string, UserAnnouncementSettings>>({});
     const [isFetchingUsers, setIsFetchingUsers] = useState(false);
     const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
     const [activeManagementTab, setActiveManagementTab] = useState<ManagementTabType>('announcements');
@@ -130,43 +134,47 @@ export default function UserManagementModal({
             const permissionsResponse = await userManagementAPI.fetchAnnouncementPermissions(userId);
             
             if (permissionsResponse.success) {
-                // Update the user settings based on the fetched permissions
-                setUserSettings(prev => {
-                    const userIdStr = userId.toString();
-                    const currentSettings = prev[userIdStr] || {
-                        canAnnounce: false,
-                        announceScope: 'everyone',
-                        selectedGroups: [],
-                        selectedUsers: []
-                    };
-                    
-                    // Determine the announcement scope based on permissionType
-                    let announceScope: 'everyone' | 'groups' | 'users' = 'everyone';
-                    if (permissionsResponse.permissionType === 'byGroup') {
-                        announceScope = 'groups';
-                    } else if (permissionsResponse.permissionType === 'byUser') {
-                        announceScope = 'users';
-                    }
-                    
-                    // Extract selected group IDs and user IDs from the response
-                    const selectedGroups = permissionsResponse.groups.map(group => group.group_id);
-                    const selectedUsers = permissionsResponse.users.map(user => user.user_id);
-                    
-                    // Find the user in our users array to get their current can_announce value
-                    const userObj = users.find(u => u.user_id === userId);
-                    
-                    return {
-                        ...prev,
-                        [userIdStr]: {
-                            ...currentSettings,
-                            // Only set canAnnounce based on the user's actual setting
-                            canAnnounce: userObj ? userObj.can_announce === 1 : currentSettings.canAnnounce,
-                            announceScope,
-                            selectedGroups,
-                            selectedUsers
-                        }
-                    };
-                });
+                const userIdStr = userId.toString();
+                const currentSettings = userSettings[userIdStr] || {
+                    canAnnounce: false,
+                    announceScope: 'everyone',
+                    selectedGroups: [],
+                    selectedUsers: []
+                };
+                
+                // Determine the announcement scope based on permissionType
+                let announceScope: 'everyone' | 'groups' | 'users' = 'everyone';
+                if (permissionsResponse.permissionType === 'byGroup') {
+                    announceScope = 'groups';
+                } else if (permissionsResponse.permissionType === 'byUser') {
+                    announceScope = 'users';
+                }
+                
+                // Extract selected group IDs and user IDs from the response
+                const selectedGroups = permissionsResponse.groups.map(group => group.group_id);
+                const selectedUsers = permissionsResponse.users.map(user => user.user_id);
+                
+                // Find the user in our users array to get their current can_announce value
+                const userObj = users.find(u => u.user_id === userId);
+                
+                const newSettings = {
+                    ...currentSettings,
+                    canAnnounce: userObj ? userObj.can_announce === 1 : currentSettings.canAnnounce,
+                    announceScope,
+                    selectedGroups,
+                    selectedUsers
+                };
+                
+                setUserSettings(prev => ({
+                    ...prev,
+                    [userIdStr]: newSettings
+                }));
+                
+                // Store the default settings
+                setDefaultSettings(prev => ({
+                    ...prev,
+                    [userIdStr]: {...newSettings}
+                }));
                 
                 console.log('Loaded announcement permissions:', permissionsResponse);
             }
@@ -175,6 +183,15 @@ export default function UserManagementModal({
             setError(err instanceof Error ? err.message : 'Failed to fetch announcement permissions');
         } finally {
             setIsFetchingPermissions(false);
+        }
+    };
+
+    const resetToDefaultSettings = (userId: string) => {
+        if (defaultSettings[userId]) {
+            setUserSettings(prev => ({
+                ...prev,
+                [userId]: {...defaultSettings[userId]}
+            }));
         }
     };
 
@@ -191,7 +208,7 @@ export default function UserManagementModal({
             response.users.forEach(user => {
                 initialSettings[user.user_id.toString()] = {
                     canAnnounce: user.can_announce === 1,
-                    announceScope: 'everyone', // default scope
+                    announceScope: 'everyone',
                     selectedGroups: [],
                     selectedUsers: []
                 };
@@ -213,6 +230,11 @@ export default function UserManagementModal({
     };
 
     const handleSaveChanges = async () => {
+        setShowConfirmation(true);
+    };
+
+    const handleConfirmSave = async () => {
+        setShowConfirmation(false);
         setLoading(true);
         setError(null);
         setSuccess(null);
@@ -227,17 +249,51 @@ export default function UserManagementModal({
                         await userManagementAPI.toggleCanAnnounce(userId, user.can_announce);
                     }
                     
-                    // Future enhancement: Add API call to update announcement scope and recipients
+                    if (settings.canAnnounce) {
+                        let permissionType: 'everyone' | 'byGroup' | 'byUser';
+                        
+                        switch(settings.announceScope) {
+                            case 'groups':
+                                permissionType = 'byGroup';
+                                break;
+                            case 'users':
+                                permissionType = 'byUser';
+                                break;
+                            default:
+                                permissionType = 'everyone';
+                        }
+                        
+                        const groups = permissionType === 'byGroup' ? settings.selectedGroups : [];
+                        const users = permissionType === 'byUser' ? settings.selectedUsers : [];
+                        
+                        await userManagementAPI.updateAnnouncementPermissions(
+                            numericUserId,
+                            permissionType,
+                            groups,
+                            users
+                        );
+                    }
                 }
             });
 
             await Promise.all(updatePromises);
             setSuccess('User announcement settings saved successfully');
+            setShowSuccessAlert(true);
+            
+            setTimeout(() => {
+                setShowSuccessAlert(false);
+            }, 3000);
+            
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to save changes');
+            setShowErrorAlert(true);
         } finally {
             setLoading(false);
         }
+    };
+    
+    const handleCancelSave = () => {
+        setShowConfirmation(false);
     };
 
     const toggleAnnouncePermission = (userId: string) => {
@@ -265,9 +321,7 @@ export default function UserManagementModal({
         setUserSettings(prev => {
             const currentSettings = {...prev[userId]};
             
-            // When changing scope, clear previous selections
             if (scope === 'everyone') {
-                // Clear both groups and users when setting to everyone
                 return {
                     ...prev,
                     [userId]: {
@@ -278,23 +332,21 @@ export default function UserManagementModal({
                     }
                 };
             } else if (scope === 'groups') {
-                // Clear selected users when changing to groups
                 return {
                     ...prev,
                     [userId]: {
                         ...currentSettings,
                         announceScope: scope,
-                        selectedUsers: [] // Clear users when switching to groups
+                        selectedUsers: []
                     }
                 };
-            } else { // 'users'
-                // Clear selected groups when changing to users
+            } else {
                 return {
                     ...prev,
                     [userId]: {
                         ...currentSettings,
                         announceScope: scope,
-                        selectedGroups: [] // Clear groups when switching to users
+                        selectedGroups: []
                     }
                 };
             }
@@ -362,8 +414,7 @@ export default function UserManagementModal({
         return (
             user.first_name?.toLowerCase().includes(searchLower) ||
             user.last_name?.toLowerCase().includes(searchLower) ||
-            `${user.first_name} ${user.last_name}`.toLowerCase().includes(searchLower) ||
-            user.email?.toLowerCase().includes(searchLower)
+            `${user.first_name} ${user.last_name}`.toLowerCase().includes(searchLower)
         );
     });
 
@@ -402,7 +453,7 @@ export default function UserManagementModal({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
         >
-              <motion.div
+            <motion.div
                 ref={modalRef}
                 className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-full border border-gray-200 dark:border-gray-700 h-[100vh] max-h-[100vh] flex flex-col overflow-hidden"
                 initial={{ scale: 0.95, opacity: 0 }}
@@ -410,7 +461,6 @@ export default function UserManagementModal({
                 exit={{ scale: 0.95, opacity: 0 }}
                 transition={{ type: "spring", damping: 25, stiffness: 300 }}
             >
-                {/* Header */}
                 <div className="p-5 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center bg-gradient-to-r from-violet-50 to-white dark:from-gray-800 dark:to-gray-800">
                     <h2 className="text-xl font-semibold text-gray-900 dark:text-white flex items-center">
                         <svg className="w-6 h-6 mr-2 text-violet-600 dark:text-violet-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -433,39 +483,13 @@ export default function UserManagementModal({
                     </button>
                 </div>
 
-                {/* Notification area */}
-                {(error || success) && (
-                    <div className="px-5 pt-4">
-                        {error && (
-                            <div className="p-4 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-sm border border-red-100 dark:border-red-800/30 flex items-start">
-                                <svg className="h-5 w-5 mr-3 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                </svg>
-                                <p>{error}</p>
-                            </div>
-                        )}
-
-                        {success && (
-                            <div className="p-4 rounded-lg bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 text-sm border border-green-100 dark:border-green-800/30 flex items-start">
-                                <svg className="h-5 w-5 mr-3 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                </svg>
-                                <p>{success}</p>
-                            </div>
-                        )}
-                    </div>
-                )}
-
-                {/* Two-panel content */}
                 <div className="flex-1 flex overflow-hidden">
-                    {/* Left panel - User list */}
                     <div className="w-2/5 border-r border-gray-200 dark:border-gray-700 flex flex-col">
-                        {/* Search */}
                         <div className="p-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
                             <div className="relative">
                                 <input
                                     type="text"
-                                    placeholder="Search users by name or email..."
+                                    placeholder="Search users by name"
                                     className="w-full pl-10 pr-10 py-2.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-violet-500 focus:border-violet-500 dark:focus:ring-violet-400 dark:focus:border-violet-400 shadow-sm"
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
@@ -489,7 +513,6 @@ export default function UserManagementModal({
                             </div>
                         </div>
 
-                        {/* User list */}
                         <div className="flex-1 overflow-y-auto">
                             {isFetchingUsers ? (
                                 <div className="flex justify-center items-center h-full">
@@ -548,12 +571,8 @@ export default function UserManagementModal({
                                                         <p className="text-sm font-medium text-gray-900 dark:text-white">
                                                             {user.first_name} {user.last_name}
                                                         </p>
-                                                        <p className="text-sm text-gray-500 dark:text-gray-400">
-                                                            {user.email}
-                                                        </p>
                                                     </div>
                                                 </div>
-
                                             </div>
                                         </li>
                                     ))}
@@ -561,7 +580,6 @@ export default function UserManagementModal({
                             )}
                         </div>
 
-                        {/* Pagination */}
                         {pagination.pages > 1 && (
                             <div className="border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 py-2 px-4">
                                 <div className="flex items-center justify-between">
@@ -599,7 +617,6 @@ export default function UserManagementModal({
                         )}
                     </div>
 
-                    {/* Right panel - User configuration with tabs */}
                     <div className="w-3/5 flex flex-col">
                         <AnimatePresence mode="wait">
                             {selectedUser && selectedUserSettings ? (
@@ -611,7 +628,6 @@ export default function UserManagementModal({
                                     exit={{ opacity: 0, y: 10 }}
                                     transition={{ duration: 0.2 }}
                                 >
-                                    {/* User header */}
                                     <div className="px-6 py-5 border-b border-gray-200 dark:border-gray-700 flex items-center">
                                         <div className="flex-shrink-0">
                                             {selectedUser.profile_picture ? (
@@ -645,7 +661,6 @@ export default function UserManagementModal({
                                         </div>
                                     </div>
 
-                                    {/* Tabs */}
                                     <div className="px-6 py-3 border-b border-gray-200 dark:border-gray-700 flex space-x-6 relative">
                                         <button
                                             className="cursor-pointer text-violet-600 dark:text-violet-400 font-medium text-sm pb-3 outline-0 "
@@ -658,7 +673,6 @@ export default function UserManagementModal({
                                         <div ref={tabIndicatorRef} className="absolute bottom-0 h-0.5 bg-violet-600 dark:bg-violet-400 transition-all duration-200" style={{ left: '0px', width: '0px' }}></div>
                                     </div>
 
-                                    {/* Scrollable content area */}
                                     <div className="flex-1 overflow-y-auto">
                                         <AnimatePresence mode="wait">
                                             {activeManagementTab === 'announcements' && (
@@ -684,6 +698,7 @@ export default function UserManagementModal({
                                                         <AnnouncementPermissions
                                                             user={selectedUser}
                                                             settings={userSettings[selectedUser.user_id.toString()]}
+                                                            defaultSettings={defaultSettings[selectedUser.user_id.toString()]}
                                                             availableGroups={availableGroups}
                                                             availableUsers={availableUsers}
                                                             onToggleAnnouncePermission={toggleAnnouncePermission}
@@ -692,6 +707,7 @@ export default function UserManagementModal({
                                                             onToggleUser={toggleUser}
                                                             onSelectAllGroups={handleSelectAllGroups}
                                                             onSelectAllUsers={handleSelectAllUsers}
+                                                            onReset={resetToDefaultSettings}
                                                         />
                                                     )}
                                                 </motion.div>
@@ -699,7 +715,6 @@ export default function UserManagementModal({
                                         </AnimatePresence>
                                     </div>
 
-                                    {/* Fixed footer with actions - always visible */}
                                     <div className="px-5 py-4 bg-gray-50 dark:bg-gray-800/50 border-t border-gray-200 dark:border-gray-700 flex justify-end flex-shrink-0">
                                         <button
                                             type="button"
@@ -730,6 +745,50 @@ export default function UserManagementModal({
                                             ) : 'Save Changes'}
                                         </button>
                                     </div>
+                                    
+                                    {showConfirmation && (
+                                        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+                                            <motion.div 
+                                                className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full border border-gray-200 dark:border-gray-700 overflow-hidden"
+                                                initial={{ scale: 0.9, opacity: 0 }}
+                                                animate={{ scale: 1, opacity: 1 }}
+                                                transition={{ type: "spring", damping: 25, stiffness: 300 }}
+                                            >
+                                                <div className="p-5 border-b border-gray-200 dark:border-gray-700">
+                                                    <h3 className="text-lg font-medium text-gray-900 dark:text-white flex items-center">
+                                                        <svg className="w-5 h-5 mr-2 text-violet-600 dark:text-violet-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                        </svg>
+                                                        Confirm Changes
+                                                    </h3>
+                                                </div>
+                                                <div className="p-5">
+                                                    <p className="text-gray-700 dark:text-gray-300">
+                                                        Are you sure you want to save these changes to user announcement permissions?
+                                                    </p>
+                                                    <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                                                        This will update which users can send announcements and to whom they can be sent.
+                                                    </p>
+                                                </div>
+                                                <div className="px-5 py-4 bg-gray-50 dark:bg-gray-800/50 border-t border-gray-200 dark:border-gray-700 flex justify-end">
+                                                    <button
+                                                        type="button"
+                                                        onClick={handleCancelSave}
+                                                        className="cursor-pointer px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 border border-gray-300 dark:border-gray-600 rounded-md mr-3 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition-colors"
+                                                    >
+                                                        Cancel
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={handleConfirmSave}
+                                                        className="cursor-pointer px-4 py-2 text-sm font-medium text-white bg-violet-600 hover:bg-violet-700 dark:hover:bg-violet-500 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-violet-500 transition-colors"
+                                                    >
+                                                        Save Changes
+                                                    </button>
+                                                </div>
+                                            </motion.div>
+                                        </div>
+                                    )}
                                 </motion.div>
                             ) : (
                                 <motion.div
@@ -740,9 +799,9 @@ export default function UserManagementModal({
                                     transition={{ duration: 0.2 }}
                                     className="h-full flex flex-col items-center justify-center text-center p-5"
                                 >
-                                    <svg className="h-20 w-20 text-gray-300 dark:text-gray-600 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    <svg className="h-20 w-20 text-gray-300 dark:text-gray-600 mb-4" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                        <path d="M12 2C9.38 2 7.25 4.13 7.25 6.75C7.25 9.32 9.26 11.4 11.88 11.49C11.96 11.48 12.04 11.48 12.1 11.49C12.12 11.49 12.13 11.49 12.15 11.49C12.16 11.49 12.16 11.49 12.17 11.49C14.73 11.4 16.74 9.32 16.75 6.75C16.75 4.13 14.62 2 12 2Z" fill="currentColor" opacity="0.4"/>
+                                        <path d="M17.08 14.15C14.29 12.29 9.74 12.29 6.93 14.15C5.66 15 4.96 16.15 4.96 17.38C4.96 18.61 5.66 19.75 6.92 20.59C8.32 21.53 10.16 22 12 22C13.84 22 15.68 21.53 17.08 20.59C18.34 19.74 19.04 18.6 19.04 17.36C19.03 16.13 18.34 14.99 17.08 14.15Z" fill="currentColor"/>
                                     </svg>
                                     <h3 className="text-lg font-medium text-gray-900 dark:text-gray-200 mb-2">Select a user to manage</h3>
                                     <p className="text-gray-500 dark:text-gray-400 max-w-sm">
@@ -753,6 +812,126 @@ export default function UserManagementModal({
                         </AnimatePresence>
                     </div>
                 </div>
+
+                <AnimatePresence>
+                    {showSuccessAlert && (
+                        <motion.div
+                            initial={{ opacity: 0, y: -20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -20 }}
+                            transition={{ duration: 0.2 }}
+                            className="fixed top-4 left-1/2 transform -translate-x-1/2 z-[70] bg-green-50 dark:bg-green-900/30 px-6 py-4 rounded-lg shadow-lg border border-green-200 dark:border-green-800/50 max-w-md"
+                        >
+                            <div className="flex items-center">
+                                <div className="flex-shrink-0">
+                                    <svg className="h-5 w-5 text-green-500 dark:text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                </div>
+                                <div className="ml-3">
+                                    <p className="text-sm font-medium text-green-800 dark:text-green-200">
+                                        {success}
+                                    </p>
+                                </div>
+                                <div className="ml-auto pl-3">
+                                    <div className="-mx-1.5 -my-1.5">
+                                        <button
+                                            onClick={() => setShowSuccessAlert(false)}
+                                            className="inline-flex rounded-md p-1.5 text-green-500 hover:bg-green-100 dark:hover:bg-green-800/50 focus:outline-none"
+                                        >
+                                            <span className="sr-only">Dismiss</span>
+                                            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                            </svg>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+
+                <AnimatePresence>
+                    {showErrorAlert && (
+                        <motion.div
+                            initial={{ opacity: 0, y: -20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -20 }}
+                            transition={{ duration: 0.2 }}
+                            className="fixed top-4 left-1/2 transform -translate-x-1/2 z-[70] bg-red-50 dark:bg-red-900/30 px-6 py-4 rounded-lg shadow-lg border border-red-200 dark:border-red-800/50 max-w-md"
+                        >
+                            <div className="flex items-center">
+                                <div className="flex-shrink-0">
+                                    <svg className="h-5 w-5 text-red-500 dark:text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                </div>
+                                <div className="ml-3">
+                                    <p className="text-sm font-medium text-red-800 dark:text-red-200">
+                                        {error}
+                                    </p>
+                                </div>
+                                <div className="ml-auto pl-3">
+                                    <div className="-mx-1.5 -my-1.5">
+                                        <button
+                                            onClick={() => setShowErrorAlert(false)}
+                                            className="inline-flex rounded-md p-1.5 text-red-500 hover:bg-red-100 dark:hover:bg-red-800/50 focus:outline-none"
+                                        >
+                                            <span className="sr-only">Dismiss</span>
+                                            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                            </svg>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+                
+                {showConfirmation && (
+                    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+                        <motion.div 
+                            className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full border border-gray-200 dark:border-gray-700 overflow-hidden"
+                            initial={{ scale: 0.9, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            transition={{ type: "spring", damping: 25, stiffness: 300 }}
+                        >
+                            <div className="p-5 border-b border-gray-200 dark:border-gray-700">
+                                <h3 className="text-lg font-medium text-gray-900 dark:text-white flex items-center">
+                                    <svg className="w-5 h-5 mr-2 text-violet-600 dark:text-violet-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                    Confirm Changes
+                                </h3>
+                            </div>
+                            <div className="p-5">
+                                <p className="text-gray-700 dark:text-gray-300">
+                                    Are you sure you want to save these changes to user announcement permissions?
+                                </p>
+                                <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                                    This will update which users can send announcements and to whom they can be sent.
+                                </p>
+                            </div>
+                            <div className="px-5 py-4 bg-gray-50 dark:bg-gray-800/50 border-t border-gray-200 dark:border-gray-700 flex justify-end">
+                                <button
+                                    type="button"
+                                    onClick={handleCancelSave}
+                                    className="cursor-pointer px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 border border-gray-300 dark:border-gray-600 rounded-md mr-3 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition-colors"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={handleConfirmSave}
+                                    className="cursor-pointer px-4 py-2 text-sm font-medium text-white bg-violet-600 hover:bg-violet-700 dark:hover:bg-violet-500 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-violet-500 transition-colors"
+                                >
+                                    Save Changes
+                                </button>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
             </motion.div>
         </motion.div>
     );

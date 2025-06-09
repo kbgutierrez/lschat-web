@@ -36,6 +36,7 @@ interface UserAnnouncementSettings {
 interface AnnouncementPermissionsProps {
   user: User | null;
   settings: UserAnnouncementSettings | null;
+  defaultSettings?: UserAnnouncementSettings | null;
   availableGroups: GroupOption[];
   availableUsers: UserOption[];
   onToggleAnnouncePermission: (userId: string) => void;
@@ -44,11 +45,13 @@ interface AnnouncementPermissionsProps {
   onToggleUser: (userId: string, targetUserId: number) => void;
   onSelectAllGroups?: (userId: string, selectAll: boolean) => void;
   onSelectAllUsers?: (userId: string, selectAll: boolean) => void;
+  onReset?: (userId: string) => void;
 }
 
 export default function AnnouncementPermissions({
   user,
   settings,
+  defaultSettings,
   availableGroups,
   availableUsers,
   onToggleAnnouncePermission,
@@ -57,10 +60,18 @@ export default function AnnouncementPermissions({
   onToggleUser,
   onSelectAllGroups,
   onSelectAllUsers,
+  onReset,
 }: AnnouncementPermissionsProps) {
   if (!user || !settings) return null;
 
   const userId = user.user_id.toString();
+
+  // Check if current settings differ from default settings
+  const hasChangedFromDefault = defaultSettings && (
+    defaultSettings.announceScope !== settings.announceScope ||
+    JSON.stringify(defaultSettings.selectedGroups) !== JSON.stringify(settings.selectedGroups) ||
+    JSON.stringify(defaultSettings.selectedUsers) !== JSON.stringify(settings.selectedUsers)
+  );
 
   // Calculate select all states for groups
   const allGroupsSelected = availableGroups.length > 0 && settings.selectedGroups.length === availableGroups.length;
@@ -139,43 +150,68 @@ export default function AnnouncementPermissions({
           className="border-t border-gray-200 dark:border-gray-700 pt-4 mt-4"
         >
           <div className="space-y-4">
-            <div>
+            <div className="flex items-center justify-between">
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Who can receive announcements from this user?
               </label>
-              <div className="flex items-center space-x-4">
-                <label className="inline-flex items-center">
-                  <input
-                    type="radio"
-                    className="form-radio text-violet-600 focus:ring-violet-500 dark:bg-gray-700 dark:checked:bg-violet-500 dark:border-gray-600"
-                    name={`announce-scope-${userId}`}
-                    checked={settings.announceScope === 'everyone'}
-                    onChange={() => onUpdateAnnounceScope(userId, 'everyone')}
-                  />
-                  <span className="ml-2 text-sm text-gray-700 dark:text-gray-300">Everyone</span>
-                </label>
-                <label className="inline-flex items-center">
-                  <input
-                    type="radio"
-                    className="form-radio text-violet-600 focus:ring-violet-500 dark:bg-gray-700 dark:checked:bg-violet-500 dark:border-gray-600"
-                    name={`announce-scope-${userId}`}
-                    checked={settings.announceScope === 'groups'}
-                    onChange={() => onUpdateAnnounceScope(userId, 'groups')}
-                  />
-                  <span className="ml-2 text-sm text-gray-700 dark:text-gray-300">Selected Groups</span>
-                </label>
-                <label className="inline-flex items-center">
-                  <input
-                    type="radio"
-                    className="form-radio text-violet-600 focus:ring-violet-500 dark:bg-gray-700 dark:checked:bg-violet-500 dark:border-gray-600"
-                    name={`announce-scope-${userId}`}
-                    checked={settings.announceScope === 'users'}
-                    onChange={() => onUpdateAnnounceScope(userId, 'users')}
-                  />
-                  <span className="ml-2 text-sm text-gray-700 dark:text-gray-300">Selected Users</span>
-                </label>
-              </div>
+              
+              {/* Reset button - only show if there are changes from default */}
+              {hasChangedFromDefault && onReset && (
+                <button
+                  type="button"
+                  onClick={() => onReset(userId)}
+                  className="inline-flex items-center px-2.5 py-1.5 border border-gray-300 dark:border-gray-600 shadow-sm text-xs font-medium rounded text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-violet-500"
+                >
+                  <svg className="h-3.5 w-3.5 mr-1 text-gray-500 dark:text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                  Reset to Default
+                </button>
+              )}
             </div>
+            
+            <div className="flex items-center space-x-4">
+              <label className="inline-flex items-center">
+                <input
+                  type="radio"
+                  className="form-radio text-violet-600 focus:ring-violet-500 dark:bg-gray-700 dark:checked:bg-violet-500 dark:border-gray-600"
+                  name={`announce-scope-${userId}`}
+                  checked={settings.announceScope === 'everyone'}
+                  onChange={() => onUpdateAnnounceScope(userId, 'everyone')}
+                />
+                <span className="ml-2 text-sm text-gray-700 dark:text-gray-300">Everyone</span>
+              </label>
+              <label className="inline-flex items-center">
+                <input
+                  type="radio"
+                  className="form-radio text-violet-600 focus:ring-violet-500 dark:bg-gray-700 dark:checked:bg-violet-500 dark:border-gray-600"
+                  name={`announce-scope-${userId}`}
+                  checked={settings.announceScope === 'groups'}
+                  onChange={() => onUpdateAnnounceScope(userId, 'groups')}
+                />
+                <span className="ml-2 text-sm text-gray-700 dark:text-gray-300">Selected Groups</span>
+              </label>
+              <label className="inline-flex items-center">
+                <input
+                  type="radio"
+                  className="form-radio text-violet-600 focus:ring-violet-500 dark:bg-gray-700 dark:checked:bg-violet-500 dark:border-gray-600"
+                  name={`announce-scope-${userId}`}
+                  checked={settings.announceScope === 'users'}
+                  onChange={() => onUpdateAnnounceScope(userId, 'users')}
+                />
+                <span className="ml-2 text-sm text-gray-700 dark:text-gray-300">Selected Users</span>
+              </label>
+            </div>
+            
+            {/* If default settings exist and are different, show indicator */}
+            {hasChangedFromDefault && (
+              <div className="text-xs text-amber-600 dark:text-amber-400 italic flex items-center mt-1">
+                <svg className="h-3.5 w-3.5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                These settings have been modified from the default configuration
+              </div>
+            )}
 
             {settings.announceScope === 'groups' && (
               <div className="border border-gray-300 dark:border-gray-700 rounded-lg p-4 bg-white dark:bg-gray-800">
