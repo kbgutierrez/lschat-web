@@ -183,7 +183,6 @@ export default function Dashboard() {
           profilePicture: contactDetails.user_picture || '',
           contactPicture: contactDetails.contact_picture || ''
         });
-      
         setSelectedChannel(contactDetails.pubnub_channel);
       }
     }, [selectedContact, contacts, isClient]);
@@ -204,7 +203,7 @@ export default function Dashboard() {
       `Last fetch: ${timeSinceLastFetch}ms ago, Skip cache: ${skipCache}`);
     
     if (isMessageNotification) {
-      console.log('🔥 Notification received - FORCING message fetch');
+      console.log('Notification received - FORCING message fetch');
       
       if (messagesAPI.invalidateCache) {
         messagesAPI.invalidateCache(selectedChannel);
