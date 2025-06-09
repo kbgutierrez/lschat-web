@@ -53,6 +53,7 @@ export default function UserManagementModal({
     const [isFetchingUsers, setIsFetchingUsers] = useState(false);
     const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
     const [activeManagementTab, setActiveManagementTab] = useState<ManagementTabType>('announcements');
+    const [isFetchingPermissions, setIsFetchingPermissions] = useState(false);
 
     const modalRef = useRef<HTMLDivElement>(null);
     const tabIndicatorRef = useRef<HTMLDivElement>(null);
@@ -119,6 +120,60 @@ export default function UserManagementModal({
         };
     }, [isOpen, onClose]);
 
+    const loadUserAnnouncementPermissions = async (userId: number) => {
+        if (!userId) return;
+        
+        setIsFetchingPermissions(true);
+        setError(null);
+        
+        try {
+            const permissionsResponse = await userManagementAPI.fetchAnnouncementPermissions(userId);
+            
+            if (permissionsResponse.success) {
+                // Update the user settings based on the fetched permissions
+                setUserSettings(prev => {
+                    const userIdStr = userId.toString();
+                    const currentSettings = prev[userIdStr] || {
+                        canAnnounce: true,
+                        announceScope: 'everyone',
+                        selectedGroups: [],
+                        selectedUsers: []
+                    };
+                    
+                    // Determine the announcement scope based on permissionType
+                    let announceScope: 'everyone' | 'groups' | 'users' = 'everyone';
+                    if (permissionsResponse.permissionType === 'byGroup') {
+                        announceScope = 'groups';
+                    } else if (permissionsResponse.permissionType === 'byUser') {
+                        announceScope = 'users';
+                    }
+                    
+                    // Extract selected group IDs and user IDs from the response
+                    const selectedGroups = permissionsResponse.groups.map(group => group.group_id);
+                    const selectedUsers = permissionsResponse.users.map(user => user.user_id);
+                    
+                    return {
+                        ...prev,
+                        [userIdStr]: {
+                            ...currentSettings,
+                            canAnnounce: true, // If permissions exist, user can announce
+                            announceScope,
+                            selectedGroups,
+                            selectedUsers
+                        }
+                    };
+                });
+                
+                console.log('Loaded announcement permissions:', permissionsResponse);
+            }
+        } catch (err) {
+            console.error('Error fetching announcement permissions:', err);
+            setError(err instanceof Error ? err.message : 'Failed to fetch announcement permissions');
+        } finally {
+            setIsFetchingPermissions(false);
+        }
+    };
+
     const fetchUsers = async (page: number) => {
         setIsFetchingUsers(true);
         setError(null);
@@ -167,6 +222,8 @@ export default function UserManagementModal({
                     if ((user.can_announce === 1) !== settings.canAnnounce) {
                         await userManagementAPI.toggleCanAnnounce(userId, user.can_announce);
                     }
+                    
+                    // Future enhancement: Add API call to update announcement scope and recipients
                 }
             });
 
@@ -431,7 +488,10 @@ export default function UserManagementModal({
                                                 "p-4 hover:bg-gray-50 dark:hover:bg-gray-800/50 cursor-pointer transition-colors duration-150",
                                                 selectedUserId === user.user_id.toString() && "bg-violet-50 dark:bg-violet-900/10"
                                             )}
-                                            onClick={() => setSelectedUserId(user.user_id.toString())}
+                                            onClick={() => {
+                                                setSelectedUserId(user.user_id.toString());
+                                                loadUserAnnouncementPermissions(user.user_id);
+                                            }}
                                         >
                                             <div className="flex items-center justify-between">
                                                 <div className="flex items-center">
@@ -576,18 +636,30 @@ export default function UserManagementModal({
                                                     transition={{ duration: 0.2 }}
                                                     className="p-6 space-y-6"
                                                 >
-                                                    <AnnouncementPermissions
-                                                        user={selectedUser}
-                                                        settings={userSettings[selectedUser.user_id.toString()]}
-                                                        availableGroups={availableGroups}
-                                                        availableUsers={availableUsers}
-                                                        onToggleAnnouncePermission={toggleAnnouncePermission}
-                                                        onUpdateAnnounceScope={updateAnnounceScope}
-                                                        onToggleGroup={toggleGroup}
-                                                        onToggleUser={toggleUser}
-                                                        onSelectAllGroups={handleSelectAllGroups}
-                                                        onSelectAllUsers={handleSelectAllUsers}
-                                                    />
+                                                    {isFetchingPermissions ? (
+                                                        <div className="flex justify-center py-8">
+                                                            <div className="inline-flex items-center px-4 py-2 rounded-full bg-violet-50 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300">
+                                                                <svg className="animate-spin -ml-1 mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                                </svg>
+                                                                Loading permissions...
+                                                            </div>
+                                                        </div>
+                                                    ) : (
+                                                        <AnnouncementPermissions
+                                                            user={selectedUser}
+                                                            settings={userSettings[selectedUser.user_id.toString()]}
+                                                            availableGroups={availableGroups}
+                                                            availableUsers={availableUsers}
+                                                            onToggleAnnouncePermission={toggleAnnouncePermission}
+                                                            onUpdateAnnounceScope={updateAnnounceScope}
+                                                            onToggleGroup={toggleGroup}
+                                                            onToggleUser={toggleUser}
+                                                            onSelectAllGroups={handleSelectAllGroups}
+                                                            onSelectAllUsers={handleSelectAllUsers}
+                                                        />
+                                                    )}
                                                 </motion.div>
                                             )}
                                         </AnimatePresence>
