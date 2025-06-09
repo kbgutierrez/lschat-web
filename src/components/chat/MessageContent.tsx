@@ -9,12 +9,10 @@ type MessageContentProps = {
   className?: string;
 };
 
-// Original patterns
 const IMAGE_PATTERN = /\[Image:\s*(https?:\/\/[^\]\s]+)\]/i;
 const IMAGE_FILE_PATTERN = /\[(JPG|PNG|GIF|JPEG) File:\s*([^-\]]+)\s*-\s*(https?:\/\/[^\]\s]+)\]/i;
 const FILE_PATTERN = /\[File:\s*(https?:\/\/[^\|\]\s]+)\|([^\]\s]+)\]/i;
 
-// Fixed pattern with more flexible URL matching at the end
 const FLEXIBLE_IMAGE_PATTERN = /\[(JPG|PNG|GIF|JPEG|Image) (?:File:|Image:)?\s*([^\]]+?)(?:\s+-\s+|\s+-\s*|\s*-\s+|\s*-\s*)(https?:\/\/[^\]\s]+)\]/i;
 
 export const MessageContent: React.FC<MessageContentProps> = ({ content, className }) => {
