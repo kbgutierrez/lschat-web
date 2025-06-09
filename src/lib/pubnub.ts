@@ -50,7 +50,7 @@ export function getPubNub(userId?: string): PubNub {
       status: (status) => {
         if (status.category === 'PNNetworkIssuesCategory' || 
             status.category === 'PNNetworkDownCategory') {
-          console.error('PubNub network issue detected:', status);
+          // console.error('PubNub network issue detected:', status);
         }
       },
       message: () => {},
@@ -91,7 +91,7 @@ export async function publishMessage(
       }
     });
   } catch (error) {
-    console.error(`Error publishing message to channel ${channel}:`, error);
+    // console.error(`Error publishing message to channel ${channel}:`, error);
     throw error;
   }
 }

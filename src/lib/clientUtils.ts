@@ -9,6 +9,7 @@ export interface User {
   first_name?: string;
   last_name?: string;
   user_id?: string | number;
+  can_announce?: number;
 }
 
 export function useIsClient() {
