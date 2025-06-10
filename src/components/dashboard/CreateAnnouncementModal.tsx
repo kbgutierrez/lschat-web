@@ -595,80 +595,88 @@ export default function CreateAnnouncementModal({ isOpen, onClose }: CreateAnnou
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                           Announcement Image*
                         </label>
-                        <div 
-                          className={cn(
-                            "mt-1 bg-white dark:bg-gray-800 rounded-lg shadow-sm overflow-hidden",
-                            previewUrl 
-                              ? "border border-violet-200 dark:border-violet-800" 
-                              : "border border-gray-200 dark:border-gray-700 hover:border-violet-300 dark:hover:border-violet-700",
-                            imageError && activeTab === 'image' && !selectedImage ? "border-red-300 dark:border-red-700" : ""
-                          )}
-                        >
-                          {previewUrl ? (
-                            <div className="relative">
-                              <div className="max-h-[300px] overflow-hidden flex items-center justify-center bg-gray-100 dark:bg-gray-900">
+                        
+                        {!previewUrl ? (
+                          <div 
+                            onClick={triggerFileInput} 
+                            className="cursor-pointer py-10 px-6 flex flex-col items-center justify-center text-center hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-all border border-gray-200 dark:border-gray-700 hover:border-violet-300 dark:hover:border-violet-700 rounded-lg"
+                          >
+                            <div className="mb-4">
+                              <svg className="mx-auto w-12 h-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" 
+                                  d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                              </svg>
+                            </div>
+                            <div className="space-y-1">
+                              <p className="text-sm font-medium text-violet-600 dark:text-violet-400">
+                                Click to select an image
+                              </p>
+                              <p className="text-xs text-gray-500 dark:text-gray-400">
+                                PNG, JPG or GIF up to 5MB
+                              </p>
+                            </div>
+                            <input
+                              id="file-upload"
+                              name="file-upload"
+                              type="file"
+                              className="sr-only"
+                              accept="image/*"
+                              ref={fileInputRef}
+                              onChange={handleImageChange}
+                            />
+                          </div>
+                        ) : (
+                          <div className="flex flex-col space-y-2">
+                            {/* Thumbnail container */}
+                            <div className="relative h-20 w-full rounded-md overflow-hidden border border-gray-200 dark:border-gray-700 flex">
+                              {/* Thumbnail image */}
+                              <div className="h-full w-20 bg-gray-100 dark:bg-gray-900 flex-shrink-0">
                                 <img 
                                   src={previewUrl} 
-                                  alt="Preview" 
-                                  className="max-w-full max-h-[300px] object-contain"
+                                  alt="Selected image" 
+                                  className="h-full w-full object-cover"
                                 />
                               </div>
-                              <div className="absolute top-2 right-2 flex space-x-2">
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setSelectedImage(null);
-                                    setPreviewUrl(null);
-                                  }}
-                                  className="bg-white/90 dark:bg-gray-800/90 rounded-full p-2 shadow-md hover:bg-white hover:shadow-lg transition-all"
-                                >
-                                  <svg className="h-5 w-5 text-red-500 dark:text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                  </svg>
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={triggerFileInput}
-                                  className="bg-white/90 dark:bg-gray-800/90 rounded-full p-2 shadow-md hover:bg-white hover:shadow-lg transition-all"
-                                >
-                                  <svg className="h-5 w-5 text-blue-500 dark:text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                                  </svg>
-                                </button>
-                              </div>
-                            </div>
-                          ) : (
-                            <div 
-                              onClick={triggerFileInput} 
-                              className="cursor-pointer py-10 px-6 flex flex-col items-center justify-center text-center hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
-                            >
-                              <div className="mb-4">
-                                <svg className="mx-auto w-12 h-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" 
-                                    d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                </svg>
-                              </div>
-                              <div className="space-y-1">
-                                <p className="text-sm font-medium text-violet-600 dark:text-violet-400">
-                                  Click to select an image
-                                </p>
+                              
+                              {/* Image info */}
+                              <div className="flex-1 p-2 flex flex-col justify-center">
+                                <span className="text-sm text-gray-600 dark:text-gray-300 truncate max-w-full font-medium">
+                                  {selectedImage?.name || 'Selected image'}
+                                </span>
                                 <p className="text-xs text-gray-500 dark:text-gray-400">
-                                  PNG, JPG or GIF up to 5MB
+                                  Image will appear in full size in the preview
                                 </p>
                               </div>
-                              <input
-                                id="file-upload"
-                                name="file-upload"
-                                type="file"
-                                className="sr-only"
-                                accept="image/*"
-                                ref={fileInputRef}
-                                onChange={handleImageChange}
-                              />
                             </div>
-                          )}
-                        </div>
+                            
+                            {/* More subtle action buttons at the bottom */}
+                            <div className="flex items-center justify-end space-x-2 px-1">
+                              <button
+                                type="button"
+                                onClick={triggerFileInput}
+                                className="text-xs px-2 py-1 border border-gray-200 dark:border-gray-700 text-violet-600 dark:text-violet-400 rounded hover:bg-violet-50 dark:hover:bg-violet-900/10 transition-colors inline-flex items-center"
+                              >
+                                <svg className="w-3 h-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                </svg>
+                                Change
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSelectedImage(null);
+                                  setPreviewUrl(null);
+                                }}
+                                className="text-xs px-2 py-1 border border-gray-200 dark:border-gray-700 text-red-500 dark:text-red-400 rounded hover:bg-red-50 dark:hover:bg-red-900/10 transition-colors inline-flex items-center"
+                              >
+                                <svg className="w-3 h-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                                Remove
+                              </button>
+                            </div>
+                          </div>
+                        )}
                         
                         <AnimatePresence>
                           {imageError && activeTab === 'image' && !selectedImage && (
