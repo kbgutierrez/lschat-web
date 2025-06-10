@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import Image from 'next/image';
@@ -14,7 +14,6 @@ interface CreateAnnouncementModalProps {
 
 type Step = 'content' | 'participants';
 
-// Helper function to get initials from name
 const getInitials = (name: string): string => {
   if (!name) return '';
   
@@ -23,29 +22,24 @@ const getInitials = (name: string): string => {
   if (nameParts.length === 0) return '';
   
   if (nameParts.length === 1) {
-    // If only one name part, take up to first two characters
     return nameParts[0].substring(0, 2).toUpperCase();
   }
   
-  // Get first letter of first part and first letter of last part
   return (nameParts[0].charAt(0) + nameParts[nameParts.length - 1].charAt(0)).toUpperCase();
 };
 
 export default function CreateAnnouncementModal({ isOpen, onClose }: CreateAnnouncementModalProps) {
-  // Modal state
   const [step, setStep] = useState<Step>('content');
   const [activeTab, setActiveTab] = useState<'text' | 'image'>('text');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
-  // Content state
   const [title, setTitle] = useState('');
   const [announcementText, setAnnouncementText] = useState('');
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [imageCaption, setImageCaption] = useState('');
   
-  // Participants state
   const [permissionType, setPermissionType] = useState<'everyone' | 'byGroup' | 'byUser'>('everyone');
   const [participants, setParticipants] = useState<AnnouncementParticipant[]>(
     [{ id: 'everyone', name: 'All Users', type: 'user' }]
@@ -53,17 +47,45 @@ export default function CreateAnnouncementModal({ isOpen, onClose }: CreateAnnou
   const [selectedParticipants, setSelectedParticipants] = useState<string[]>(['everyone']);
   const [loadingParticipants, setLoadingParticipants] = useState(false);
   
+  const [searchTerm, setSearchTerm] = useState('');
+  
+  const [titleError, setTitleError] = useState(false);
+  const [announcementTextError, setAnnouncementTextError] = useState(false);
+  const [imageError, setImageError] = useState(false);
+
+  const filteredParticipants = useMemo(() => {
+    if (!searchTerm.trim()) return participants;
+    
+    const term = searchTerm.toLowerCase().trim();
+    return participants.filter(participant => 
+      participant.name.toLowerCase().includes(term)
+    );
+  }, [participants, searchTerm]);
+
+  const handleSelectAll = () => {
+    if (permissionType === 'everyone') return;
+    
+    const areAllSelected = filteredParticipants.every(p => 
+      selectedParticipants.includes(p.id)
+    );
+    
+    if (areAllSelected) {
+      setSelectedParticipants([]);
+    } else {
+      const visibleIds = filteredParticipants.map(p => p.id);
+      setSelectedParticipants(visibleIds);
+    }
+  };
+
   const modalRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Date for preview
   const announcementDate = new Date().toLocaleDateString('en-US', {
     year: 'numeric',
     month: 'long',
     day: 'numeric'
   });
 
-  // Fetch announcement permissions when modal opens
   useEffect(() => {
     if (isOpen) {
       const fetchPermissions = async () => {
@@ -77,7 +99,6 @@ export default function CreateAnnouncementModal({ isOpen, onClose }: CreateAnnou
           const permissions = await announcementsAPI.fetchAnnouncementPermissions(user.user_id);
           setPermissionType(permissions.permissionType);
           
-          // Prepare participants list based on permission type
           let newParticipants: AnnouncementParticipant[] = [];
           let initialSelection: string[] = [];
           
@@ -91,7 +112,6 @@ export default function CreateAnnouncementModal({ isOpen, onClose }: CreateAnnou
               name: group.name,
               type: 'group',
             }));
-            // Pre-select the first group if any
             if (newParticipants.length > 0) {
               initialSelection = [newParticipants[0].id];
             }
@@ -103,8 +123,13 @@ export default function CreateAnnouncementModal({ isOpen, onClose }: CreateAnnou
               type: 'user',
               image: user.profile_picture || undefined,
             }));
-            // Pre-select the first user if any
-            if (newParticipants.length > 0) {
+            
+            const currentUserId = `user_${user.user_id}`;
+            const currentUserParticipant = newParticipants.find(p => p.id === currentUserId);
+            
+            if (currentUserParticipant) {
+              initialSelection = [currentUserId];
+            } else if (newParticipants.length > 0) {
               initialSelection = [newParticipants[0].id];
             }
           }
@@ -114,7 +139,6 @@ export default function CreateAnnouncementModal({ isOpen, onClose }: CreateAnnou
         } catch (err) {
           console.error('Error fetching announcement permissions:', err);
           setError('Failed to load announcement recipients. Please try again.');
-          // Fallback to All Users in case of error
           setParticipants([{ id: 'everyone', name: 'All Users', type: 'user' }]);
           setSelectedParticipants(['everyone']);
         } finally {
@@ -126,7 +150,6 @@ export default function CreateAnnouncementModal({ isOpen, onClose }: CreateAnnou
     }
   }, [isOpen]);
 
-  // Reset state when modal opens
   useEffect(() => {
     if (isOpen) {
       setStep('content');
@@ -140,7 +163,6 @@ export default function CreateAnnouncementModal({ isOpen, onClose }: CreateAnnou
     }
   }, [isOpen]);
 
-  // Handle click outside to close modal
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (modalRef.current && !modalRef.current.contains(event.target as Node)) {
@@ -157,7 +179,6 @@ export default function CreateAnnouncementModal({ isOpen, onClose }: CreateAnnou
     };
   }, [isOpen]);
 
-  // Clean up preview URL when component unmounts or when a new file is selected
   useEffect(() => {
     return () => {
       if (previewUrl) {
@@ -196,22 +217,19 @@ export default function CreateAnnouncementModal({ isOpen, onClose }: CreateAnnou
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       
-      // Validate file size (5MB limit)
       if (file.size > 5 * 1024 * 1024) {
-        setError('Image size should be less than 5MB');
+        setImageError(true);
         return;
       }
       
-      // Validate file type
       if (!file.type.startsWith('image/')) {
-        setError('Only image files are allowed');
+        setImageError(true);
         return;
       }
       
       setSelectedImage(file);
-      setError(null);
+      setImageError(false);
       
-      // Create a preview URL
       if (previewUrl) {
         URL.revokeObjectURL(previewUrl);
       }
@@ -221,20 +239,25 @@ export default function CreateAnnouncementModal({ isOpen, onClose }: CreateAnnou
   };
 
   const handleNextStep = () => {
-    // Validate content step
     if (title.trim() === '') {
-      setError('Please enter a title for your announcement');
+      setTitleError(true);
       return;
+    } else {
+      setTitleError(false);
     }
     
     if (activeTab === 'text' && announcementText.trim() === '') {
-      setError('Please enter announcement text');
+      setAnnouncementTextError(true);
       return;
+    } else {
+      setAnnouncementTextError(false);
     }
     
     if (activeTab === 'image' && !selectedImage) {
-      setError('Please select an image');
+      setImageError(true);
       return;
+    } else {
+      setImageError(false);
     }
     
     setError(null);
@@ -247,21 +270,17 @@ export default function CreateAnnouncementModal({ isOpen, onClose }: CreateAnnou
 
   const handleParticipantToggle = (id: string) => {
     if (permissionType === 'everyone') {
-      // When permission type is everyone, only "All Users" can be selected
       return;
     }
     
     setSelectedParticipants(prevSelected => {
-      // If already selected, deselect it
       if (prevSelected.includes(id)) {
-        // Don't allow deselecting all participants
         if (prevSelected.length === 1) {
           return prevSelected;
         }
         return prevSelected.filter(item => item !== id);
       } 
       
-      // If selecting, add to selection
       return [...prevSelected, id];
     });
   };
@@ -276,7 +295,6 @@ export default function CreateAnnouncementModal({ isOpen, onClose }: CreateAnnou
     setError(null);
 
     try {
-      // Prepare the announcement data
       const announcementData = {
         title,
         content: announcementText,
@@ -286,10 +304,8 @@ export default function CreateAnnouncementModal({ isOpen, onClose }: CreateAnnou
         imageCaption: imageCaption || undefined
       };
       
-      // Call API to create announcement
       await announcementsAPI.createAnnouncement(announcementData);
       
-      // Close modal on success
       handleClose();
     } catch (err) {
       setError('Failed to create announcement. Please try again.');
@@ -360,14 +376,12 @@ export default function CreateAnnouncementModal({ isOpen, onClose }: CreateAnnou
         </div>
         
         <div className="p-3 bg-gray-50 dark:bg-gray-900/50 border-t border-gray-200 dark:border-gray-700 text-sm text-gray-600 dark:text-gray-400">
-          {step === 'participants' ? (
+          {step === 'participants' && (
             <span>
               Recipients: {selectedParticipants.includes('everyone') 
               ? 'All Users' 
               : `${selectedParticipants.length} selected`}
             </span>
-          ) : (
-            <span>Preview Mode</span>
           )}
         </div>
       </div>
@@ -463,34 +477,9 @@ export default function CreateAnnouncementModal({ isOpen, onClose }: CreateAnnou
             >
               {/* Form Section */}
               <div className="md:w-1/2 p-6 overflow-y-auto">
-                {error && (
-                  <div className="mb-4 p-3 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-sm border border-red-100 dark:border-red-800 flex items-center">
-                    <svg className="w-5 h-5 mr-2 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    {error}
-                  </div>
-                )}
+                {/* Remove the fixed height error container */}
 
-                <div className="mb-4">
-                  <label htmlFor="title" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Title*
-                  </label>
-                  <input
-                    type="text"
-                    id="title"
-                    value={title}
-                    onChange={handleTitleChange}
-                    placeholder="Enter a title for your announcement"
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-violet-500 focus:border-violet-500 dark:bg-gray-700 dark:text-gray-100"
-                    maxLength={100}
-                  />
-                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                    {title.length}/100 characters
-                  </p>
-                </div>
-
-                {/* Tab Navigation */}
+                {/* Tab Navigation - Moved above title */}
                 <div className="mb-4">
                   <div className="flex space-x-4 items-center">
                     <button
@@ -535,11 +524,34 @@ export default function CreateAnnouncementModal({ isOpen, onClose }: CreateAnnou
                   </div>
                 </div>
 
+                <div className="mb-4 relative">
+                  <label htmlFor="title" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Title*
+                  </label>
+                  <input
+                    type="text"
+                    id="title"
+                    value={title}
+                    onChange={handleTitleChange}
+                    placeholder="Enter a title for your announcement"
+                    className={cn(
+                      "w-full px-4 py-2 border rounded-lg focus:ring-violet-500 focus:border-violet-500 dark:bg-gray-700 dark:text-gray-100",
+                      titleError ? "border-red-300 dark:border-red-700" : "border-gray-300 dark:border-gray-600"
+                    )}
+                    maxLength={100}
+                  />
+                  {titleError && (
+                    <p className="mt-1 text-sm text-red-600 dark:text-red-400">
+                      Please enter a title for your announcement
+                    </p>
+                  )}
+                </div>
+
                 {/* Content based on active tab */}
                 <div className="mt-4">
                   {activeTab === 'text' ? (
                     <div className="space-y-4">
-                      <div>
+                      <div className="relative">
                         <label htmlFor="announcementText" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                           Message*
                         </label>
@@ -549,37 +561,59 @@ export default function CreateAnnouncementModal({ isOpen, onClose }: CreateAnnou
                           onChange={handleTextChange}
                           rows={8}
                           placeholder="Type your message here..."
-                          className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-violet-500 focus:border-violet-500 dark:bg-gray-700 dark:text-gray-100"
+                          className={cn(
+                            "w-full px-4 py-2 border rounded-lg focus:ring-violet-500 focus:border-violet-500 dark:bg-gray-700 dark:text-gray-100",
+                            announcementTextError && activeTab === 'text' && announcementText.trim() === '' ? "border-red-300 dark:border-red-700" : "border-gray-300 dark:border-gray-600"
+                          )}
                           maxLength={1000}
                         ></textarea>
                         <p className="mt-1 text-xs text-right text-gray-500 dark:text-gray-400">
                           {announcementText.length}/1000 characters
                         </p>
+                        
+                        <AnimatePresence>
+                          {announcementTextError && activeTab === 'text' && announcementText.trim() === '' && (
+                            <motion.div 
+                              initial={{ opacity: 0, y: -5 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              exit={{ opacity: 0 }}
+                              transition={{ duration: 0.2 }}
+                              className="mt-1 text-sm text-red-600 dark:text-red-400 flex items-center"
+                            >
+                              <svg className="w-4 h-4 mr-1 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                              </svg>
+                              Please enter message
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
                       </div>
                     </div>
                   ) : (
                     <div className="space-y-4">
-                      <div>
+                      <div className="relative">
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                           Announcement Image*
                         </label>
                         <div 
                           className={cn(
-                            "mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-dashed rounded-lg cursor-pointer",
+                            "mt-1 bg-white dark:bg-gray-800 rounded-lg shadow-sm overflow-hidden",
                             previewUrl 
-                              ? "border-violet-300 dark:border-violet-500/30 bg-violet-50 dark:bg-violet-900/10"
-                              : "border-gray-300 dark:border-gray-600 hover:border-violet-400 dark:hover:border-violet-500"
+                              ? "border border-violet-200 dark:border-violet-800" 
+                              : "border border-gray-200 dark:border-gray-700 hover:border-violet-300 dark:hover:border-violet-700",
+                            imageError && activeTab === 'image' && !selectedImage ? "border-red-300 dark:border-red-700" : ""
                           )}
-                          onClick={triggerFileInput}
                         >
-                          <div className="space-y-1 text-center">
-                            {previewUrl ? (
-                              <div className="relative">
+                          {previewUrl ? (
+                            <div className="relative">
+                              <div className="max-h-[300px] overflow-hidden flex items-center justify-center bg-gray-100 dark:bg-gray-900">
                                 <img 
                                   src={previewUrl} 
                                   alt="Preview" 
-                                  className="max-h-48 mx-auto rounded-lg"
+                                  className="max-w-full max-h-[300px] object-contain"
                                 />
+                              </div>
+                              <div className="absolute top-2 right-2 flex space-x-2">
                                 <button
                                   type="button"
                                   onClick={(e) => {
@@ -587,43 +621,72 @@ export default function CreateAnnouncementModal({ isOpen, onClose }: CreateAnnou
                                     setSelectedImage(null);
                                     setPreviewUrl(null);
                                   }}
-                                  className="absolute top-2 right-2 bg-white dark:bg-gray-800 rounded-full p-1 shadow-md"
+                                  className="bg-white/90 dark:bg-gray-800/90 rounded-full p-2 shadow-md hover:bg-white hover:shadow-lg transition-all"
                                 >
-                                  <svg className="h-4 w-4 text-gray-700 dark:text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                  <svg className="h-5 w-5 text-red-500 dark:text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                  </svg>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={triggerFileInput}
+                                  className="bg-white/90 dark:bg-gray-800/90 rounded-full p-2 shadow-md hover:bg-white hover:shadow-lg transition-all"
+                                >
+                                  <svg className="h-5 w-5 text-blue-500 dark:text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                                   </svg>
                                 </button>
                               </div>
-                            ) : (
-                              <div className="flex flex-col items-center justify-center py-6">
-                                <svg className="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
-                                  <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                            </div>
+                          ) : (
+                            <div 
+                              onClick={triggerFileInput} 
+                              className="cursor-pointer py-10 px-6 flex flex-col items-center justify-center text-center hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
+                            >
+                              <div className="mb-4">
+                                <svg className="mx-auto w-12 h-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" 
+                                    d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                                 </svg>
-                                <div className="flex justify-center text-sm text-gray-600 dark:text-gray-400">
-                                  <label
-                                    htmlFor="file-upload"
-                                    className="relative cursor-pointer rounded-md font-medium text-violet-600 dark:text-violet-400 hover:text-violet-500 dark:hover:text-violet-300 focus-within:outline-none"
-                                  >
-                                    <span>Upload a file</span>
-                                    <input
-                                      id="file-upload"
-                                      name="file-upload"
-                                      type="file"
-                                      className="sr-only"
-                                      accept="image/*"
-                                      ref={fileInputRef}
-                                      onChange={handleImageChange}
-                                    />
-                                  </label>
-                                  <p className="pl-1">or drag and drop</p>
-                                </div>
-                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                                  PNG, JPG, GIF up to 5MB
+                              </div>
+                              <div className="space-y-1">
+                                <p className="text-sm font-medium text-violet-600 dark:text-violet-400">
+                                  Click to select an image
+                                </p>
+                                <p className="text-xs text-gray-500 dark:text-gray-400">
+                                  PNG, JPG or GIF up to 5MB
                                 </p>
                               </div>
-                            )}
-                          </div>
+                              <input
+                                id="file-upload"
+                                name="file-upload"
+                                type="file"
+                                className="sr-only"
+                                accept="image/*"
+                                ref={fileInputRef}
+                                onChange={handleImageChange}
+                              />
+                            </div>
+                          )}
                         </div>
+                        
+                        <AnimatePresence>
+                          {imageError && activeTab === 'image' && !selectedImage && (
+                            <motion.div 
+                              initial={{ opacity: 0, y: -5 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              exit={{ opacity: 0 }}
+                              transition={{ duration: 0.2 }}
+                              className="mt-1 text-sm text-red-600 dark:text-red-400 flex items-center"
+                            >
+                              <svg className="w-4 h-4 mr-1 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                              </svg>
+                              Please select an image
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                        
                         {previewUrl && (
                           <div className="mt-3">
                             <label htmlFor="imageCaption" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -661,19 +724,7 @@ export default function CreateAnnouncementModal({ isOpen, onClose }: CreateAnnou
                 
                 {renderPreview()}
                 
-                <div className="mt-4 px-4 py-3 bg-violet-50 dark:bg-violet-900/20 rounded-lg border border-violet-100 dark:border-violet-800/30">
-                  <div className="flex items-start">
-                    <svg className="w-5 h-5 text-violet-500 dark:text-violet-400 mt-0.5 mr-3 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    <div className="text-sm text-violet-700 dark:text-violet-300">
-                      <p className="font-medium">Preview Mode</p>
-                      <p className="mt-1 text-violet-600/80 dark:text-violet-400/80 text-xs">
-                        This is how your announcement will look when published. Recipients will receive it exactly as shown here.
-                      </p>
-                    </div>
-                  </div>
-                </div>
+                {/* Remove the redundant preview explanation box */}
               </div>
             </motion.div>
           ) : (
@@ -687,15 +738,8 @@ export default function CreateAnnouncementModal({ isOpen, onClose }: CreateAnnou
             >
               {/* Recipients Section */}
               <div className="md:w-1/2 p-6 overflow-y-auto">
-                {error && (
-                  <div className="mb-4 p-3 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-sm border border-red-100 dark:border-red-800 flex items-center">
-                    <svg className="w-5 h-5 mr-2 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    {error}
-                  </div>
-                )}
-
+                {/* Replace error container with inline errors */}
+                
                 <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-4 flex items-center">
                   <svg className="w-4 h-4 mr-2 text-violet-500 dark:text-violet-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -704,7 +748,7 @@ export default function CreateAnnouncementModal({ isOpen, onClose }: CreateAnnou
                 </h3>
                 
                 {/* Permission type indicator */}
-                <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/10 rounded-lg text-sm">
+                <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/10 rounded-lg text-sm relative">
                   {permissionType === 'everyone' && (
                     <div className="flex items-center text-blue-700 dark:text-blue-300">
                       <svg className="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -733,18 +777,77 @@ export default function CreateAnnouncementModal({ isOpen, onClose }: CreateAnnou
                   )}
                 </div>
                 
+                {/* Redesigned Search and Selection UI with stable layout */}
+                {permissionType !== 'everyone' && (
+                  <div className="mb-4 space-y-1">
+                    <div className="flex items-center justify-between mb-1.5 h-6">
+                      <div className="text-xs font-medium text-gray-600 dark:text-gray-400 min-w-[80px]">
+                        {selectedParticipants.length > 0 ? `${selectedParticipants.length} selected` : "Select recipients"}
+                      </div>
+                      <div className="w-20 flex justify-end">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleSelectAll();
+                          }}
+                          type="button"
+                          className="text-xs text-violet-600 dark:text-violet-400 hover:text-violet-700 dark:hover:text-violet-300 font-medium"
+                        >
+                          {filteredParticipants.every(p => selectedParticipants.includes(p.id)) ? "Deselect All" : "Select All"}
+                        </button>
+                      </div>
+                    </div>
+                    
+                    {/* Search bar */}
+                    <div className="relative w-full">
+                      <div className="absolute inset-y-0 start-0 flex items-center pl-3 pointer-events-none">
+                        <svg className="w-4 h-4 text-gray-400 dark:text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                      </div>
+                      <input
+                        type="text"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        placeholder="Search recipients..."
+                        className="w-full p-2.5 pl-10 pr-10 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-violet-500 focus:border-violet-500 dark:bg-gray-700 dark:text-gray-100"
+                      />
+                      {searchTerm && (
+                        <button
+                          onClick={() => setSearchTerm('')}
+                          className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                          aria-label="Clear search"
+                        >
+                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Search results status */}
+                    <div className="text-xs text-gray-500 dark:text-gray-400 px-1 h-5">
+                      {filteredParticipants.length !== participants.length ? 
+                        `${filteredParticipants.length} matching out of ${participants.length} total recipients` : 
+                        `${participants.length} total recipients`}
+                    </div>
+                  </div>
+                )}
+                
                 {loadingParticipants ? (
                   <div className="flex justify-center py-12">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-violet-600 dark:border-violet-400"></div>
                   </div>
                 ) : (
-                  <div className="space-y-2 max-h-[calc(70vh-250px)] overflow-y-auto pr-1">
-                    {participants.length === 0 ? (
+                  <div className="space-y-2 max-h-[calc(70vh-300px)] overflow-y-auto pr-1">
+                    {filteredParticipants.length === 0 ? (
                       <div className="bg-gray-50 dark:bg-gray-800/50 p-6 text-center rounded-lg border border-gray-200 dark:border-gray-700">
-                        <p className="text-gray-500 dark:text-gray-400">No recipients found. Please contact your administrator.</p>
+                        <p className="text-gray-500 dark:text-gray-400">
+                          {searchTerm ? 'No recipients match your search.' : 'No recipients found. Please contact your administrator.'}
+                        </p>
                       </div>
                     ) : (
-                      participants.map(participant => (
+                      filteredParticipants.map(participant => (
                         <label 
                           key={participant.id} 
                           className={cn(
@@ -819,7 +922,7 @@ export default function CreateAnnouncementModal({ isOpen, onClose }: CreateAnnou
                     <div className="flex items-center text-sm text-green-700 dark:text-green-300">
                       <svg className="w-5 h-5 mr-2 text-green-500 dark:text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                      </svg>
+                    </svg>
                       <span className="font-medium">
                         Announcement will be sent to {selectedParticipants.includes('everyone') 
                           ? 'all users' 
@@ -835,13 +938,14 @@ export default function CreateAnnouncementModal({ isOpen, onClose }: CreateAnnou
               <div className="md:w-1/2 bg-gray-50 dark:bg-gray-900/20 p-6 border-t md:border-t-0 md:border-l border-gray-200 dark:border-gray-700">
                 <h3 className="text-sm uppercase font-semibold text-gray-500 dark:text-gray-400 tracking-wider mb-4 flex items-center">
                   <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                   Final Preview
                 </h3>
                 
                 {renderPreview()}
                 
+                {/* Remove the redundant preview explanation box */}
                 <div className="mt-4 px-4 py-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-100 dark:border-blue-800/30">
                   <div className="flex items-start">
                     <svg className="w-5 h-5 text-blue-500 dark:text-blue-400 mt-0.5 mr-3 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
