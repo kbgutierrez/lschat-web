@@ -1,6 +1,5 @@
 import { API_BASE_URL } from './api';
 
-// Types for announcement permissions response
 export interface AnnouncementParticipant {
   id: string;
   name: string;
@@ -25,7 +24,6 @@ export interface AnnouncementPermissionsResponse {
   }>;
 }
 
-// Add auth header middleware
 const middleware = {
   addAuthHeader: (headers: HeadersInit = {}) => {
     if (typeof window === 'undefined') return headers;
@@ -45,7 +43,6 @@ const middleware = {
 };
 
 export const announcementsAPI = {
-  // Fetch announcement permissions for the current user
   fetchAnnouncementPermissions: async (userId: string | number): Promise<AnnouncementPermissionsResponse> => {
     try {
       const headers = middleware.addAuthHeader({
@@ -68,39 +65,86 @@ export const announcementsAPI = {
     }
   },
   
-  // Create a new announcement
   createAnnouncement: async (data: {
     title: string,
     content: string,
     type: string,
     recipients: string[],
     image?: File,
-    imageCaption?: string
+    imageCaption?: string,
+    attachment?: File
   }): Promise<any> => {
     try {
+      const user = typeof window !== 'undefined' ? localStorage.getItem('userSession') : null;
+      if (!user) {
+        throw new Error('User session not found');
+      }
+      
+      const userData = JSON.parse(user);
+      const userId = userData.user.user_id;
+      
+      if (!userId) {
+        throw new Error('User ID not found in session');
+      }
+      
       const headers = middleware.addAuthHeader();
       
       const formData = new FormData();
       formData.append('title', data.title);
-      formData.append('content', data.content);
-      formData.append('type', data.type);
       
-      // Add recipients
-      data.recipients.forEach(recipient => {
-        formData.append('recipients[]', recipient);
-      });
+      formData.append('announcement_type', data.type === 'image' ? 'image' : 'basic');
       
-      // Add image if present
-      if (data.image) {
-        formData.append('image', data.image);
+      if (data.type === 'image') {
+        if (data.image) {
+          formData.append('main_image', data.image);
+        }
+        if (data.imageCaption) {
+          formData.append('caption', data.imageCaption);
+        }
+        if (data.attachment) {
+          formData.append('attachment', data.attachment);
+          formData.append('attachment_name', data.attachment.name);
+          formData.append('attachment_mime_type', data.attachment.type);
+        }
+      } else {
+        formData.append('content', data.content);
       }
       
-      // Add image caption if present
-      if (data.imageCaption) {
-        formData.append('image_caption', data.imageCaption);
+      formData.append('created_by_user_id', userId.toString());
+      
+      let permissionType = 'everyone';
+      let audienceIds: number[] = []; // Changed to number[] from string[]
+      
+      if (data.recipients.length === 1 && data.recipients[0] === 'everyone') {
+        permissionType = 'everyone';
+      } else {
+        const hasGroups = data.recipients.some(id => id.startsWith('group_'));
+        permissionType = hasGroups ? 'byGroup' : 'byUser';
+        
+        audienceIds = data.recipients.map(id => {
+          if (id.startsWith('group_')) return Number(id.substring(6));
+          if (id.startsWith('user_')) return Number(id.substring(5));
+          return Number(id);
+        });
+      }
+      
+      formData.append('permission_type', permissionType);
+      
+      if (audienceIds.length > 0) {
+        formData.append('audience_ids', JSON.stringify(audienceIds));
       }
 
-      const response = await fetch(`${API_BASE_URL}/api/announcements/create`, {
+      console.log('Sending announcement with:');
+      console.log('- Title:', data.title);
+      console.log('- Type:', data.type);
+      console.log('- Permission Type:', permissionType);
+      console.log('- User ID:', userId);
+      console.log('- Audience IDs (as numbers):', audienceIds);
+      if (data.attachment) {
+        console.log('- Attachment:', data.attachment.name, data.attachment.type);
+      }
+      
+      const response = await fetch(`${API_BASE_URL}/api/create/announcement`, {
         method: 'POST',
         headers: headers,
         body: formData

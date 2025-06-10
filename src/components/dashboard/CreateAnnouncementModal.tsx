@@ -33,12 +33,17 @@ export default function CreateAnnouncementModal({ isOpen, onClose }: CreateAnnou
   const [activeTab, setActiveTab] = useState<'text' | 'image'>('text');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<boolean>(false);
+  const [showConfirmation, setShowConfirmation] = useState(false);
   
   const [title, setTitle] = useState('');
   const [announcementText, setAnnouncementText] = useState('');
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [imageCaption, setImageCaption] = useState('');
+  
+  const [selectedAttachment, setSelectedAttachment] = useState<File | null>(null);
+  const [attachmentError, setAttachmentError] = useState(false);
   
   const [permissionType, setPermissionType] = useState<'everyone' | 'byGroup' | 'byUser'>('everyone');
   const [participants, setParticipants] = useState<AnnouncementParticipant[]>(
@@ -79,6 +84,7 @@ export default function CreateAnnouncementModal({ isOpen, onClose }: CreateAnnou
 
   const modalRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const attachmentInputRef = useRef<HTMLInputElement>(null); // Add this line
 
   const announcementDate = new Date().toLocaleDateString('en-US', {
     year: 'numeric',
@@ -160,23 +166,9 @@ export default function CreateAnnouncementModal({ isOpen, onClose }: CreateAnnou
       setPreviewUrl(null);
       setImageCaption('');
       setError(null);
+      setSuccess(false);
+      setShowConfirmation(false); // Reset confirmation dialog state
     }
-  }, [isOpen]);
-
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (modalRef.current && !modalRef.current.contains(event.target as Node)) {
-        handleClose();
-      }
-    }
-
-    if (isOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
   }, [isOpen]);
 
   useEffect(() => {
@@ -189,6 +181,8 @@ export default function CreateAnnouncementModal({ isOpen, onClose }: CreateAnnou
 
   const handleClose = () => {
     if (!isLoading) {
+      setSuccess(false);
+      setShowConfirmation(false);
       onClose();
     }
   };
@@ -199,6 +193,10 @@ export default function CreateAnnouncementModal({ isOpen, onClose }: CreateAnnou
 
   const triggerFileInput = () => {
     fileInputRef.current?.click();
+  };
+
+  const triggerAttachmentInput = () => {
+    attachmentInputRef.current?.click();
   };
 
   const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -238,6 +236,25 @@ export default function CreateAnnouncementModal({ isOpen, onClose }: CreateAnnou
     }
   };
 
+  // Add a handler for attachment file selection
+  const handleAttachmentChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      
+      if (file.size > 10 * 1024 * 1024) {
+        setAttachmentError(true);
+        return;
+      }
+      
+      setSelectedAttachment(file);
+      setAttachmentError(false);
+    }
+  };
+
+  const handleRemoveAttachment = () => {
+    setSelectedAttachment(null);
+  };
+
   const handleNextStep = () => {
     if (title.trim() === '') {
       setTitleError(true);
@@ -258,6 +275,13 @@ export default function CreateAnnouncementModal({ isOpen, onClose }: CreateAnnou
       return;
     } else {
       setImageError(false);
+    }
+
+    if (selectedAttachment && selectedAttachment.size > 10 * 1024 * 1024) {
+      setAttachmentError(true);
+      return;
+    } else {
+      setAttachmentError(false);
     }
     
     setError(null);
@@ -290,9 +314,16 @@ export default function CreateAnnouncementModal({ isOpen, onClose }: CreateAnnou
       setError('Please select at least one recipient');
       return;
     }
-
+    
+    // Show confirmation dialog instead of directly submitting
+    setShowConfirmation(true);
+  };
+  
+  const handleConfirmedSubmit = async () => {
+    setShowConfirmation(false);
     setIsLoading(true);
     setError(null);
+    setSuccess(false);
 
     try {
       const announcementData = {
@@ -301,12 +332,19 @@ export default function CreateAnnouncementModal({ isOpen, onClose }: CreateAnnou
         type: activeTab === 'text' ? 'text' : 'image',
         recipients: selectedParticipants,
         image: selectedImage || undefined,
-        imageCaption: imageCaption || undefined
+        imageCaption: imageCaption || undefined,
+        attachment: selectedAttachment || undefined
       };
       
-      await announcementsAPI.createAnnouncement(announcementData);
+      const response = await announcementsAPI.createAnnouncement(announcementData);
+      console.log('Announcement created successfully:', response);
       
-      handleClose();
+      setSuccess(true);
+      
+      // Close the modal after showing success message for 2 seconds
+      setTimeout(() => {
+        handleClose();
+      }, 2000);
     } catch (err) {
       setError('Failed to create announcement. Please try again.');
       console.error('Error creating announcement:', err);
@@ -384,6 +422,28 @@ export default function CreateAnnouncementModal({ isOpen, onClose }: CreateAnnou
             </span>
           )}
         </div>
+
+        {/* Show attachment info in preview if present */}
+        {activeTab === 'image' && previewUrl && selectedAttachment && (
+          <div className="mt-4 p-3 border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 rounded-md flex items-center">
+            <div className="flex-shrink-0 mr-3">
+              <div className="w-8 h-8 bg-violet-100 dark:bg-violet-900/30 rounded flex items-center justify-center">
+                <svg className="w-4 h-4 text-violet-600 dark:text-violet-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" 
+                    d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                </svg>
+              </div>
+            </div>
+            <div className="flex-1">
+              <p className="text-xs font-medium text-gray-700 dark:text-gray-300">
+                Attachment: {selectedAttachment.name}
+              </p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                {(selectedAttachment.size / 1024).toFixed(1)} KB
+              </p>
+            </div>
+          </div>
+        )}
       </div>
     );
   };
@@ -463,6 +523,117 @@ export default function CreateAnnouncementModal({ isOpen, onClose }: CreateAnnou
             </div>
           </div>
         </div>
+
+        {/* Confirmation Dialog */}
+        <AnimatePresence>
+          {showConfirmation && (
+            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                transition={{ type: "spring", damping: 25, stiffness: 300 }}
+                className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full m-4 p-6"
+              >
+                <div className="text-center">
+                  <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-violet-100 dark:bg-violet-900/30 mb-4">
+                    <svg className="h-6 w-6 text-violet-600 dark:text-violet-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+                    Create Announcement?
+                  </h3>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
+                    Are you sure you want to publish this announcement? 
+                    {selectedParticipants.includes('everyone') 
+                      ? ' It will be sent to all users.' 
+                      : ` It will be sent to ${selectedParticipants.length} recipient${selectedParticipants.length !== 1 ? 's' : ''}.`}
+                  </p>
+                  <div className="flex justify-center space-x-3">
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmation(false)}
+                      className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-gray-500"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleConfirmedSubmit}
+                      className="px-4 py-2 text-sm font-medium text-white bg-violet-600 hover:bg-violet-700 dark:hover:bg-violet-500 rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-violet-500"
+                    >
+                      Yes, Create Announcement
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+
+        {/* Success Alert Modal */}
+        <AnimatePresence>
+          {success && (
+            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                transition={{ type: "spring", damping: 25, stiffness: 300 }}
+                className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full m-4 p-6 border border-green-200 dark:border-green-900/30"
+              >
+                <div className="flex flex-col items-center text-center">
+                  <div className="w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mb-4">
+                    <svg className="w-10 h-10 text-green-500 dark:text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
+                  <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+                    Announcement Created!
+                  </h3>
+                  <p className="text-gray-600 dark:text-gray-300 mb-6">
+                    Your announcement has been successfully published to all selected recipients.
+                  </p>
+                  <div className="animate-pulse flex items-center text-sm text-gray-500 dark:text-gray-400">
+                    <svg className="w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    Closing in a moment...
+                  </div>
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+
+        {/* Error message */}
+        <AnimatePresence>
+          {error && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              className="bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500 dark:border-red-600 p-4 mx-6 mt-4 rounded"
+            >
+              <div className="flex">
+                <div className="flex-shrink-0">
+                  <svg className="h-5 w-5 text-red-500 dark:text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                </div>
+                <div className="ml-3">
+                  <h3 className="text-sm font-medium text-red-800 dark:text-red-300">
+                    Error
+                  </h3>
+                  <div className="mt-2 text-sm text-red-700 dark:text-red-400">
+                    <p>{error}</p>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Main content area - conditionally render based on step */}
         <AnimatePresence mode="wait">
@@ -715,6 +886,88 @@ export default function CreateAnnouncementModal({ isOpen, onClose }: CreateAnnou
                           </div>
                         )}
                       </div>
+
+                      {/* Add attachment upload section */}
+                      {previewUrl && (
+                        <div className="mt-5">
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            Attachment (Optional)
+                          </label>
+                          
+                          {!selectedAttachment ? (
+                            <div 
+                              onClick={triggerAttachmentInput} 
+                              className="cursor-pointer py-4 px-6 flex items-center justify-center space-x-3 text-center hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-all border border-dashed border-gray-300 dark:border-gray-700 hover:border-violet-300 dark:hover:border-violet-700 rounded-lg"
+                            >
+                              <svg className="w-8 h-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" 
+                                  d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                              </svg>
+                              <div className="text-left">
+                                <p className="text-sm font-medium text-violet-600 dark:text-violet-400">
+                                  Click to add an attachment
+                                </p>
+                                <p className="text-xs text-gray-500 dark:text-gray-400">
+                                  PDF, DOCX, XLSX, etc. up to 10MB
+                                </p>
+                              </div>
+                              <input
+                                id="attachment-upload"
+                                name="attachment-upload"
+                                type="file"
+                                className="sr-only"
+                                ref={attachmentInputRef}
+                                onChange={handleAttachmentChange}
+                              />
+                            </div>
+                          ) : (
+                            <div className="flex items-center p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700">
+                              <div className="flex-shrink-0 mr-3">
+                                <div className="w-10 h-10 bg-violet-100 dark:bg-violet-900/30 rounded-lg flex items-center justify-center">
+                                  <svg className="w-5 h-5 text-violet-600 dark:text-violet-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" 
+                                      d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                                  </svg>
+                                </div>
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium text-gray-700 dark:text-gray-300 truncate">
+                                  {selectedAttachment.name}
+                                </p>
+                                <p className="text-xs text-gray-500 dark:text-gray-400">
+                                  {(selectedAttachment.size / 1024).toFixed(1)} KB
+                                </p>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={handleRemoveAttachment}
+                                className="ml-2 p-1.5 text-gray-500 hover:text-red-500 dark:text-gray-400 dark:hover:text-red-400 rounded-md hover:bg-gray-100 dark:hover:bg-red-900/10"
+                              >
+                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                              </button>
+                            </div>
+                          )}
+                          
+                          <AnimatePresence>
+                            {attachmentError && (
+                              <motion.div 
+                                initial={{ opacity: 0, y: -5 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0 }}
+                                transition={{ duration: 0.2 }}
+                                className="mt-1 text-sm text-red-600 dark:text-red-400 flex items-center"
+                              >
+                                <svg className="w-4 h-4 mr-1 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                </svg>
+                                Attachment file is too large. Maximum size is 10MB.
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -1003,10 +1256,10 @@ export default function CreateAnnouncementModal({ isOpen, onClose }: CreateAnnou
               <button
                 type="button"
                 onClick={handleSubmit}
-                disabled={isLoading || selectedParticipants.length === 0}
+                disabled={isLoading || selectedParticipants.length === 0 || success || showConfirmation}
                 className={cn(
                   "px-4 py-2 text-sm font-medium text-white rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-violet-500",
-                  isLoading || selectedParticipants.length === 0
+                  (isLoading || selectedParticipants.length === 0 || success || showConfirmation)
                     ? "bg-violet-400 dark:bg-violet-700 cursor-not-allowed" 
                     : "bg-violet-600 hover:bg-violet-700 dark:hover:bg-violet-500"
                 )}
@@ -1018,6 +1271,14 @@ export default function CreateAnnouncementModal({ isOpen, onClose }: CreateAnnou
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
                     Creating...
+                  </span>
+                ) : success ? (
+                  <span className="flex items-center">
+                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Closing...
                   </span>
                 ) : (
                   'Create Announcement'
