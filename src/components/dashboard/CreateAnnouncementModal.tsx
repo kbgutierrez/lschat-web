@@ -4,20 +4,32 @@ import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import Image from 'next/image';
+import { announcementsAPI, AnnouncementParticipant } from '@/lib/announcementsApi';
+import { getUserFromLocalStorage } from '@/lib/clientUtils';
 
 interface CreateAnnouncementModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
-type Participant = {
-  id: string;
-  name: string;
-  type: 'user' | 'group';
-  image?: string;
-};
-
 type Step = 'content' | 'participants';
+
+// Helper function to get initials from name
+const getInitials = (name: string): string => {
+  if (!name) return '';
+  
+  const nameParts = name.trim().split(' ').filter(part => part.length > 0);
+  
+  if (nameParts.length === 0) return '';
+  
+  if (nameParts.length === 1) {
+    // If only one name part, take up to first two characters
+    return nameParts[0].substring(0, 2).toUpperCase();
+  }
+  
+  // Get first letter of first part and first letter of last part
+  return (nameParts[0].charAt(0) + nameParts[nameParts.length - 1].charAt(0)).toUpperCase();
+};
 
 export default function CreateAnnouncementModal({ isOpen, onClose }: CreateAnnouncementModalProps) {
   // Modal state
@@ -34,15 +46,12 @@ export default function CreateAnnouncementModal({ isOpen, onClose }: CreateAnnou
   const [imageCaption, setImageCaption] = useState('');
   
   // Participants state
-  const [participants, setParticipants] = useState<Participant[]>([
-    { id: '1', name: 'All Users', type: 'user' },
-    { id: '2', name: 'Sales Department', type: 'group', image: '/images/groups/sales.png' },
-    { id: '3', name: 'IT Support', type: 'group', image: '/images/groups/it.png' },
-    { id: '4', name: 'John Smith', type: 'user', image: '/images/avatars/john.jpg' },
-    { id: '5', name: 'Sarah Johnson', type: 'user', image: '/images/avatars/sarah.jpg' },
-    // Sample data - would be fetched from API in real implementation
-  ]);
-  const [selectedParticipants, setSelectedParticipants] = useState<string[]>(['1']); // Default to "All Users"
+  const [permissionType, setPermissionType] = useState<'everyone' | 'byGroup' | 'byUser'>('everyone');
+  const [participants, setParticipants] = useState<AnnouncementParticipant[]>(
+    [{ id: 'everyone', name: 'All Users', type: 'user' }]
+  );
+  const [selectedParticipants, setSelectedParticipants] = useState<string[]>(['everyone']);
+  const [loadingParticipants, setLoadingParticipants] = useState(false);
   
   const modalRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -53,6 +62,69 @@ export default function CreateAnnouncementModal({ isOpen, onClose }: CreateAnnou
     month: 'long',
     day: 'numeric'
   });
+
+  // Fetch announcement permissions when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      const fetchPermissions = async () => {
+        try {
+          setLoadingParticipants(true);
+          const user = getUserFromLocalStorage();
+          if (!user || !user.user_id) {
+            throw new Error('User not found');
+          }
+          
+          const permissions = await announcementsAPI.fetchAnnouncementPermissions(user.user_id);
+          setPermissionType(permissions.permissionType);
+          
+          // Prepare participants list based on permission type
+          let newParticipants: AnnouncementParticipant[] = [];
+          let initialSelection: string[] = [];
+          
+          if (permissions.permissionType === 'everyone') {
+            newParticipants = [{ id: 'everyone', name: 'All Users', type: 'user' }];
+            initialSelection = ['everyone'];
+          } 
+          else if (permissions.permissionType === 'byGroup') {
+            newParticipants = permissions.groups.map(group => ({
+              id: `group_${group.group_id}`,
+              name: group.name,
+              type: 'group',
+            }));
+            // Pre-select the first group if any
+            if (newParticipants.length > 0) {
+              initialSelection = [newParticipants[0].id];
+            }
+          } 
+          else if (permissions.permissionType === 'byUser') {
+            newParticipants = permissions.users.map(user => ({
+              id: `user_${user.user_id}`,
+              name: user.name,
+              type: 'user',
+              image: user.profile_picture || undefined,
+            }));
+            // Pre-select the first user if any
+            if (newParticipants.length > 0) {
+              initialSelection = [newParticipants[0].id];
+            }
+          }
+          
+          setParticipants(newParticipants);
+          setSelectedParticipants(initialSelection);
+        } catch (err) {
+          console.error('Error fetching announcement permissions:', err);
+          setError('Failed to load announcement recipients. Please try again.');
+          // Fallback to All Users in case of error
+          setParticipants([{ id: 'everyone', name: 'All Users', type: 'user' }]);
+          setSelectedParticipants(['everyone']);
+        } finally {
+          setLoadingParticipants(false);
+        }
+      };
+      
+      fetchPermissions();
+    }
+  }, [isOpen]);
 
   // Reset state when modal opens
   useEffect(() => {
@@ -65,7 +137,6 @@ export default function CreateAnnouncementModal({ isOpen, onClose }: CreateAnnou
       setPreviewUrl(null);
       setImageCaption('');
       setError(null);
-      setSelectedParticipants(['1']); // Default to "All Users"
     }
   }, [isOpen]);
 
@@ -175,21 +246,23 @@ export default function CreateAnnouncementModal({ isOpen, onClose }: CreateAnnou
   };
 
   const handleParticipantToggle = (id: string) => {
+    if (permissionType === 'everyone') {
+      // When permission type is everyone, only "All Users" can be selected
+      return;
+    }
+    
     setSelectedParticipants(prevSelected => {
-      // If "All Users" is being selected
-      if (id === '1') {
-        return ['1']; // Only select "All Users" and deselect others
-      }
+      // If already selected, deselect it
+      if (prevSelected.includes(id)) {
+        // Don't allow deselecting all participants
+        if (prevSelected.length === 1) {
+          return prevSelected;
+        }
+        return prevSelected.filter(item => item !== id);
+      } 
       
-      // If another option is selected, deselect "All Users"
-      const newSelected = prevSelected.filter(item => item !== '1');
-      
-      // Toggle the selected state
-      if (newSelected.includes(id)) {
-        return newSelected.filter(item => item !== id);
-      } else {
-        return [...newSelected, id];
-      }
+      // If selecting, add to selection
+      return [...prevSelected, id];
     });
   };
 
@@ -203,11 +276,20 @@ export default function CreateAnnouncementModal({ isOpen, onClose }: CreateAnnou
     setError(null);
 
     try {
-      // This is a placeholder for the actual API call
-      // The implementation will be added in a future PR
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      // Prepare the announcement data
+      const announcementData = {
+        title,
+        content: announcementText,
+        type: activeTab === 'text' ? 'text' : 'image',
+        recipients: selectedParticipants,
+        image: selectedImage || undefined,
+        imageCaption: imageCaption || undefined
+      };
       
-      // Simulate success
+      // Call API to create announcement
+      await announcementsAPI.createAnnouncement(announcementData);
+      
+      // Close modal on success
       handleClose();
     } catch (err) {
       setError('Failed to create announcement. Please try again.');
@@ -280,7 +362,7 @@ export default function CreateAnnouncementModal({ isOpen, onClose }: CreateAnnou
         <div className="p-3 bg-gray-50 dark:bg-gray-900/50 border-t border-gray-200 dark:border-gray-700 text-sm text-gray-600 dark:text-gray-400">
           {step === 'participants' ? (
             <span>
-              Recipients: {selectedParticipants.includes('1') 
+              Recipients: {selectedParticipants.includes('everyone') 
               ? 'All Users' 
               : `${selectedParticipants.length} selected`}
             </span>
@@ -621,73 +703,116 @@ export default function CreateAnnouncementModal({ isOpen, onClose }: CreateAnnou
                   Select Recipients*
                 </h3>
                 
-                <div className="space-y-2 max-h-[calc(70vh-250px)] overflow-y-auto pr-1">
-                  {participants.map(participant => (
-                    <label 
-                      key={participant.id} 
-                      className={cn(
-                        "flex items-center p-3 rounded-lg cursor-pointer transition-colors",
-                        selectedParticipants.includes(participant.id) 
-                          ? "bg-violet-50 dark:bg-violet-900/20 border border-violet-200 dark:border-violet-800/30"
-                          : "bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50"
-                      )}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={selectedParticipants.includes(participant.id)}
-                        onChange={() => handleParticipantToggle(participant.id)}
-                        className="sr-only"
-                      />
-                      <div className={cn(
-                        "w-5 h-5 rounded flex-shrink-0 mr-3 flex items-center justify-center border",
-                        selectedParticipants.includes(participant.id)
-                          ? "bg-violet-600 dark:bg-violet-500 border-transparent"
-                          : "border-gray-300 dark:border-gray-600"
-                      )}>
-                        {selectedParticipants.includes(participant.id) && (
-                          <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                          </svg>
-                        )}
-                      </div>
-
-                      <div className="flex items-center flex-1">
-                        {participant.image ? (
-                          <div className="w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-700 overflow-hidden mr-3">
-                            <img 
-                              src={participant.image} 
-                              alt={participant.name}
-                              className="w-full h-full object-cover"
-                            />
-                          </div>
-                        ) : (
-                          <div className={cn(
-                            "w-8 h-8 rounded-full mr-3 flex items-center justify-center text-sm font-medium",
-                            participant.type === 'group'
-                              ? "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300"
-                              : "bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300"
-                          )}>
-                            {participant.name.charAt(0)}
-                          </div>
-                        )}
-                        <div>
-                          <p className="text-sm font-medium text-gray-900 dark:text-white">
-                            {participant.name}
-                          </p>
-                          <p className="text-xs text-gray-500 dark:text-gray-400">
-                            {participant.type === 'group' ? 'Group' : 'User'}
-                          </p>
-                        </div>
-                      </div>
-
-                      {participant.id === '1' && (
-                        <span className="ml-2 text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 px-2 py-0.5 rounded-full">
-                          Everyone
-                        </span>
-                      )}
-                    </label>
-                  ))}
+                {/* Permission type indicator */}
+                <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/10 rounded-lg text-sm">
+                  {permissionType === 'everyone' && (
+                    <div className="flex items-center text-blue-700 dark:text-blue-300">
+                      <svg className="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c-1.657 0-3-4.03-3-9s1.343-9 3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9" />
+                      </svg>
+                      <span>Your announcement will be visible to everyone.</span>
+                    </div>
+                  )}
+                  
+                  {permissionType === 'byGroup' && (
+                    <div className="flex items-center text-blue-700 dark:text-blue-300">
+                      <svg className="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                      </svg>
+                      <span>Your announcement can be sent to specific groups. Select one or more groups below.</span>
+                    </div>
+                  )}
+                  
+                  {permissionType === 'byUser' && (
+                    <div className="flex items-center text-blue-700 dark:text-blue-300">
+                      <svg className="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                      </svg>
+                      <span>Your announcement can be sent to specific users. Select one or more users below.</span>
+                    </div>
+                  )}
                 </div>
+                
+                {loadingParticipants ? (
+                  <div className="flex justify-center py-12">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-violet-600 dark:border-violet-400"></div>
+                  </div>
+                ) : (
+                  <div className="space-y-2 max-h-[calc(70vh-250px)] overflow-y-auto pr-1">
+                    {participants.length === 0 ? (
+                      <div className="bg-gray-50 dark:bg-gray-800/50 p-6 text-center rounded-lg border border-gray-200 dark:border-gray-700">
+                        <p className="text-gray-500 dark:text-gray-400">No recipients found. Please contact your administrator.</p>
+                      </div>
+                    ) : (
+                      participants.map(participant => (
+                        <label 
+                          key={participant.id} 
+                          className={cn(
+                            "flex items-center p-3 rounded-lg cursor-pointer transition-colors",
+                            selectedParticipants.includes(participant.id) 
+                              ? "bg-violet-50 dark:bg-violet-900/20 border border-violet-200 dark:border-violet-800/30"
+                              : "bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50"
+                          )}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={selectedParticipants.includes(participant.id)}
+                            onChange={() => handleParticipantToggle(participant.id)}
+                            className="sr-only"
+                            disabled={permissionType === 'everyone'}
+                          />
+                          <div className={cn(
+                            "w-5 h-5 rounded flex-shrink-0 mr-3 flex items-center justify-center border",
+                            selectedParticipants.includes(participant.id)
+                              ? "bg-violet-600 dark:bg-violet-500 border-transparent"
+                              : "border-gray-300 dark:border-gray-600"
+                          )}>
+                            {selectedParticipants.includes(participant.id) && (
+                              <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                              </svg>
+                            )}
+                          </div>
+
+                          <div className="flex items-center flex-1">
+                            {participant.image ? (
+                              <div className="w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-700 overflow-hidden mr-3">
+                                <img 
+                                  src={participant.image} 
+                                  alt={participant.name}
+                                  className="w-full h-full object-cover"
+                                />
+                              </div>
+                            ) : (
+                              <div className={cn(
+                                "w-8 h-8 rounded-full mr-3 flex items-center justify-center text-sm font-medium",
+                                participant.type === 'group'
+                                  ? "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300"
+                                  : "bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300"
+                              )}>
+                                {getInitials(participant.name)}
+                              </div>
+                            )}
+                            <div>
+                              <p className="text-sm font-medium text-gray-900 dark:text-white">
+                                {participant.name}
+                              </p>
+                              <p className="text-xs text-gray-500 dark:text-gray-400">
+                                {participant.type === 'group' ? 'Group' : 'User'}
+                              </p>
+                            </div>
+                          </div>
+
+                          {participant.id === 'everyone' && (
+                            <span className="ml-2 text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 px-2 py-0.5 rounded-full">
+                              Everyone
+                            </span>
+                          )}
+                        </label>
+                      ))
+                    )}
+                  </div>
+                )}
 
                 {selectedParticipants.length > 0 && (
                   <div className="mt-4 p-3 bg-green-50 dark:bg-green-900/20 border border-green-100 dark:border-green-800/30 rounded-lg">
@@ -696,7 +821,7 @@ export default function CreateAnnouncementModal({ isOpen, onClose }: CreateAnnou
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
                       </svg>
                       <span className="font-medium">
-                        Announcement will be sent to {selectedParticipants.includes('1') 
+                        Announcement will be sent to {selectedParticipants.includes('everyone') 
                           ? 'all users' 
                           : `${selectedParticipants.length} recipient${selectedParticipants.length !== 1 ? 's' : ''}`
                         }
