@@ -1075,18 +1075,39 @@ export default function Dashboard() {
   const [announcementError, setAnnouncementError] = useState<string | null>(null);
   
   // Add a helper function to fetch the unread count
-  const fetchUnreadAnnouncementsCount = useCallback(async () => {
+  const fetchUnreadAnnouncementsCount = useCallback(async (silent: boolean = false) => {
     if (!user?.user_id) return;
     
     try {
+      if (!silent) {
+        // Let's not update UI state until we have a response to avoid flickering
+      }
+      
+      console.log('Fetching unread announcements count');
       const response = await announcementsAPI.fetchUnreadAnnouncementsCount(user.user_id);
-      // The sidebar will update its state based on this API call
+      if (response.success) {
+        // Dispatch an event with the updated count
+        console.log('Dispatching unread count update:', response.unreadCount);
+        if (typeof window !== 'undefined') {
+          const event = new CustomEvent('updateUnreadAnnouncementsCount', {
+            detail: { unreadCount: response.unreadCount }
+          });
+          window.dispatchEvent(event);
+        }
+      }
     } catch (error) {
       console.error('Error fetching unread announcements count:', error);
     }
   }, [user?.user_id]);
-  
-  // Add function to handle announcement selection
+
+  // Make sure to call this function on initial load
+  useEffect(() => {
+    if (user?.user_id) {
+      fetchUnreadAnnouncementsCount();
+    }
+  }, [user?.user_id, fetchUnreadAnnouncementsCount]);
+
+  // Update function to handle announcement selection
   const handleAnnouncementSelect = useCallback(async (announcementId: number) => {
     setSelectedAnnouncement(announcementId);
     setSelectedContact(null);
@@ -1114,7 +1135,7 @@ export default function Dashboard() {
         setAnnouncementError("Announcement not found");
       }
 
-      // Update the sidebar by triggering a custom event that the Sidebar will listen for
+      // Update the sidebar announcements list 
       if (typeof window !== 'undefined') {
         const event = new CustomEvent('announcementMarkedAsRead', { 
           detail: { announcementId, updatedAnnouncements: response.announcements }
@@ -1122,8 +1143,11 @@ export default function Dashboard() {
         window.dispatchEvent(event);
       }
 
-      // Update the unread count
-      fetchUnreadAnnouncementsCount();
+      // Add a small delay to avoid UI flickering from rapid state changes
+      setTimeout(() => {
+        // Update the unread count after marking as read
+        fetchUnreadAnnouncementsCount();
+      }, 300);
     } catch (error) {
       console.error("Error handling announcement selection:", error);
       setAnnouncementError("Failed to load announcement details");

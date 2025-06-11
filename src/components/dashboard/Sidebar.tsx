@@ -93,14 +93,12 @@ export function Sidebar({
     'incoming'
   );
   
-  // Add states for announcements
   const [incomingAnnouncements, setIncomingAnnouncements] = useState<Announcement[]>([]);
   const [publishedAnnouncements, setPublishedAnnouncements] = useState<Announcement[]>([]);
   const [loadingAnnouncements, setLoadingAnnouncements] = useState<boolean>(false);
   const [announcementsError, setAnnouncementsError] = useState<string | null>(null);
   const [searchedAnnouncements, setSearchedAnnouncements] = useState<Announcement[]>([]);
 
-  // Add state for unread announcements count
   const [unreadAnnouncementsCount, setUnreadAnnouncementsCount] = useState<number>(0);
   const [loadingUnreadCount, setLoadingUnreadCount] = useState<boolean>(false);
 
@@ -488,7 +486,6 @@ export function Sidebar({
     }
   }, []);
 
-  // Add immediate debug logging when tab changes
   useEffect(() => {
     console.log(`Active tab changed to: ${activeTab}`);
     if (activeTab === 'announcements') {
@@ -496,7 +493,6 @@ export function Sidebar({
     }
   }, [activeTab]);
 
-  // Add effect to fetch announcements when announcements tab is active
   useEffect(() => {
     const fetchAnnouncements = async () => {
       if (!user?.user_id) {
@@ -515,14 +511,13 @@ export function Sidebar({
         setLoadingAnnouncements(true);
         setAnnouncementsError(null);
 
-        // Fetch the appropriate announcements based on the active announcement tab
         if (activeAnnouncementTab === 'incoming') {
           const response = await announcementsAPI.fetchIncomingAnnouncements(user.user_id);
           if (response.announcements) {
             setIncomingAnnouncements(response.announcements);
             setSearchedAnnouncements(response.announcements);
           }
-        } else { // 'published'
+        } else {
           const response = await announcementsAPI.fetchPublishedAnnouncements(user.user_id);
           if (response.announcements) {
             setPublishedAnnouncements(response.announcements);
@@ -537,25 +532,21 @@ export function Sidebar({
       }
     };
 
-    // Immediately invoke when tab changes to announcements
     if (activeTab === 'announcements' && user?.user_id) {
       console.log('Triggering announcement fetch...');
       fetchAnnouncements();
     }
   }, [user?.user_id, activeTab, activeAnnouncementTab]);
 
-  // Update effect to filter announcements based on search term and active tab
   useEffect(() => {
     if (activeTab === 'announcements') {
       if (!searchTerm.trim()) {
-        // If no search term, show all announcements of the active type
         setSearchedAnnouncements(
           activeAnnouncementTab === 'incoming' 
             ? incomingAnnouncements 
             : publishedAnnouncements
         );
       } else {
-        // Filter announcements based on search term and active tab
         const searchLower = searchTerm.toLowerCase();
         const announcements = activeAnnouncementTab === 'incoming' 
           ? incomingAnnouncements 
@@ -571,7 +562,6 @@ export function Sidebar({
     }
   }, [searchTerm, incomingAnnouncements, publishedAnnouncements, activeTab, activeAnnouncementTab]);
   
-  // Add function to fetch unread announcements count
   const fetchUnreadAnnouncementsCount = useCallback(async (silent: boolean = false) => {
     if (!user?.user_id) return;
     
@@ -593,45 +583,51 @@ export function Sidebar({
     }
   }, [user?.user_id]);
 
-  // Add effect to fetch unread announcements count periodically
   useEffect(() => {
     if (!user?.user_id) return;
     
-    // Fetch when component mounts
     fetchUnreadAnnouncementsCount();
     
-    // Set up interval to fetch periodically
     const intervalId = setInterval(() => {
       fetchUnreadAnnouncementsCount(true);
-    }, 30000); // Every 30 seconds
+    }, 30000);
     
     return () => clearInterval(intervalId);
   }, [user?.user_id, fetchUnreadAnnouncementsCount]);
 
-  // Refetch when tab changes to announcements to ensure count is accurate
   useEffect(() => {
     if (activeTab === 'announcements' && unreadAnnouncementsCount > 0) {
-      // Reset unread count when announcements tab is viewed
-      setUnreadAnnouncementsCount(0);
     }
   }, [activeTab, unreadAnnouncementsCount]);
 
-  // Add effect to listen for announcement read events
+  useEffect(() => {
+    const handleUnreadCountUpdate = (event: CustomEvent) => {
+      const { unreadCount } = event.detail;
+      console.log('Received unread count update:', unreadCount);
+      setUnreadAnnouncementsCount(unreadCount);
+    };
+    
+    window.addEventListener('updateUnreadAnnouncementsCount', 
+      handleUnreadCountUpdate as EventListener);
+    
+    return () => {
+      window.removeEventListener('updateUnreadAnnouncementsCount', 
+        handleUnreadCountUpdate as EventListener);
+    };
+  }, []);
+
   useEffect(() => {
     const handleAnnouncementMarkedAsRead = (event: CustomEvent) => {
       const { announcementId, updatedAnnouncements } = event.detail;
       
-      // Update both incoming and searched announcements state with the updated data
       if (activeAnnouncementTab === 'incoming') {
         setIncomingAnnouncements(updatedAnnouncements);
         
-        // Also update the searched announcements if we're not filtering
         if (!searchTerm.trim()) {
           setSearchedAnnouncements(updatedAnnouncements);
         } else {
-          // If we're filtering, update while preserving the filter
           const searchLower = searchTerm.toLowerCase();
-          const filtered = updatedAnnouncements.filter(announcement => 
+          const filtered: Announcement[] = updatedAnnouncements.filter((announcement: Announcement) => 
             announcement.title.toLowerCase().includes(searchLower) ||
             (announcement.content && announcement.content.toLowerCase().includes(searchLower)) ||
             announcement.creator_name.toLowerCase().includes(searchLower)
@@ -641,12 +637,33 @@ export function Sidebar({
       }
     };
     
-    window.addEventListener('announcementMarkedAsRead', handleAnnouncementMarkedAsRead as EventListener);
+    window.addEventListener('announcementMarkedAsRead', 
+      handleAnnouncementMarkedAsRead as EventListener);
     
     return () => {
-      window.removeEventListener('announcementMarkedAsRead', handleAnnouncementMarkedAsRead as EventListener);
+      window.removeEventListener('announcementMarkedAsRead', 
+        handleAnnouncementMarkedAsRead as EventListener);
     };
   }, [activeAnnouncementTab, searchTerm]);
+
+  useEffect(() => {
+    const handleUnreadCountUpdate = (event: CustomEvent) => {
+      const { unreadCount } = event.detail;
+      setUnreadAnnouncementsCount(unreadCount);
+    };
+    
+    window.addEventListener('updateUnreadAnnouncementsCount', handleUnreadCountUpdate as EventListener);
+    
+    return () => {
+      window.removeEventListener('updateUnreadAnnouncementsCount', handleUnreadCountUpdate as EventListener);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (activeTab === 'announcements') {
+      fetchUnreadAnnouncementsCount(true);
+    }
+  }, [activeTab, fetchUnreadAnnouncementsCount]);
 
   return (
     <div className="flex h-full">
@@ -690,9 +707,9 @@ export function Sidebar({
               <div className="flex flex-col items-center">
                 <div className="relative">
                   {item.icon}
-                  {item.unreadCount > 0 && (
+                  {(item.unreadCount ?? 0) > 0 && (
                     <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-medium shadow-sm">
-                      {item.unreadCount > 99 ? '99+' : item.unreadCount}
+                      {(item.unreadCount ?? 0) > 99 ? '99+' : item.unreadCount}
                     </span>
                   )}
                 </div>
@@ -772,9 +789,9 @@ export function Sidebar({
                 >
                   <div className="w-5 h-5 mr-3 flex-shrink-0 relative">
                     {item.icon}
-                    {item.unreadCount > 0 && (
+                    {(item.unreadCount ?? 0) > 0 && (
                       <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center font-medium shadow-sm">
-                        {item.unreadCount > 9 ? '9+' : item.unreadCount}
+                        {(item.unreadCount ?? 0) > 9 ? '9+' : (item.unreadCount ?? 0)}
                       </span>
                     )}
                   </div>
