@@ -50,6 +50,12 @@ export interface IncomingAnnouncementsResponse {
   announcements: Announcement[];
 }
 
+export interface UnreadAnnouncementsCountResponse {
+  success: boolean;
+  userId: number;
+  unreadCount: number;
+}
+
 const middleware = {
   addAuthHeader: (headers: HeadersInit = {}) => {
     if (typeof window === 'undefined') return headers;
@@ -253,6 +259,26 @@ export const announcementsAPI = {
       return await response.json();
     } catch (error) {
       console.error('Error creating announcement:', error);
+      throw error;
+    }
+  },
+
+  fetchUnreadAnnouncementsCount: async (userId: string | number): Promise<UnreadAnnouncementsCountResponse> => {
+    try {
+      const headers = middleware.addAuthHeader();
+      
+      const response = await fetch(`${API_BASE_URL}/api/fetch/unread-announcements-count/${userId}`, {
+        headers
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Failed to fetch unread announcements count: ${response.status} - ${errorText}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error fetching unread announcements count:', error);
       throw error;
     }
   }

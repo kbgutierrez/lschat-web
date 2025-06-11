@@ -100,6 +100,10 @@ export function Sidebar({
   const [announcementsError, setAnnouncementsError] = useState<string | null>(null);
   const [searchedAnnouncements, setSearchedAnnouncements] = useState<Announcement[]>([]);
 
+  // Add state for unread announcements count
+  const [unreadAnnouncementsCount, setUnreadAnnouncementsCount] = useState<number>(0);
+  const [loadingUnreadCount, setLoadingUnreadCount] = useState<boolean>(false);
+
   useEffect(() => {
     if (user) {
       console.log('User object for announcements permissions:', user);
@@ -404,7 +408,8 @@ export function Sidebar({
         </svg>
       ),
       label: 'Announcements',
-      isLong: true
+      isLong: true,
+      unreadCount: unreadAnnouncementsCount
     }
   ];
 
@@ -566,6 +571,51 @@ export function Sidebar({
     }
   }, [searchTerm, incomingAnnouncements, publishedAnnouncements, activeTab, activeAnnouncementTab]);
   
+  // Add function to fetch unread announcements count
+  const fetchUnreadAnnouncementsCount = useCallback(async (silent: boolean = false) => {
+    if (!user?.user_id) return;
+    
+    try {
+      if (!silent) {
+        setLoadingUnreadCount(true);
+      }
+      
+      const response = await announcementsAPI.fetchUnreadAnnouncementsCount(user.user_id);
+      if (response.success) {
+        setUnreadAnnouncementsCount(response.unreadCount);
+      }
+    } catch (error) {
+      console.error('Error fetching unread announcements count:', error);
+    } finally {
+      if (!silent) {
+        setLoadingUnreadCount(false);
+      }
+    }
+  }, [user?.user_id]);
+
+  // Add effect to fetch unread announcements count periodically
+  useEffect(() => {
+    if (!user?.user_id) return;
+    
+    // Fetch when component mounts
+    fetchUnreadAnnouncementsCount();
+    
+    // Set up interval to fetch periodically
+    const intervalId = setInterval(() => {
+      fetchUnreadAnnouncementsCount(true);
+    }, 30000); // Every 30 seconds
+    
+    return () => clearInterval(intervalId);
+  }, [user?.user_id, fetchUnreadAnnouncementsCount]);
+
+  // Refetch when tab changes to announcements to ensure count is accurate
+  useEffect(() => {
+    if (activeTab === 'announcements' && unreadAnnouncementsCount > 0) {
+      // Reset unread count when announcements tab is viewed
+      setUnreadAnnouncementsCount(0);
+    }
+  }, [activeTab, unreadAnnouncementsCount]);
+  
   return (
     <div className="flex h-full">
       <div 
@@ -606,7 +656,14 @@ export function Sidebar({
                   }}
             >
               <div className="flex flex-col items-center">
-                {item.icon}
+                <div className="relative">
+                  {item.icon}
+                  {item.unreadCount > 0 && (
+                    <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-medium shadow-sm">
+                      {item.unreadCount > 99 ? '99+' : item.unreadCount}
+                    </span>
+                  )}
+                </div>
                 <span 
                   className="mt-1 text-xs font-medium leading-tight text-center px-0.5 hyphens-auto"
                   style={{
@@ -681,7 +738,14 @@ export function Sidebar({
                       "text-white/80 hover:text-white hover:bg-violet-700/30 dark:hover:bg-gray-700/30"
                   )}
                 >
-                  <div className="w-5 h-5 mr-3 flex-shrink-0">{item.icon}</div>
+                  <div className="w-5 h-5 mr-3 flex-shrink-0 relative">
+                    {item.icon}
+                    {item.unreadCount > 0 && (
+                      <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center font-medium shadow-sm">
+                        {item.unreadCount > 9 ? '9+' : item.unreadCount}
+                      </span>
+                    )}
+                  </div>
                   <span className="font-medium">{item.label}</span>
                 </button>
               ))}
@@ -1199,8 +1263,8 @@ export function Sidebar({
                   {loadingAnnouncements ? (
                     <div className="flex justify-center py-8">
                       <div className="animate-pulse flex space-x-2">
-                        <div className="h-2 w-2 bg-white/70 dark:bg-gray-400 rounded-full"></div>
-                        <div className="h-2 w-2 bg-white/70 dark:bg_gray-400 rounded-full animation-delay-200"></div>
+                        <div className="h-2 w-2 bg-white/70 dark:bg_gray-400 rounded-full"></div>
+                        <div className="h-2 w-2 bg-white/70 dark:bg-gray-400 rounded-full animation-delay-200"></div>
                         <div className="h-2 w-2 bg-white/70 dark:bg-gray-400 rounded-full animation-delay-500"></div>
                       </div>
                     </div>
