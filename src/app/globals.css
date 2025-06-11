@@ -3,6 +3,8 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  --royal-gradient: linear-gradient(40deg, transparent, #fcd34d 15%, #f59e0b 50%, #fbbf24 85%, rgba(254, 243, 199, 0.8));
+  --royal-shadow: 0 0 10px rgba(251, 191, 36, 0.5);
 }
 
 @theme inline {
@@ -16,6 +18,8 @@
   :root {
     --background: #0a0a0a;
     --foreground: #ededed;
+    --royal-gradient: linear-gradient(40deg, transparent, #818cf8 15%, #6366f1 50%, #4f46e5 85%, rgba(139, 92, 246, 0.8));
+    --royal-shadow: 0 0 10px rgba(139, 92, 246, 0.5);
   }
 }
 
@@ -374,5 +378,26 @@ input, select, textarea {
 
 .no-scrollbar::-webkit-scrollbar {
   display: none;             /* Chrome, Safari, Opera */
+}
+
+/* Sidebar navigation label text utilities */
+.nav-label {
+  overflow-wrap: break-word;
+  word-break: keep-all;
+  line-height: 1.1;
+  font-size: 0.7rem;
+}
+
+@media (min-width: 1280px) {
+  .nav-label {
+    font-size: 0.75rem;
+  }
+}
+
+/* Add support for hyphenation and word-breaking in the sidebar */
+.hyphens-auto {
+  -webkit-hyphens: auto;
+  -ms-hyphens: auto;
+  hyphens: auto;
 }
 

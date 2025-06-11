@@ -25,7 +25,7 @@ import  UserManagementModal  from '@/components/dashboard/UserManagementModal';
 import CreateAnnouncementModal from '@/components/dashboard/CreateAnnouncementModal';
 import SpeedDial from '@/components/dashboard/SpeedDial';
 
-type TabType = 'chats' | 'groups' | 'contacts';
+type TabType = 'chats' | 'groups' | 'contacts' | 'announcements';
 
 export type ContactDetails = {
   id: string;
@@ -61,7 +61,8 @@ export default function Dashboard() {
   const [tabsVisited, setTabsVisited] = useState<Record<TabType, boolean>>({
     chats: true,
     groups: false,
-    contacts: false
+    contacts: false,
+    announcements: false
   });
   const [pubnubNotification, setPubnubNotification] = useState<{
     channelId: string;
@@ -128,6 +129,7 @@ export default function Dashboard() {
     const userData = getUserFromLocalStorage();
 
     if (userData) {
+      console.log('User data from localStorage:', userData);
       setUser(userData);
       setCheckingAuth(false);
     } else {
@@ -1093,17 +1095,19 @@ export default function Dashboard() {
         onLeaveGroup={handleLeaveGroup}
         refreshPendingContacts={refreshPendingContacts}
         isCreateGroupModalOpen={isCreateGroupModalOpen}
-   
+        user={user} // Ensure we're passing the complete user object
       />
-      
+
+      {/* The toggle modal background - increase z-index to be higher than nav rail */}
       {isMobileSidebarOpen && (
         <div
-          className="fixed inset-0 bg-violet-900/20 backdrop-blur-sm md:hidden z-20"
+          className="fixed inset-0 bg-violet-900/20 backdrop-blur-sm md:hidden z-25"
           onClick={() => setIsMobileSidebarOpen(false)}
         ></div>
       )}
 
-      <main className="flex-1 flex flex-col h-full w-full">
+      {/* Main content - adjust padding and ensure it's below sidebar in z-index on mobile */}
+      <main className="flex-1 flex flex-col h-full w-full z-10">
         <ChatHeader 
           user={user}
           contactDetails={selectedContact ? selectedContactDetails : null}
@@ -1274,7 +1278,7 @@ export default function Dashboard() {
         </div>
       )}
       
-      <div className="fixed bottom-6 left-6 z-50">
+      <div className="fixed bottom-6 left-3 z-50">
         <SpeedDial 
           actions={[
             {

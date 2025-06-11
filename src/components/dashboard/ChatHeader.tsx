@@ -392,13 +392,14 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
             </div>
           </div>
         ) : (
-          <div className="flex items-center space-x-3 animate-pulse">
-            <div className="w-10 h-10 rounded-full bg-violet-100 dark:bg-gray-800"></div>
-            <div>
-              <div className="h-4 w-24 bg-violet-100 dark:bg-gray-800 rounded"></div>
-              <div className="h-3 w-16 bg-violet-50 dark:bg-gray-700 rounded mt-1"></div>
-            </div>
-          </div>
+          <></>
+          // <div className="flex items-center space-x-3 animate-pulse">
+          //   <div className="w-10 h-10 rounded-full bg-violet-100 dark:bg-gray-800"></div>
+          //   <div>
+          //     <div className="h-4 w-24 bg-violet-100 dark:bg-gray-800 rounded"></div>
+          //     <div className="h-3 w-16 bg-violet-50 dark:bg-gray-700 rounded mt-1"></div>
+          //   </div>
+          // </div>
         )}
       </div>
 

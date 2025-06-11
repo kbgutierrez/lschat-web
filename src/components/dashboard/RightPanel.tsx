@@ -19,7 +19,7 @@ interface RightPanelProps {
   isVisible: boolean;
   onClose: () => void;
   pendingContacts?: ContactListItem[];
-  activeTab?: 'chats' | 'groups' | 'contacts';
+  activeTab?: 'chats' | 'groups' | 'contacts' | 'announcements';
   onContactSelect?: (id: string) => void;
   loadingContacts?: boolean;
   onCancelContactRequest?: (contactId: number) => Promise<void>;

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback, useRef, useEffect, memo, useMemo, use } from 'react';
+import React, { useState, useCallback, useRef, useEffect, useLayoutEffect, memo, useMemo, use } from 'react';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
 import { ContactListItem, messagesAPI } from '@/lib/api'; 
@@ -9,7 +9,7 @@ import { GroupItem, GroupData } from './GroupItem';
 import { gsap } from 'gsap';
 import { Message } from './MessageItem';
 
-type TabType = 'chats' | 'groups' | 'contacts';
+type TabType = 'chats' | 'groups' | 'contacts' | 'announcements';
 
 interface SidebarProps {
   contacts: ContactListItem[];
@@ -35,7 +35,7 @@ interface SidebarProps {
   onLeaveGroup?: (id: number) => Promise<void>;
   refreshPendingContacts?: () => Promise<boolean | undefined>;
   isCreateGroupModalOpen: boolean;
-
+  user?: { can_announce?: number; is_admin?: number } | null;
 }
 
 export function Sidebar({ 
@@ -61,14 +61,17 @@ export function Sidebar({
   onRemoveContact,
   refreshPendingContacts,
   onLeaveGroup, 
-  isCreateGroupModalOpen = false
+  isCreateGroupModalOpen = false,
+  user
 }: SidebarProps) {
   const sidebarRef = useRef<HTMLDivElement>(null);
-  const tabsRef = useRef<HTMLDivElement>(null);
-  const tabIndicatorRef = useRef<HTMLDivElement>(null);
-  const tabContentRef = useRef<HTMLDivElement>(null);
+  const navRailRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
   const floatingButtonRef = useRef<HTMLButtonElement>(null);
   const buttonLabelRef = useRef<HTMLSpanElement>(null);
+  const logoLSRef = useRef<HTMLSpanElement>(null);
+  const logoChatRef = useRef<HTMLSpanElement>(null);
+  const logoAppRef = useRef<HTMLSpanElement>(null);
 
   const [isHoveringTab, setIsHoveringTab] = useState<TabType | null>(null);
   const [isButtonHovered, setIsButtonHovered] = useState(false);
@@ -78,11 +81,23 @@ export function Sidebar({
   const [confirmingRemove, setConfirmingRemove] = useState<number | null>(null);
   const [lastMessages, setLastMessages] = useState<Record<string, string>>({});
   const [fetchingLastMessages, setFetchingLastMessages] = useState(false);
-
-  // State for group menu
   const [openGroupMenus, setOpenGroupMenus] = useState<Set<number>>(new Set());
   const [confirmingLeaveGroup, setConfirmingLeaveGroup] = useState<number | null>(null);
   const [leavingGroups, setLeavingGroups] = useState<Set<number>>(new Set());
+  const [activeAnnouncementTab, setActiveAnnouncementTab] = useState<'published' | 'incoming'>(
+    'incoming'
+  );
+
+  useEffect(() => {
+    if (user) {
+      console.log('User object for announcements permissions:', user);
+    }
+  }, [user]);
+
+  const canPublishAnnouncements = useMemo(() => {
+    if (!user) return false;
+    return user.is_admin === 1 || user.can_announce === 1;
+  }, [user]);
 
   const getLastMessage = useCallback((channelId: string) => {
     if (messages[channelId]?.length) {
@@ -91,40 +106,31 @@ export function Sidebar({
         ? lastMsg.text.substring(0, 30) + '...' 
         : lastMsg.text;
     }
-    
     if (lastMessages[channelId]) {
       return lastMessages[channelId].length > 30 
         ? lastMessages[channelId].substring(0, 30) + '...' 
         : lastMessages[channelId];
     }
-    
     return "";
   }, [messages, lastMessages]);
 
   useEffect(() => {
     const fetchLastMessages = async () => {
       if (!contacts.length || fetchingLastMessages) return;
-      
       try {
         setFetchingLastMessages(true);
-        
         const validContacts = contacts.filter(
           contact => contact.status !== 'pending' && contact.pubnub_channel
         );
-        
         if (!validContacts.length) {
           setFetchingLastMessages(false);
           return;
         }
-
         const results: Record<string, string> = {};
-        
         const fetchPromises = validContacts.map(async (contact) => {
           try {
             if (!contact.pubnub_channel) return;
-            
             const messages = await messagesAPI.getChatMessages(contact.pubnub_channel);
-            
             if (messages && messages.length > 0) {
               const lastMessage = messages[messages.length - 1];
               results[contact.pubnub_channel] = lastMessage.message_content || '';
@@ -133,7 +139,6 @@ export function Sidebar({
             console.error(`Error fetching last message for ${contact.contact_full_name}:`, err);
           }
         });
-        
         await Promise.all(fetchPromises);
         setLastMessages(results);
       } catch (err) {
@@ -142,21 +147,18 @@ export function Sidebar({
         setFetchingLastMessages(false);
       }
     };
-    
     fetchLastMessages();
   }, [contacts]);
   
   useEffect(() => {
     if (sidebarRef.current) {
       gsap.killTweensOf(sidebarRef.current);
-      
       if (isOpen) {
         gsap.set(sidebarRef.current, { 
           x: '-100%',
           opacity: 0.5,
           clearProps: "transform" 
         });
-        
         gsap.to(sidebarRef.current, { 
           x: '0%',
           opacity: 1,
@@ -189,87 +191,19 @@ export function Sidebar({
   }, [isOpen]);
 
   useEffect(() => {
-    if (!tabIndicatorRef.current || !tabsRef.current) return;
-    
-    const tabs = tabsRef.current.querySelectorAll('[data-tab]');
-    const activeTabElement = tabsRef.current.querySelector(`[data-tab="${activeTab}"]`);
-    
-    if (activeTabElement) {
-      const tabRect = activeTabElement.getBoundingClientRect();
-      const tabsRect = tabsRef.current.getBoundingClientRect();
-      
-      const currentLeft = parseFloat(tabIndicatorRef.current.style.left) || 0;
-      const currentWidth = parseFloat(tabIndicatorRef.current.style.width) || 0;
-      
-      const targetLeft = tabRect.left - tabsRect.left;
-      const targetWidth = tabRect.width;
-      
-      const tl = gsap.timeline({
-        defaults: { 
-          ease: 'power2.out',
-          duration: 0.2
-        }
-      });
-      
-      gsap.set(tabIndicatorRef.current, { 
-        top: 'auto', 
-        bottom: 0, 
-        right: 'auto',
-        height: '2px',
-        width: currentWidth,
-        left: currentLeft
-      });
-      
-      if (currentLeft > 0 && Math.abs(targetLeft - currentLeft) > 5) {
-        tl.to(tabIndicatorRef.current, { 
-          width: Math.max(targetLeft + targetWidth - currentLeft, currentWidth),
-          duration: 0.15
-        });
-        
-        tl.to(tabIndicatorRef.current, { 
-          left: targetLeft,
-          duration: 0.15
-        }, "-=0.05");
-        
-        tl.to(tabIndicatorRef.current, { 
-          width: targetWidth,
-          duration: 0.15
-        }, "-=0.05");
-      } else {
-        tl.to(tabIndicatorRef.current, {
-          left: targetLeft,
-          width: targetWidth,
-        });
-      }
-      
-      if (tabContentRef.current) {
-        gsap.fromTo(
-          tabContentRef.current,
-          { opacity: 0.9, y: 5 },
-          { opacity: 1, y: 0, duration: 0.2 }
-        );
-      }
-    }
-  }, [activeTab]);
-  
-  useEffect(() => {
     if (!floatingButtonRef.current) return;
-    
     gsap.set(floatingButtonRef.current, { 
       opacity: 1, 
       scale: 1,
       width: '2.5rem',
       height: '2.5rem'
     });
-    
     const tl = gsap.timeline({ repeat: 0 });
-    
     tl.fromTo(
       floatingButtonRef.current, 
       { scale: 0.9, opacity: 0.9 },
       { scale: 1, opacity: 1, duration: 0.3, ease: 'back.out(1.7)' }
     );
-    
     return () => {
       tl.kill();
     };
@@ -283,102 +217,16 @@ export function Sidebar({
     setIsHoveringTab(null);
   };
 
-  const getFloatingButtonAction = () => {
-    switch (activeTab) {
-      case 'chats':
-        return { 
-          action: onNewChat, 
-          label: 'New message',
-          icon: (
-            <svg className="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
-            </svg>
-          )
-        };
-      case 'groups':
-        return { 
-          action: onNewGroup, 
-          label: 'Create group',
-          icon: (
-            <svg className="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v8m4-4H8" transform="translate(8 6) scale(0.5)" />
-            </svg>
-          )
-        };
-      case 'contacts':
-        return { 
-          action: onNewContact, 
-          label: 'Add new contact',
-          icon: (
-            <svg className="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
-            </svg>
-          )
-        };
-      default:
-        return { 
-          action: undefined, 
-          label: 'New',
-          icon: (
-            <svg className="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
-            </svg>
-          )
-        };
-    }
-  };
-  
-  const { action: floatingButtonAction, label: floatingButtonLabel, icon: floatingButtonIcon } = getFloatingButtonAction();
-
-  useEffect(() => {
-    if (!floatingButtonRef.current || !buttonLabelRef.current) return;
-    
-    if (isButtonHovered) {
-      gsap.to(floatingButtonRef.current, {
-        width: 'auto',
-        duration: 0.3,
-        ease: 'power2.out'
-      });
-      
-      gsap.to(buttonLabelRef.current, {
-        opacity: 1,
-        visibility: 'visible',
-        duration: 0.2,
-        delay: 0.1,
-      });
-    } else {
-      gsap.to(buttonLabelRef.current, {
-        opacity: 0,
-        duration: 0.15,
-        onComplete: () => {
-          gsap.set(buttonLabelRef.current, { visibility: 'hidden' });
-        }
-      });
-      
-      gsap.to(floatingButtonRef.current, {
-        width: '2.5rem',
-        duration: 0.25,
-        delay: 0.05,
-        ease: 'power2.in'
-      });
-    }
-  }, [isButtonHovered]);
-
   const filteredContacts = useMemo(() => {
     let filtered = contacts;
-
     if (activeTab === 'chats') {
       filtered = contacts.filter(contact => {
         const channelId = contact.pubnub_channel;
-        
         const hasMessagesInState = channelId && messages[channelId]?.length > 0;
         const hasLastMessage = channelId && lastMessages[channelId];
-        
         return hasMessagesInState || hasLastMessage;
       });
     }
-    
     if (searchTerm.trim()) {
       const searchLower = searchTerm.toLowerCase();
       filtered = filtered.filter(contact => 
@@ -387,17 +235,14 @@ export function Sidebar({
          contact.contact_mobile_number.toLowerCase().includes(searchLower))
       );
     }
-    
     if (activeTab === 'chats') {
       filtered = filtered.filter(c => c.status !== 'pending');
     }
-    
     return filtered;
   }, [contacts, searchTerm, activeTab, messages, lastMessages]);
 
   const filteredGroups = useMemo(() => {
     if (!searchTerm.trim()) return groups;
-    
     const searchLower = searchTerm.toLowerCase();
     return groups.filter(group => 
       group.name.toLowerCase().includes(searchLower) ||
@@ -408,7 +253,6 @@ export function Sidebar({
 
   const handleRemoveContact = async (contactId: number) => {
     if (!onRemoveContact) return;
-    
     setRemovingContacts(prev => new Set(prev).add(contactId));
     setConfirmingRemove(null);
     setOpenContactMenus(prev => {
@@ -416,7 +260,6 @@ export function Sidebar({
       newSet.delete(contactId);
       return newSet;
     });
-    
     try {
       await onRemoveContact(contactId);
     } catch (error) {
@@ -456,7 +299,6 @@ export function Sidebar({
       setOpenGroupMenus(new Set());
       setOpenContactMenus(new Set());
     };
-    
     if (openGroupMenus.size > 0 || openContactMenus.size > 0) {
       document.addEventListener('click', handleClickOutside);
       return () => document.removeEventListener('click', handleClickOutside);
@@ -487,7 +329,6 @@ export function Sidebar({
     try {
       await onLeaveGroup(groupId);
     } catch (e) {
-      // Optionally handle error
     } finally {
       setLeavingGroups(prev => {
         const newSet = new Set(prev);
@@ -505,93 +346,222 @@ export function Sidebar({
 
   const handleTabClick = useCallback((tab: TabType) => {
     if (tab === activeTab) return;
-    
-    const tabsElement = tabsRef.current;
-    const indicatorElement = tabIndicatorRef.current;
-    
-    if (!tabsElement || !indicatorElement) {
-      setActiveTab(tab);
-      return;
-    }
-    
-    const currentTabElement = tabsElement.querySelector(`[data-tab="${activeTab}"]`);
-    const targetTabElement = tabsElement.querySelector(`[data-tab="${tab}"]`);
-    
-    if (!currentTabElement || !targetTabElement) {
-      setActiveTab(tab);
-      return;
-    }
-    
-    const tabsRect = tabsElement.getBoundingClientRect();
-    const currentRect = currentTabElement.getBoundingClientRect();
-    const targetRect = targetTabElement.getBoundingClientRect();
-    
-    const currentLeft = currentRect.left - tabsRect.left;
-    const currentWidth = currentRect.width;
-    
-    const targetLeft = targetRect.left - tabsRect.left;
-    const targetWidth = targetRect.width;
-    
-    const tl = gsap.timeline({
-      onComplete: () => setActiveTab(tab),
-      defaults: { duration: 0.2, ease: "power2.inOut" }
-    });
-    
-    if (targetLeft > currentLeft) {
-      tl.to(indicatorElement, { 
-        width: targetLeft + targetWidth - currentLeft,
-      }).to(indicatorElement, { 
-        left: targetLeft,
-        width: targetWidth
-      }, ">=0");
-    } else {
-      tl.to(indicatorElement, { 
-        left: targetLeft,
-        width: currentLeft + currentWidth - targetLeft
-      }).to(indicatorElement, { 
-        width: targetWidth
-      }, ">=0");
-    }
-    
-    if (tabContentRef.current) {
+    setActiveTab(tab);
+    if (contentRef.current) {
       gsap.fromTo(
-        tabContentRef.current,
+        contentRef.current,
         { opacity: 0.92, y: 3 },
-        { opacity: 1, y: 0, duration: 0.2, delay: 0.1 }
+        { opacity: 1, y: 0, duration: 0.2 }
       );
     }
-    
-    return tl;
   }, [activeTab, setActiveTab]);
 
+  const navigationItems = [
+    {
+      tab: 'chats' as TabType,
+      icon: (
+        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={activeTab === 'chats' ? 2.2 : 1.8} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+        </svg>
+      ),
+      label: 'Chats'
+    },
+    {
+      tab: 'groups' as TabType,
+      icon: (
+        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={activeTab === 'groups' ? 2.2 : 1.8} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+        </svg>
+      ),
+      label: 'Groups'
+    },
+    {
+      tab: 'contacts' as TabType,
+      icon: (
+        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={activeTab === 'contacts' ? 2.2 : 1.8} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+        </svg>
+      ),
+      label: 'Contacts'
+    },
+    {
+      tab: 'announcements' as TabType,
+      icon: (
+        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={activeTab === 'announcements' ? 2.2 : 1.8} d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" />
+        </svg>
+      ),
+      label: 'Announcements',
+      isLong: true
+    }
+  ];
+
+  useEffect(() => {
+    console.log('Logo animation: Starting performance-optimized animation');
+    if (logoLSRef.current && logoChatRef.current && logoAppRef.current) {
+      console.log('Logo animation: All refs found, animating');
+      const elements = [logoLSRef.current, logoChatRef.current, logoAppRef.current];
+      gsap.set(elements, { 
+        opacity: 0, 
+        y: -10,
+        scale: 0.9,
+        willChange: 'transform, opacity',
+        force3D: true
+      });
+      const tl = gsap.timeline({
+        defaults: { 
+          duration: 0.4,
+          ease: "power2.out"
+        }
+      });
+      tl.to(logoLSRef.current, {
+        opacity: 1,
+        y: 0,
+        scale: 1,
+        clearProps: "willChange"
+      })
+      .to(logoChatRef.current, {
+        opacity: 1,
+        y: 0,
+        scale: 1,
+        clearProps: "willChange"
+      }, "-=0.25")
+      .to(logoAppRef.current, {
+        opacity: 1,
+        y: 0,
+        scale: 1,
+        clearProps: "willChange",
+        onComplete: () => {
+          gsap.to(elements, {
+            y: -2,
+            duration: 0.2,
+            ease: "power2.inOut",
+            stagger: 0.05,
+            yoyo: true,
+            repeat: 1
+          });
+        }
+      }, "-=0.25");
+      elements.forEach((element, index) => {
+        if (!element) return;
+        const hoverColors = ['#fcd34d', '#ffffff', '#93c5fd'];
+        element.addEventListener('mouseenter', () => {
+          gsap.to(element, {
+            scale: 1.1,
+            color: hoverColors[index],
+            duration: 0.2,
+            ease: "power2.out"
+          });
+        });
+        element.addEventListener('mouseleave', () => {
+          gsap.to(element, {
+            scale: 1,
+            color: '',
+            duration: 0.2,
+            ease: "power2.out"
+          });
+        });
+      });
+    } else {
+      console.log('Logo animation: One or more refs not found', {
+        logoLS: !!logoLSRef.current,
+        logoChat: !!logoChatRef.current,
+        logoApp: !!logoAppRef.current
+      });
+    }
+  }, []);
+
   return (
-    <>
+    <div className="flex h-full">
+      <div 
+        ref={navRailRef}
+        className={cn(
+          "w-16 bg-violet-800 dark:bg-gray-800/60 h-full flex flex-col items-center pt-3 pb-6 z-40 border-r border-violet-700/30 dark:border-gray-800",
+          "hidden md:flex"
+        )}
+      >
+        <div className="flex flex-col items-center mb-6 pt-2">
+          <div className="relative w-10 h-10">
+            <Image
+              src="/images/logo-no-label.png"
+              alt="LSChat Logo"
+              fill
+              sizes="40px"
+              className="object-contain"
+            />
+          </div>
+        </div>
+        <div className="flex flex-col items-center space-y-1 w-full">
+          {navigationItems.map(item => (
+            <button
+              key={item.tab}
+              onClick={() => handleTabClick(item.tab)}
+              onMouseEnter={() => handleTabHover(item.tab)}
+              onMouseLeave={handleTabLeave}
+              className={cn(
+                "w-full py-1 flex flex-col items-center justify-center relative transition-all duration-200",
+                "focus:outline-none hover:bg-violet-700/50 dark:hover:bg-gray-800/70",
+                activeTab === item.tab ? 
+                  "text-white bg-violet-700/40 dark:bg-gray-800/50 border-l-4 border-yellow-300 dark:border-yellow-400" : 
+                  "text-white/70 hover:text-white/90 border-l-4 border-transparent"
+              )}
+              style={{
+                    boxShadow: 'none',
+                    outline: 'none'
+                  }}
+            >
+              <div className="flex flex-col items-center">
+                {item.icon}
+                <span 
+                  className="mt-1 text-xs font-medium leading-tight text-center px-0.5 hyphens-auto"
+                  style={{
+                    width: '100%', 
+                    maxWidth: '60px',
+                    wordBreak: item.isLong ? 'break-word' : 'normal'
+                  }}
+                  title={item.label}
+                >
+                  {item.label}
+                </span>
+              </div>
+            </button>
+          ))}
+        </div>
+      </div>
       <div 
         ref={sidebarRef}
         className={cn(
-          "w-80  bg-gradient-to-b from-violet-700 to-violet-900 dark:from-gray-900 dark:to-gray-900",
-          "flex flex-col h-full fixed md:relative left-0 top-0 z-30 md:z-10",
+          "w-full md:w-80 bg-gradient-to-b from-violet-700 to-violet-900 dark:from-gray-900 dark:to-gray-900",
+          "flex flex-col h-full left-0 fixed md:relative top-0 z-30 md:z-10",
           "transform transition-transform duration-300 ease-in-out gpu-accelerated",
           isOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0",
           "shadow-lg md:shadow-none"
         )}
       >
-        <div className="p-3 flex items-center justify-between border-b border-violet-600/30 dark:border-gray-800">
-          <div className="flex items-center space-x-3">
-            <div className="relative w-10 h-10 shrink-0">
-              <Image
-                src="/images/logo-no-label.png"
-                alt="LSChat Logo"
-                fill
-                sizes="40px"
-                className="object-contain"
-              />
-            </div>
-            <h1 className="text-lg font-bold text-yellow-300 dark:text-yellow-300">
-              LS<span className="text-white dark:text-white">Chat</span><span className='text-purple-300 dark:text-purple-400'>App</span>
-            </h1>
-          </div>
-          
+        <div className="p-4.5 flex items-center justify-between relative pb-8">
+          <h1 className="text-lg font-bold text-white dark:text-white isolate">
+            <span 
+              ref={logoLSRef} 
+              className='text-amber-200 inline-block cursor-pointer transform-gpu'
+              style={{ opacity: 0 }}
+            >
+              LS
+            </span>
+            <span 
+              ref={logoChatRef}
+              className='inline-block cursor-pointer transform-gpu'
+              style={{ opacity: 0 }}
+            >
+              Chat
+            </span>
+            <span 
+              ref={logoAppRef} 
+              className='text-blue-300 inline-block cursor-pointer transform-gpu'
+              style={{ opacity: 0 }}
+            >
+              App
+            </span>
+          </h1>
           <button 
             onClick={onClose}
             className="md:hidden p-2 rounded-full text-white/80 hover:text-white hover:bg-violet-800/50 dark:hover:bg-gray-800"
@@ -601,62 +571,28 @@ export function Sidebar({
             </svg>
           </button>
         </div>
-        
-        <div className="px-2 pt-3 pb-2 relative">
-          <div 
-            ref={tabsRef}
-            className="flex items-center justify-around relative"
-          >
-            {(['chats', 'groups', 'contacts'] as TabType[]).map((tab) => (
-              <button
-                key={tab}
-                data-tab={tab}
-                className={cn(
-                  "flex-1 py-2 px-1 text-center text-sm font-medium relative z-10 transition-colors",
-                  "outline-none focus:outline-none focus:ring-0 focus-visible:outline-none hover:cursor-pointer",
-                  "border-0 shadow-none !ring-0 !ring-offset-0",
-                  activeTab === tab 
-                    ? "text-white" 
-                    : "text-white/70 hover:text-white/90",
-                  isHoveringTab === tab && activeTab !== tab && "text-white/90"
-                )}
-                style={{ 
-                  boxShadow: 'none',
-                  outline: 'none'
-                }}
-                onClick={() => handleTabClick(tab)}
-                onMouseEnter={() => handleTabHover(tab)}
-                onMouseLeave={handleTabLeave}
-              >
-                <div className="flex flex-col items-center gap-1 outline-none border-none">
-                  {tab === 'chats' && (
-                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={activeTab === tab ? 2.2 : 1.8} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                    </svg>
+        <div className="md:hidden px-3 pb-3 mb-2">
+          <div className="bg-violet-800/40 dark:bg-gray-800/40 rounded-xl p-2 shadow-inner">
+            <div className="flex flex-col space-y-1">
+              {navigationItems.map(item => (
+                <button
+                  key={item.tab}
+                  onClick={() => handleTabClick(item.tab)}
+                  className={cn(
+                    "py-2 px-3 flex items-center rounded-lg text-sm",
+                    "focus:outline-none transition-colors duration-200",
+                    activeTab === item.tab ? 
+                      "bg-violet-600/60 dark:bg-gray-700/70 text-white shadow-sm" : 
+                      "text-white/80 hover:text-white hover:bg-violet-700/30 dark:hover:bg-gray-700/30"
                   )}
-                  {tab === 'groups' && (
-                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={activeTab === tab ? 2.2 : 1.8} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                    </svg>
-                  )}
-                  {tab === 'contacts' && (
-                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={activeTab === tab ? 2.2 : 1.8} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
-                    </svg>
-                  )}
-                  {tab.charAt(0).toUpperCase() + tab.slice(1)}
-                </div>
-              </button>
-            ))}
-            
-            <div 
-              ref={tabIndicatorRef}
-              className="absolute bottom-0 h-1 bg-white rounded-full transition-none" 
-              style={{ width: '33.33%', left: '0%' }}
-            />
+                >
+                  <div className="w-5 h-5 mr-3 flex-shrink-0">{item.icon}</div>
+                  <span className="font-medium">{item.label}</span>
+                </button>
+              ))}
+            </div>
           </div>
         </div>
-        
         <div className="p-3">
           <div className="relative">
             <input
@@ -683,9 +619,8 @@ export function Sidebar({
             )}
           </div>
         </div>
-        
         <div 
-          ref={tabContentRef}
+          ref={contentRef}
           className="flex-1 overflow-y-auto no-scrollbar scrollbar-thin scrollbar-track-transparent scrollbar-thumb-white/20 hover:scrollbar-thumb-white/30 px-3 pb-28" 
         >
           {activeTab === 'chats' && (
@@ -693,7 +628,6 @@ export function Sidebar({
               <h3 className="text-xs uppercase tracking-wider text-white/60 dark:text-gray-400 font-medium px-2 mb-2">
                 Recent Conversations
               </h3>
-              
               {filteredContacts.length === 0 && !loadingContacts ? (
                 <div className="bg-white/10 dark:bg-gray-800/50 rounded-lg p-4 text-center">
                   <p className="text-sm text-white/80 dark:text-gray-300">
@@ -716,7 +650,6 @@ export function Sidebar({
                 !loadingContacts && !apiError && filteredContacts.map(contact => {
                   const contactChannel = contact.pubnub_channel || '';
                   const lastMsg = getLastMessage(contactChannel);
-                  
                   return (
                     <ContactItem
                       key={contact.contact_id}
@@ -730,13 +663,11 @@ export function Sidebar({
               )}
             </div>
           )}
-          
           {activeTab === 'groups' && (
             <div className="space-y-1 py-2">
               <h3 className="text-xs uppercase tracking-wider text-white/60 dark:text-gray-400 font-medium px-2 mb-2">
                 Your Groups
               </h3>
-              
               {filteredGroups.length === 0 && !loadingGroups ? (
                 <div className="bg-white/10 dark:bg-gray-800/50 rounded-lg p-4 text-center">
                   <p className="text-sm text-white/80 dark:text-gray-300">
@@ -794,7 +725,6 @@ export function Sidebar({
                         </div>
                       )}
                     </div>
-                    {/* Confirmation overlay */}
                     {confirmingLeaveGroup === group.group_id && (
                       <div className="absolute inset-0 bg-gray-50 dark:bg-gray-800 border border-red-200 dark:border-red-800 rounded-lg flex items-center justify-center z-20">
                         <div className="text-center px-2">
@@ -823,13 +753,11 @@ export function Sidebar({
               )}
             </div>
           )}
-          
           {activeTab === 'contacts' && (
             <div className="space-y-1 py-2">
               <h3 className="text-xs uppercase tracking-wider text-white/60 dark:text-gray-400 font-medium px-2 mb-2">
                 Your Contacts
               </h3>
-              
               {filteredContacts.length === 0 && !loadingContacts ? (
                 <div className="bg-white/10 dark:bg-gray-800/50 rounded-lg p-4 text-center">
                   <p className="text-sm text-white/80 dark:text-gray-300">
@@ -856,7 +784,6 @@ export function Sidebar({
                       const isMenuOpen = openContactMenus.has(contact.contact_id);
                       const isRemoving = removingContacts.has(contact.contact_id);
                       const isConfirming = confirmingRemove === contact.contact_id;
-                      
                       return (
                         <div key={contact.contact_id} className="relative">
                           <div className="flex items-center">
@@ -867,7 +794,6 @@ export function Sidebar({
                                 onSelect={handleContactSelect}
                               />
                             </div>
-                            
                             {onRemoveContact && (
                               <div className="relative">
                                 <button
@@ -882,7 +808,6 @@ export function Sidebar({
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
                                   </svg>
                                 </button>
-                                
                                 {isMenuOpen && (
                                   <div 
                                     className="absolute right-0 top-full w-32 bg-white dark:bg-gray-800 shadow-lg rounded-md border border-gray-200 dark:border-gray-700 py-1 z-50"
@@ -903,7 +828,6 @@ export function Sidebar({
                               </div>
                             )}
                           </div>
-
                           {isConfirming && (
                             <div className="absolute inset-0 bg-white/95 dark:bg-gray-800/95 border border-red-200 dark:border-red-800 rounded-lg flex items-center justify-center z-40">
                               <div className="text-center px-2">
@@ -935,8 +859,84 @@ export function Sidebar({
               )}
             </div>
           )}
+          {activeTab === 'announcements' && (
+            <div className="space-y-3 py-2">
+              <h3 className="text-xs uppercase tracking-wider text-white/60 dark:text-gray-400 font-medium px-2 mb-2">
+                Announcements
+              </h3>
+              {canPublishAnnouncements ? (
+                <>
+                  <div className="bg-white/10 dark:bg-gray-800/40 rounded-lg p-1 flex shadow-inner">
+                    <button
+                      onClick={() => setActiveAnnouncementTab('published')}
+                      className={cn(
+                        "flex-1 py-2 px-3 text-xs font-medium rounded-md transition-colors",
+                        activeAnnouncementTab === 'published' 
+                          ? "bg-violet-600/80 text-white shadow-sm" 
+                          : "text-white/70 hover:text-white hover:bg-white/5"
+                      )}
+                    >
+                      <div className="flex items-center justify-center">
+                        <svg className="w-3.5 h-3.5 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" />
+                        </svg>
+                        Published
+                      </div>
+                    </button>
+                    <button
+                      onClick={() => setActiveAnnouncementTab('incoming')}
+                      className={cn(
+                        "flex-1 py-2 px-3 text-xs font-medium rounded-md transition-colors",
+                        activeAnnouncementTab === 'incoming' 
+                          ? "bg-violet-600/80 text-white shadow-sm" 
+                          : "text-white/70 hover:text-white hover:bg-white/5"
+                      )}
+                    >
+                      <div className="flex items-center justify-center">
+                        <svg className="w-3.5 h-3.5 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 19v-8.93a2 2 0 01.89-1.664l7-4.666a2 2 0 012.22 0l7 4.666A2 2 0 0121 10.07V19M3 19a2 2 0 002 2h14a2 2 0 002-2M3 19l6.75-4.5M21 19l-6.75-4.5M3 10l6.75 4.5M21 10l-6.75 4.5m0 0l-1.14.76a2 2 0 01-2.22 0l-1.14-.76" />
+                        </svg>
+                        Incoming
+                      </div>
+                    </button>
+                  </div>
+                  <div className="mt-4">
+                    {activeAnnouncementTab === 'published' && (
+                      <div className="bg-white/10 dark:bg-gray-800/50 rounded-lg p-4 text-center">
+                        <p className="text-sm text-white/80 dark:text-gray-300">
+                          No published announcements
+                        </p>
+                        <p className="text-xs text-white/60 dark:text-gray-400 mt-1">
+                          Announcements you've published will appear here
+                        </p>
+                      </div>
+                    )}
+                    {activeAnnouncementTab === 'incoming' && (
+                      <div className="bg-white/10 dark:bg-gray-800/50 rounded-lg p-4 text-center">
+                        <p className="text-sm text-white/80 dark:text-gray-300">
+                          No incoming announcements
+                        </p>
+                        <p className="text-xs text-white/60 dark:text-gray-400 mt-1">
+                          Announcements sent to you will appear here
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </>
+              ) : (
+                <div className="bg-white/10 dark:bg-gray-800/50 rounded-lg p-4 text-center">
+                  <p className="text-sm text-white/80 dark:text-gray-300">
+                    No incoming announcements
+                  </p>
+                  <p className="text-xs text-white/60 dark:text-gray-400 mt-1">
+                    Announcements sent to you will appear here
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
-    </>
+    </div>
   );
 }
