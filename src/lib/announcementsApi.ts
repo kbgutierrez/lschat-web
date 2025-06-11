@@ -42,6 +42,7 @@ export interface Announcement {
   is_active: boolean;
   creator_name: string;
   profile_picture: string | null;
+  is_read?: number; // Add is_read field (0 for unread, 1 for read)
 }
 
 export interface IncomingAnnouncementsResponse {
@@ -54,6 +55,12 @@ export interface UnreadAnnouncementsCountResponse {
   success: boolean;
   userId: number;
   unreadCount: number;
+}
+
+export interface MarkAnnouncementReadResponse {
+  success: boolean;
+  userId: number;
+  announcementId: number;
 }
 
 const middleware = {
@@ -279,6 +286,30 @@ export const announcementsAPI = {
       return await response.json();
     } catch (error) {
       console.error('Error fetching unread announcements count:', error);
+      throw error;
+    }
+  },
+
+  markAnnouncementRead: async (userId: string | number, announcementId: number): Promise<MarkAnnouncementReadResponse> => {
+    try {
+      const headers = middleware.addAuthHeader({
+        'Content-Type': 'application/json',
+      });
+      
+      const response = await fetch(`${API_BASE_URL}/api/update/mark-announcement-read`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ userId, announcementId })
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Failed to mark announcement as read: ${response.status} - ${errorText}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error marking announcement as read:', error);
       throw error;
     }
   }

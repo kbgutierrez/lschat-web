@@ -1074,21 +1074,38 @@ export default function Dashboard() {
   const [loadingAnnouncementDetails, setLoadingAnnouncementDetails] = useState<boolean>(false);
   const [announcementError, setAnnouncementError] = useState<string | null>(null);
   
+  // Add a helper function to fetch the unread count
+  const fetchUnreadAnnouncementsCount = useCallback(async () => {
+    if (!user?.user_id) return;
+    
+    try {
+      const response = await announcementsAPI.fetchUnreadAnnouncementsCount(user.user_id);
+      // The sidebar will update its state based on this API call
+    } catch (error) {
+      console.error('Error fetching unread announcements count:', error);
+    }
+  }, [user?.user_id]);
+  
   // Add function to handle announcement selection
   const handleAnnouncementSelect = useCallback(async (announcementId: number) => {
     setSelectedAnnouncement(announcementId);
     setSelectedContact(null);
     setSelectedGroup(null);
     
-    // Fetch the specific announcement details if needed
-    // For now, we'll rely on the data available in the sidebar
+    // Mark as read and fetch the specific announcement details
     setLoadingAnnouncementDetails(true);
     setAnnouncementError(null);
     
     try {
       if (!user?.user_id) return;
       
+      // Mark the announcement as read first
+      await announcementsAPI.markAnnouncementRead(user.user_id, announcementId);
+      
+      // Then fetch the announcement details to get the latest data
       const response = await announcementsAPI.fetchIncomingAnnouncements(user.user_id);
+      
+      // Find the announcement in the response
       const announcement = response.announcements.find(a => a.announcement_id === announcementId);
       
       if (announcement) {
@@ -1096,8 +1113,19 @@ export default function Dashboard() {
       } else {
         setAnnouncementError("Announcement not found");
       }
+
+      // Update the sidebar by triggering a custom event that the Sidebar will listen for
+      if (typeof window !== 'undefined') {
+        const event = new CustomEvent('announcementMarkedAsRead', { 
+          detail: { announcementId, updatedAnnouncements: response.announcements }
+        });
+        window.dispatchEvent(event);
+      }
+
+      // Update the unread count
+      fetchUnreadAnnouncementsCount();
     } catch (error) {
-      console.error("Error fetching announcement details:", error);
+      console.error("Error handling announcement selection:", error);
       setAnnouncementError("Failed to load announcement details");
     } finally {
       setLoadingAnnouncementDetails(false);
@@ -1105,7 +1133,7 @@ export default function Dashboard() {
     
     // Close mobile sidebar (if open)
     setIsMobileSidebarOpen(false);
-  }, [user?.user_id, setSelectedContact, setSelectedGroup]);
+  }, [user?.user_id, fetchUnreadAnnouncementsCount]);
 
   if (!isClient) {
     return <div className="min-h-screen bg-violet-50 dark:bg-gray-950"></div>;

@@ -615,7 +615,39 @@ export function Sidebar({
       setUnreadAnnouncementsCount(0);
     }
   }, [activeTab, unreadAnnouncementsCount]);
-  
+
+  // Add effect to listen for announcement read events
+  useEffect(() => {
+    const handleAnnouncementMarkedAsRead = (event: CustomEvent) => {
+      const { announcementId, updatedAnnouncements } = event.detail;
+      
+      // Update both incoming and searched announcements state with the updated data
+      if (activeAnnouncementTab === 'incoming') {
+        setIncomingAnnouncements(updatedAnnouncements);
+        
+        // Also update the searched announcements if we're not filtering
+        if (!searchTerm.trim()) {
+          setSearchedAnnouncements(updatedAnnouncements);
+        } else {
+          // If we're filtering, update while preserving the filter
+          const searchLower = searchTerm.toLowerCase();
+          const filtered = updatedAnnouncements.filter(announcement => 
+            announcement.title.toLowerCase().includes(searchLower) ||
+            (announcement.content && announcement.content.toLowerCase().includes(searchLower)) ||
+            announcement.creator_name.toLowerCase().includes(searchLower)
+          );
+          setSearchedAnnouncements(filtered);
+        }
+      }
+    };
+    
+    window.addEventListener('announcementMarkedAsRead', handleAnnouncementMarkedAsRead as EventListener);
+    
+    return () => {
+      window.removeEventListener('announcementMarkedAsRead', handleAnnouncementMarkedAsRead as EventListener);
+    };
+  }, [activeAnnouncementTab, searchTerm]);
+
   return (
     <div className="flex h-full">
       <div 
@@ -1037,7 +1069,7 @@ export function Sidebar({
                     >
                       <div className="flex items-center justify-center">
                         <svg className="w-3.5 h-3.5 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" />
                         </svg>
                         Published
                       </div>
@@ -1053,7 +1085,7 @@ export function Sidebar({
                     >
                       <div className="flex items-center justify-center">
                         <svg className="w-3.5 h-3.5 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 19v-8.93a2 2 0 01.89-1.664l7-4.666a2 2 0 012.22 0l7 4.666A2 2 0 0121 10.07V19M3 19a2 2 0 002 2h14a2 2 0 002-2M3 19l6.75-4.5M21 19l-6.75-4.5M3 10l6.75 4.5M21 10l-6.75 4.5m0 0l-1.14.76a2 2 0 01-2.22 0l-1.14-.76" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 19v-8.93a2 2 0 01.89-1.664l7-4.666a2 2 0 012.22 0l7 4.666A2 2 0 0121 10.07V19M3 19a2 2 0 002 2h14a2 2 0 002-2M3 19l6.75-4.5M21 19l-6.75-4.5M3 10l6.75 4.5M21 10l-6.75 4.5m0 0l-1.14.76a2 2 0 01-2.22 0l-1.14-.76" />
                         </svg>
                         Incoming
                       </div>
@@ -1115,7 +1147,9 @@ export function Sidebar({
                                 "p-3 rounded-lg cursor-pointer transition-colors",
                                 selectedAnnouncement === announcement.announcement_id
                                   ? "bg-violet-600/80 text-white"
-                                  : "bg-white/10 hover:bg-white/20 text-white/90"
+                                  : announcement.is_read === 0 
+                                    ? "bg-white/20 hover:bg-white/25 text-white/95" 
+                                    : "bg-white/10 hover:bg-white/20 text-white/90"
                               )}
                             >
                               <div className="flex items-center space-x-3">
@@ -1135,7 +1169,10 @@ export function Sidebar({
                                 )}
                                 <div className="min-w-0 flex-1">
                                   <div className="flex justify-between items-baseline">
-                                    <h4 className="text-sm font-medium truncate">
+                                    <h4 className={cn(
+                                      "text-sm truncate", 
+                                      announcement.is_read === 0 ? "font-semibold" : "font-medium"
+                                    )}>
                                       {announcement.title}
                                     </h4>
                                     <span className="text-xs opacity-70 ml-1 shrink-0">
@@ -1143,9 +1180,13 @@ export function Sidebar({
                                     </span>
                                   </div>
                                   <div className="flex items-center mt-1">
+                                    <span className="text-xs truncate opacity-80">
+                                      {announcement.creator_name}
+                                    </span>
+                                    <span className="mx-1.5 text-xs">•</span>
                                     <span className="text-xs truncate opacity-70">
                                       {announcement.announcement_type === 'image' 
-                                        ? 'Image announcement'
+                                        ? 'Image announcement' 
                                         : announcement.content?.substring(0, 30) + (announcement.content && announcement.content.length > 30 ? '...' : '')}
                                     </span>
                                   </div>
@@ -1211,7 +1252,9 @@ export function Sidebar({
                                 "p-3 rounded-lg cursor-pointer transition-colors",
                                 selectedAnnouncement === announcement.announcement_id
                                   ? "bg-violet-600/80 text-white"
-                                  : "bg-white/10 hover:bg-white/20 text-white/90"
+                                  : announcement.is_read === 0 
+                                    ? "bg-white/20 hover:bg-white/25 text-white/95" 
+                                    : "bg-white/10 hover:bg-white/20 text-white/90"
                               )}
                             >
                               <div className="flex items-center space-x-3">
@@ -1231,7 +1274,10 @@ export function Sidebar({
                                 )}
                                 <div className="min-w-0 flex-1">
                                   <div className="flex justify-between items-baseline">
-                                    <h4 className="text-sm font-medium truncate">
+                                    <h4 className={cn(
+                                      "text-sm truncate", 
+                                      announcement.is_read === 0 ? "font-semibold" : "font-medium"
+                                    )}>
                                       {announcement.title}
                                     </h4>
                                     <span className="text-xs opacity-70 ml-1 shrink-0">
@@ -1313,7 +1359,9 @@ export function Sidebar({
                             "p-3 rounded-lg cursor-pointer transition-colors",
                             selectedAnnouncement === announcement.announcement_id
                               ? "bg-violet-600/80 text-white"
-                              : "bg-white/10 hover:bg-white/20 text-white/90"
+                              : announcement.is_read === 0 
+                                ? "bg-white/20 hover:bg-white/25 text-white/95" 
+                                : "bg-white/10 hover:bg-white/20 text-white/90"
                           )}
                         >
                           <div className="flex items-center space-x-3">
@@ -1333,7 +1381,10 @@ export function Sidebar({
                             )}
                             <div className="min-w-0 flex-1">
                               <div className="flex justify-between items-baseline">
-                                <h4 className="text-sm font-medium truncate">
+                                <h4 className={cn(
+                                  "text-sm truncate", 
+                                  announcement.is_read === 0 ? "font-semibold" : "font-medium"
+                                )}>
                                   {announcement.title}
                                 </h4>
                                 <span className="text-xs opacity-70 ml-1 shrink-0">
