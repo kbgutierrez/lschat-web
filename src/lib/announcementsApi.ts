@@ -41,8 +41,7 @@ export interface Announcement {
   updated_at: string | null;
   is_active: boolean;
   creator_name: string;
-  profile_picture: string;
-  latest_date: string;
+  profile_picture: string | null;
 }
 
 export interface IncomingAnnouncementsResponse {
@@ -121,6 +120,39 @@ export const announcementsAPI = {
       return data;
     } catch (error) {
       console.error('Error in fetchIncomingAnnouncements:', error);
+      throw error;
+    }
+  },
+  
+  fetchPublishedAnnouncements: async (userId: string | number): Promise<IncomingAnnouncementsResponse> => {
+    console.log(`fetchPublishedAnnouncements called for user ${userId}`);
+    
+    try {
+      const headers = middleware.addAuthHeader();
+      console.log('Request headers:', headers);
+      
+      const url = `${API_BASE_URL}/api/fetch/announcements-created/${userId}`;
+      console.log(`Making request to: ${url}`);
+      
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: headers,
+      });
+      
+      console.log('Response status:', response.status);
+      console.log('Response OK:', response.ok);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Error response text:', errorText);
+        throw new Error(`Failed to fetch published announcements: ${response.status} - ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      console.log('Published announcements data received:', data);
+      return data;
+    } catch (error) {
+      console.error('Error in fetchPublishedAnnouncements:', error);
       throw error;
     }
   },

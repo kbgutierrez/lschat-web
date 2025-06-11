@@ -95,6 +95,7 @@ export function Sidebar({
   
   // Add states for announcements
   const [incomingAnnouncements, setIncomingAnnouncements] = useState<Announcement[]>([]);
+  const [publishedAnnouncements, setPublishedAnnouncements] = useState<Announcement[]>([]);
   const [loadingAnnouncements, setLoadingAnnouncements] = useState<boolean>(false);
   const [announcementsError, setAnnouncementsError] = useState<string | null>(null);
   const [searchedAnnouncements, setSearchedAnnouncements] = useState<Announcement[]>([]);
@@ -509,16 +510,19 @@ export function Sidebar({
         setLoadingAnnouncements(true);
         setAnnouncementsError(null);
 
-        console.log('Calling announcementsAPI.fetchIncomingAnnouncements...');
-        const response = await announcementsAPI.fetchIncomingAnnouncements(user.user_id);
-        console.log('Announcements API response:', response);
-        
-        if (response.announcements) {
-          console.log(`Received ${response.announcements.length} announcements`);
-          setIncomingAnnouncements(response.announcements);
-          setSearchedAnnouncements(response.announcements);
-        } else {
-          console.error('Unexpected response format:', response);
+        // Fetch the appropriate announcements based on the active announcement tab
+        if (activeAnnouncementTab === 'incoming') {
+          const response = await announcementsAPI.fetchIncomingAnnouncements(user.user_id);
+          if (response.announcements) {
+            setIncomingAnnouncements(response.announcements);
+            setSearchedAnnouncements(response.announcements);
+          }
+        } else { // 'published'
+          const response = await announcementsAPI.fetchPublishedAnnouncements(user.user_id);
+          if (response.announcements) {
+            setPublishedAnnouncements(response.announcements);
+            setSearchedAnnouncements(response.announcements);
+          }
         }
       } catch (error) {
         console.error('Error fetching announcements:', error);
@@ -533,18 +537,26 @@ export function Sidebar({
       console.log('Triggering announcement fetch...');
       fetchAnnouncements();
     }
-  }, [user?.user_id, activeTab]);
+  }, [user?.user_id, activeTab, activeAnnouncementTab]);
 
-  // Add effect to filter announcements based on search term
+  // Update effect to filter announcements based on search term and active tab
   useEffect(() => {
     if (activeTab === 'announcements') {
       if (!searchTerm.trim()) {
-        // If no search term, show all announcements
-        setSearchedAnnouncements(incomingAnnouncements);
+        // If no search term, show all announcements of the active type
+        setSearchedAnnouncements(
+          activeAnnouncementTab === 'incoming' 
+            ? incomingAnnouncements 
+            : publishedAnnouncements
+        );
       } else {
-        // Filter announcements based on search term
+        // Filter announcements based on search term and active tab
         const searchLower = searchTerm.toLowerCase();
-        const filtered = incomingAnnouncements.filter(announcement => 
+        const announcements = activeAnnouncementTab === 'incoming' 
+          ? incomingAnnouncements 
+          : publishedAnnouncements;
+        
+        const filtered = announcements.filter(announcement => 
           announcement.title.toLowerCase().includes(searchLower) ||
           (announcement.content && announcement.content.toLowerCase().includes(searchLower)) ||
           announcement.creator_name.toLowerCase().includes(searchLower)
@@ -552,7 +564,7 @@ export function Sidebar({
         setSearchedAnnouncements(filtered);
       }
     }
-  }, [searchTerm, incomingAnnouncements, activeTab]);
+  }, [searchTerm, incomingAnnouncements, publishedAnnouncements, activeTab, activeAnnouncementTab]);
   
   return (
     <div className="flex h-full">
@@ -986,14 +998,99 @@ export function Sidebar({
                   
                   <div className="mt-4">
                     {activeAnnouncementTab === 'published' && (
-                      <div className="bg-white/10 dark:bg-gray-800/50 rounded-lg p-4 text-center">
-                        <p className="text-sm text-white/80 dark:text-gray-300">
-                          No published announcements
-                        </p>
-                        <p className="text-xs text-white/60 dark:text-gray-400 mt-1">
-                          Announcements you've published will appear here
-                        </p>
-                      </div>
+                      loadingAnnouncements ? (
+                        <div className="flex justify-center py-8">
+                          <div className="animate-pulse flex space-x-2">
+                            <div className="h-2 w-2 bg-white/70 dark:bg-gray-400 rounded-full"></div>
+                            <div className="h-2 w-2 bg-white/70 dark:bg-gray-400 rounded-full animation-delay-200"></div>
+                            <div className="h-2 w-2 bg-white/70 dark:bg-gray-400 rounded-full animation-delay-500"></div>
+                          </div>
+                        </div>
+                      ) : announcementsError ? (
+                        <div className="bg-red-900/20 border border-red-800 rounded-lg p-3 text-center">
+                          <p className="text-sm text-red-200">Error: {announcementsError}</p>
+                          <button 
+                            className="mt-2 px-3 py-1 text-xs rounded bg-red-800/50 text-red-200 hover:bg-red-800/70"
+                            onClick={() => {
+                              if (user?.user_id) {
+                                setLoadingAnnouncements(true);
+                                announcementsAPI.fetchPublishedAnnouncements(user.user_id)
+                                  .then(response => {
+                                    setPublishedAnnouncements(response.announcements);
+                                    setSearchedAnnouncements(response.announcements);
+                                    setAnnouncementsError(null);
+                                  })
+                                  .catch(error => {
+                                    setAnnouncementsError('Failed to load announcements');
+                                  })
+                                  .finally(() => {
+                                    setLoadingAnnouncements(false);
+                                  });
+                              }
+                            }}
+                          >
+                            Retry
+                          </button>
+                        </div>
+                      ) : searchedAnnouncements.length === 0 ? (
+                        <div className="bg-white/10 dark:bg-gray-800/50 rounded-lg p-4 text-center">
+                          <p className="text-sm text-white/80 dark:text-gray-300">
+                            {searchTerm ? 'No published announcements matching your search' : 'No published announcements'}
+                          </p>
+                          <p className="text-xs text-white/60 dark:text-gray-400 mt-1">
+                            Announcements you've published will appear here
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          {searchedAnnouncements.map((announcement) => (
+                            <div
+                              key={announcement.announcement_id}
+                              onClick={() => handleAnnouncementSelect?.(announcement.announcement_id)}
+                              className={cn(
+                                "p-3 rounded-lg cursor-pointer transition-colors",
+                                selectedAnnouncement === announcement.announcement_id
+                                  ? "bg-violet-600/80 text-white"
+                                  : "bg-white/10 hover:bg-white/20 text-white/90"
+                              )}
+                            >
+                              <div className="flex items-center space-x-3">
+                                {announcement.profile_picture ? (
+                                  <img 
+                                    src={announcement.profile_picture} 
+                                    alt={announcement.creator_name}
+                                    className="w-8 h-8 rounded-full object-cover shrink-0"
+                                    onError={(e) => {
+                                      e.currentTarget.src = 'https://via.placeholder.com/32?text=U';
+                                    }}
+                                  />
+                                ) : (
+                                  <div className="w-8 h-8 rounded-full bg-violet-600/30 flex items-center justify-center text-white text-sm shrink-0">
+                                    {announcement.creator_name.charAt(0).toUpperCase()}
+                                  </div>
+                                )}
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex justify-between items-baseline">
+                                    <h4 className="text-sm font-medium truncate">
+                                      {announcement.title}
+                                    </h4>
+                                    <span className="text-xs opacity-70 ml-1 shrink-0">
+                                      {new Date(announcement.created_at).toLocaleDateString()}
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center mt-1">
+                                    <span className="text-xs truncate opacity-70">
+                                      {announcement.announcement_type === 'image' 
+                                        ? 'Image announcement'
+                                        : announcement.content?.substring(0, 30) + (announcement.content && announcement.content.length > 30 ? '...' : '')}
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )
                     )}
                     
                     {activeAnnouncementTab === 'incoming' && (
@@ -1103,7 +1200,7 @@ export function Sidebar({
                     <div className="flex justify-center py-8">
                       <div className="animate-pulse flex space-x-2">
                         <div className="h-2 w-2 bg-white/70 dark:bg-gray-400 rounded-full"></div>
-                        <div className="h-2 w-2 bg-white/70 dark:bg-gray-400 rounded-full animation-delay-200"></div>
+                        <div className="h-2 w-2 bg-white/70 dark:bg_gray-400 rounded-full animation-delay-200"></div>
                         <div className="h-2 w-2 bg-white/70 dark:bg-gray-400 rounded-full animation-delay-500"></div>
                       </div>
                     </div>
