@@ -52,7 +52,7 @@ export function AnnouncementsArea({
     <div className="flex-1 flex flex-col bg-gray-50 dark:bg-gray-900 overflow-hidden">
       <div className="flex-1 overflow-y-auto px-3 py-4 md:px-4 md:py-6">
         {loading ? (
-          <div className="max-w-3xl mx-auto">
+          <div className="w-full max-w-4xl mx-auto px-4">
             <div className="animate-pulse space-y-2">
               <div className="h-5 bg-gray-200 dark:bg-gray-700 rounded w-2/3"></div>
               <div className="flex gap-2 items-center mt-2">
@@ -67,7 +67,7 @@ export function AnnouncementsArea({
             </div>
           </div>
         ) : error ? (
-          <div className="max-w-3xl mx-auto">
+          <div className="w-full max-w-4xl mx-auto px-4">
             <div className="bg-red-50 dark:bg-red-900/20 rounded-lg p-4 shadow-sm border border-red-100 dark:border-red-800/30">
               <div className="flex items-center gap-3">
                 <div className="flex-shrink-0 bg-red-100 dark:bg-red-800/30 rounded-full p-2">
@@ -83,7 +83,7 @@ export function AnnouncementsArea({
             </div>
           </div>
         ) : announcement ? (
-          <article className="max-w-3xl mx-auto">
+          <article className="w-full sm:w-[95%] md:w-[90%] lg:w-[85%] xl:w-[80%] mx-auto px-4">
             {/* Bulletin board style announcement */}
             <div className="bg-white dark:bg-gray-800 rounded-lg overflow-hidden shadow-sm border border-gray-200 dark:border-gray-700">
               {/* Colored tag strip based on announcement type */}
