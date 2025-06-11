@@ -24,6 +24,8 @@ import CreateGroupModal from '@/components/dashboard/CreateGroupModal';
 import  UserManagementModal  from '@/components/dashboard/UserManagementModal';
 import CreateAnnouncementModal from '@/components/dashboard/CreateAnnouncementModal';
 import SpeedDial from '@/components/dashboard/SpeedDial';
+import { AnnouncementsArea } from '@/components/dashboard/AnnouncementsArea';
+import { announcementsAPI, Announcement } from '@/lib/announcementsApi';
 
 type TabType = 'chats' | 'groups' | 'contacts' | 'announcements';
 
@@ -840,6 +842,7 @@ export default function Dashboard() {
 
   const handleTabChange = useCallback((tab: TabType) => {
     if (tab !== activeTab) {
+      console.log(`Tab changing from ${activeTab} to ${tab}`);
       setActiveTab(tab);
       
       if (tab === 'contacts') {
@@ -847,11 +850,21 @@ export default function Dashboard() {
         refreshPendingContacts();
       }
       
+      if (tab === 'announcements') {
+        console.log('Announcements tab selected, clearing other selections');
+        // Clear other selections when switching to announcements
+        setSelectedContact(null);
+        setSelectedGroup(null);
+        setSelectedAnnouncement(null);
+        setSelectedAnnouncementDetails(null);
+      }
+      
       if (!tabsVisited[tab]) {
         setTabsVisited(prev => ({
           ...prev,
           [tab]: true
         }));
+        console.log(`First visit to ${tab} tab`);
       }
     }
   }, [activeTab, tabsVisited, clearSelection, refreshPendingContacts]);
@@ -1055,6 +1068,45 @@ export default function Dashboard() {
     }
   }, [user?.user_id, setActiveTab]);
 
+  // Add state for selected announcement and announcement details
+  const [selectedAnnouncement, setSelectedAnnouncement] = useState<number | null>(null);
+  const [selectedAnnouncementDetails, setSelectedAnnouncementDetails] = useState<Announcement | null>(null);
+  const [loadingAnnouncementDetails, setLoadingAnnouncementDetails] = useState<boolean>(false);
+  const [announcementError, setAnnouncementError] = useState<string | null>(null);
+  
+  // Add function to handle announcement selection
+  const handleAnnouncementSelect = useCallback(async (announcementId: number) => {
+    setSelectedAnnouncement(announcementId);
+    setSelectedContact(null);
+    setSelectedGroup(null);
+    
+    // Fetch the specific announcement details if needed
+    // For now, we'll rely on the data available in the sidebar
+    setLoadingAnnouncementDetails(true);
+    setAnnouncementError(null);
+    
+    try {
+      if (!user?.user_id) return;
+      
+      const response = await announcementsAPI.fetchIncomingAnnouncements(user.user_id);
+      const announcement = response.announcements.find(a => a.announcement_id === announcementId);
+      
+      if (announcement) {
+        setSelectedAnnouncementDetails(announcement);
+      } else {
+        setAnnouncementError("Announcement not found");
+      }
+    } catch (error) {
+      console.error("Error fetching announcement details:", error);
+      setAnnouncementError("Failed to load announcement details");
+    } finally {
+      setLoadingAnnouncementDetails(false);
+    }
+    
+    // Close mobile sidebar (if open)
+    setIsMobileSidebarOpen(false);
+  }, [user?.user_id, setSelectedContact, setSelectedGroup]);
+
   if (!isClient) {
     return <div className="min-h-screen bg-violet-50 dark:bg-gray-950"></div>;
   }
@@ -1095,7 +1147,9 @@ export default function Dashboard() {
         onLeaveGroup={handleLeaveGroup}
         refreshPendingContacts={refreshPendingContacts}
         isCreateGroupModalOpen={isCreateGroupModalOpen}
-        user={user} // Ensure we're passing the complete user object
+        user={user}
+        selectedAnnouncement={selectedAnnouncement}
+        handleAnnouncementSelect={handleAnnouncementSelect}
       />
 
       {/* The toggle modal background - increase z-index to be higher than nav rail */}
@@ -1135,7 +1189,6 @@ export default function Dashboard() {
         )}
 
         <div className="flex-1 flex overflow-hidden relative">
-          {/* Added md:pr-80 to make space for the always-visible right panel on desktop */}
           <div className="flex-1 flex flex-col overflow-hidden md:pr-0">
             {selectedContact ? (
               <ChatArea 
@@ -1194,6 +1247,12 @@ export default function Dashboard() {
                   disabled={!selectedGroup}
                 />
               </div>
+            ) : selectedAnnouncement ? (
+              <AnnouncementsArea 
+                announcement={selectedAnnouncementDetails}
+                loading={loadingAnnouncementDetails}
+                error={announcementError}
+              />
             ) : (
               <EmptyState />
             )}

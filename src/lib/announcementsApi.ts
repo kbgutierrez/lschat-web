@@ -24,6 +24,33 @@ export interface AnnouncementPermissionsResponse {
   }>;
 }
 
+// Type definitions for the announcement response
+export interface Announcement {
+  announcement_id: number;
+  title: string;
+  announcement_type: 'basic' | 'image';
+  content: string | null;
+  main_image_url: string | null;
+  attachment_url: string | null;
+  attachment_name: string | null;
+  attachment_mime_type: string | null;
+  permission_type: string;
+  created_by: number;
+  created_at: string;
+  updated_by: number | null;
+  updated_at: string | null;
+  is_active: boolean;
+  creator_name: string;
+  profile_picture: string;
+  latest_date: string;
+}
+
+export interface IncomingAnnouncementsResponse {
+  success: boolean;
+  userId: string;
+  announcements: Announcement[];
+}
+
 const middleware = {
   addAuthHeader: (headers: HeadersInit = {}) => {
     if (typeof window === 'undefined') return headers;
@@ -61,6 +88,39 @@ export const announcementsAPI = {
       return await response.json();
     } catch (error) {
       console.error('Error fetching announcement permissions:', error);
+      throw error;
+    }
+  },
+  
+  fetchIncomingAnnouncements: async (userId: string | number): Promise<IncomingAnnouncementsResponse> => {
+    console.log(`fetchIncomingAnnouncements called for user ${userId}`);
+    
+    try {
+      const headers = middleware.addAuthHeader();
+      console.log('Request headers:', headers);
+      
+      const url = `${API_BASE_URL}/api/fetch/announcements-received/${userId}`;
+      console.log(`Making request to: ${url}`);
+      
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: headers,
+      });
+      
+      console.log('Response status:', response.status);
+      console.log('Response OK:', response.ok);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Error response text:', errorText);
+        throw new Error(`Failed to fetch announcements: ${response.status} - ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      console.log('Announcements data received:', data);
+      return data;
+    } catch (error) {
+      console.error('Error in fetchIncomingAnnouncements:', error);
       throw error;
     }
   },
@@ -122,9 +182,13 @@ export const announcementsAPI = {
         permissionType = hasGroups ? 'byGroup' : 'byUser';
         
         audienceIds = data.recipients.map(id => {
-          if (id.startsWith('group_')) return Number(id.substring(6));
-          if (id.startsWith('user_')) return Number(id.substring(5));
-          return Number(id);
+          if (id.startsWith('group_')) {
+            return parseInt(id.replace('group_', ''));
+          }
+          if (id.startsWith('user_')) {
+            return parseInt(id.replace('user_', ''));
+          }
+          return parseInt(id);
         });
       }
       
@@ -149,7 +213,6 @@ export const announcementsAPI = {
         headers: headers,
         body: formData
       });
-
       if (!response.ok) {
         const errorText = await response.text();
         throw new Error(`Failed to create announcement: ${response.status} - ${errorText}`);

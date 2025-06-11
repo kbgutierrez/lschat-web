@@ -1162,7 +1162,7 @@ export function RightPanel({
         </div>
       ) : (
         <div className="flex-1 flex flex-col items-center justify-center p-4">
-          <div className="w-16 h-16 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-gray-400 dark:text-gray-600 mb-3">
+          {/* <div className="w-16 h-16 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-gray-400 dark:text-gray-600 mb-3">
             <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
@@ -1170,7 +1170,7 @@ export function RightPanel({
           <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">No Selection</h3>
           <p className="text-sm text-center text-gray-500 dark:text-gray-400">
             Select a contact or group to view details
-          </p>
+          </p> */}
         </div>
       )}
 
