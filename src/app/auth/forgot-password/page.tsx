@@ -15,25 +15,21 @@ export default function ForgotPassword() {
     const [error, setError] = useState<string | null>(null);
     const [isInitialized, setIsInitialized] = useState(false);
     
-    // New state variables for OTP flow
     const [step, setStep] = useState<'email' | 'otp' | 'newPassword'>('email');
     const [otp, setOtp] = useState('');
     const [otpSent, setOtpSent] = useState(false);
     const [attempts, setAttempts] = useState(3);
     const [newPassword, setNewPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
-    const [timeLeft, setTimeLeft] = useState(300); // 5 minutes in seconds
+    const [timeLeft, setTimeLeft] = useState(300); 
     const [timerActive, setTimerActive] = useState(false);
-    const [showSuccessToast, setShowSuccessToast] = useState(false); // Add this state
 
     useEffect(() => {
-        // Short delay to ensure DOM elements are properly rendered
         const initTimer = setTimeout(() => {
             if (!cardRef.current || !titleRef.current || !formRef.current) return;
             
             const tl = gsap.timeline();
             
-            // Animate main content
             tl.from(cardRef.current, { 
                 y: 30, 
                 opacity: 0, 
@@ -59,9 +55,8 @@ export default function ForgotPassword() {
             }
             
             setIsInitialized(true);
-        }, 100); // Small delay to ensure DOM is ready
+        }, 100); 
         
-        // Cleanup function
         return () => {
             clearTimeout(initTimer);
             gsap.killTweensOf([cardRef.current, titleRef.current]);
@@ -70,8 +65,6 @@ export default function ForgotPassword() {
             }
         };
     }, []);
-
-    // Timer countdown for OTP expiration
     useEffect(() => {
         let interval: NodeJS.Timeout | null = null;
         
@@ -89,7 +82,7 @@ export default function ForgotPassword() {
     }, [timerActive, timeLeft]);
 
     const startTimer = () => {
-        setTimeLeft(300); // Reset to 5 minutes
+        setTimeLeft(300); 
         setTimerActive(true);
     };
 
@@ -127,7 +120,6 @@ export default function ForgotPassword() {
                 setStep('otp');
                 startTimer();
                 
-                // Animate transition to OTP screen
                 if (formRef.current) {
                     const formHeight = formRef.current.clientHeight;
                     gsap.to(formRef.current, { 
@@ -182,7 +174,6 @@ export default function ForgotPassword() {
             if (response.ok) {
                 setTimerActive(false);
                 
-                // Improved animation transition
                 if (formRef.current) {
                     const currentHeight = formRef.current.clientHeight;
                     
@@ -259,24 +250,41 @@ export default function ForgotPassword() {
 
             const data = await response.json();
             if (response.ok) {
-                // Show success toast immediately
-                setShowSuccessToast(true);
-                
-                // Success notification and redirect
-                const formHeight = formRef.current?.clientHeight || 0;
-                gsap.to(formRef.current, { 
-                    height: formHeight,
-                    opacity: 0,
-                    duration: 0.4,
-                    onComplete: () => {
-                        gsap.to('.success-message', {
-                            opacity: 1, 
-                            y: 0, 
-                            duration: 0.5,
-                            ease: "power2.out"
-                        });
-                    }
-                });
+                // Improved animation sequence to prevent container height issues
+                if (formRef.current) {
+                    // First fade out the form
+                    gsap.to(formRef.current, { 
+                        opacity: 0,
+                        duration: 0.3,
+                        onComplete: () => {
+                            // After form is invisible, prepare the success message
+                            gsap.set('.success-message', { 
+                                display: 'block', 
+                                height: 'auto',
+                                opacity: 0,
+                                y: 10
+                            });
+                            
+                            // Hide the form completely
+                            gsap.set(formRef.current, { display: 'none' });
+                            
+                            // Animate in the success message
+                            gsap.to('.success-message', {
+                                opacity: 1, 
+                                y: 0, 
+                                duration: 0.5,
+                                ease: "power2.out",
+                                clearProps: "height" // This ensures height isn't fixed after animation
+                            });
+                            
+                            // Animate the success icon
+                            gsap.fromTo('.success-icon', 
+                                { scale: 0.5, opacity: 0 },
+                                { scale: 1, opacity: 1, duration: 0.7, ease: "elastic.out(1, 0.5)" }
+                            );
+                        }
+                    });
+                }
                 
                 // Redirect after a delay
                 setTimeout(() => {
@@ -557,30 +565,8 @@ export default function ForgotPassword() {
     
     return (
         <div className="bg-auth min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-indigo-50 via-purple-50 to-blue-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 overflow-hidden">
-            {/* Success Toast Notification */}
-            {showSuccessToast && (
-                <div className="fixed top-4 right-4 max-w-md z-50 animate-slide-in-right">
-                    <div className="bg-white dark:bg-slate-800 rounded-lg shadow-lg border-l-4 border-green-500 p-4 flex items-start">
-                        <div className="flex-shrink-0 bg-green-100 dark:bg-green-900/30 rounded-full p-2 mr-3">
-                            <svg className="w-5 h-5 text-green-600 dark:text-green-400" 
-                                fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
-                                    d="M5 13l4 4L19 7" />
-                            </svg>
-                        </div>
-                        <div>
-                            <h3 className="font-medium text-gray-900 dark:text-white">Success!</h3>
-                            <p className="text-sm text-gray-600 dark:text-gray-300">
-                                Your password has been updated successfully.
-                            </p>
-                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                                Redirecting to login page...
-                            </p>
-                        </div>
-                    </div>
-                </div>
-            )}
-
+            {/* Remove toast notification markup */}
+            
             <div ref={cardRef} className="w-full max-w-md relative z-10">
                 <div className="bg-white/90 dark:bg-slate-800/90 rounded-2xl shadow-[0_20px_50px_-15px_rgba(0,0,0,0.15)] dark:shadow-[0_20px_50px_-15px_rgba(0,0,0,0.5)] backdrop-blur-lg border border-white/50 dark:border-slate-700/50">
                     <div className="bg-gradient-to-r from-indigo-600 via-blue-600 to-purple-600 dark:from-indigo-700 dark:via-blue-700 dark:to-purple-700 p-6 rounded-t-2xl relative overflow-hidden">
@@ -614,29 +600,35 @@ export default function ForgotPassword() {
                         </div>
                     </div>
                     
+                    {/* Enhanced success message with controlled height */}
                     <div className="success-message p-8 space-y-6 opacity-0 translate-y-4 hidden">
                         <div className="flex flex-col items-center text-center space-y-4">
-                            <div className="w-16 h-16 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center text-green-600 dark:text-green-400 animate-success-bounce">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <div className="success-icon w-20 h-20 rounded-full bg-gradient-to-r from-green-500 to-emerald-400 dark:from-green-600 dark:to-emerald-500 flex items-center justify-center text-white shadow-lg shadow-green-200 dark:shadow-green-900/30">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                                     <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
                                     <polyline points="22 4 12 14.01 9 11.01" />
                                 </svg>
                             </div>
-                            <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Password Reset Complete</h2>
+                            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Password Reset Complete!</h2>
                             <p className="text-gray-600 dark:text-gray-300">
-                                Your password has been updated successfully. You can now log in with your new password.
+                                Your password has been updated successfully.
                             </p>
-                            <p className="text-sm text-gray-500 dark:text-gray-400 pt-2">
-                                Redirecting you to login page...
+                            <div className="w-full max-w-xs bg-gray-100 dark:bg-gray-800/50 rounded-full h-1.5 mt-2">
+                                <div className="bg-indigo-600 dark:bg-indigo-500 h-1.5 rounded-full animate-redirect-progress"></div>
+                            </div>
+                            <p className="text-sm text-gray-500 dark:text-gray-400">
+                                Redirecting to login page...
                             </p>
                         </div>
                         
                         <div className="flex justify-center">
-                            <Link href="/auth" className="group text-sm text-indigo-600 hover:text-indigo-500 dark:text-indigo-400 dark:hover:text-indigo-300 font-medium flex items-center transition-colors">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-1.5 group-hover:-translate-x-1 transition-transform">
-                                    <path d="m15 18-6-6 6-6" />
+                            <Link href="/auth" className="bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-600 dark:hover:bg-indigo-700 text-white py-2.5 px-5 rounded-lg transition-colors duration-200 shadow-md hover:shadow-lg flex items-center font-medium">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-1.5">
+                                    <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
+                                    <polyline points="10 17 15 12 10 7" />
+                                    <line x1="15" y1="12" x2="3" y2="12" />
                                 </svg>
-                                Go to Login
+                                Log In Now
                             </Link>
                         </div>
                     </div>
@@ -657,13 +649,13 @@ export default function ForgotPassword() {
                     animation: fadeIn 0.4s ease-out forwards;
                 }
 
-                @keyframes slide-in-right {
-                    from { transform: translateX(100%); opacity: 0; }
-                    to { transform: translateX(0); opacity: 1; }
+                @keyframes redirect-progress {
+                    from { width: 0%; }
+                    to { width: 100%; }
                 }
                 
-                .animate-slide-in-right {
-                    animation: slide-in-right 0.4s ease-out forwards;
+                .animate-redirect-progress {
+                    animation: redirect-progress 3s linear forwards;
                 }
                 
                 @keyframes success-bounce {
