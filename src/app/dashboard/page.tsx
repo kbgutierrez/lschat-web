@@ -1123,11 +1123,17 @@ export default function Dashboard() {
       // Mark the announcement as read first
       await announcementsAPI.markAnnouncementRead(user.user_id, announcementId);
       
-      // Then fetch the announcement details to get the latest data
-      const response = await announcementsAPI.fetchIncomingAnnouncements(user.user_id);
+      // Fetch both incoming and published announcements to ensure we can find the announcement
+      const incomingResponse = await announcementsAPI.fetchIncomingAnnouncements(user.user_id);
+      const publishedResponse = await announcementsAPI.fetchPublishedAnnouncements(user.user_id);
       
-      // Find the announcement in the response
-      const announcement = response.announcements.find(a => a.announcement_id === announcementId);
+      // First look for the announcement in incoming announcements
+      let announcement = incomingResponse.announcements.find(a => a.announcement_id === announcementId);
+      
+      // If not found in incoming, check published announcements
+      if (!announcement) {
+        announcement = publishedResponse.announcements.find(a => a.announcement_id === announcementId);
+      }
       
       if (announcement) {
         setSelectedAnnouncementDetails(announcement);
@@ -1138,7 +1144,11 @@ export default function Dashboard() {
       // Update the sidebar announcements list 
       if (typeof window !== 'undefined') {
         const event = new CustomEvent('announcementMarkedAsRead', { 
-          detail: { announcementId, updatedAnnouncements: response.announcements }
+          detail: { 
+            announcementId, 
+            updatedAnnouncements: incomingResponse.announcements,
+            updatedPublishedAnnouncements: publishedResponse.announcements
+          }
         });
         window.dispatchEvent(event);
       }
