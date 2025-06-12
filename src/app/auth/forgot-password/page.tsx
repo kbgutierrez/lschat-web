@@ -24,6 +24,7 @@ export default function ForgotPassword() {
     const [confirmPassword, setConfirmPassword] = useState('');
     const [timeLeft, setTimeLeft] = useState(300); // 5 minutes in seconds
     const [timerActive, setTimerActive] = useState(false);
+    const [showSuccessToast, setShowSuccessToast] = useState(false); // Add this state
 
     useEffect(() => {
         // Short delay to ensure DOM elements are properly rendered
@@ -258,6 +259,9 @@ export default function ForgotPassword() {
 
             const data = await response.json();
             if (response.ok) {
+                // Show success toast immediately
+                setShowSuccessToast(true);
+                
                 // Success notification and redirect
                 const formHeight = formRef.current?.clientHeight || 0;
                 gsap.to(formRef.current, { 
@@ -287,7 +291,7 @@ export default function ForgotPassword() {
             setIsSubmitting(false);
         }
     };
-
+    
     const renderFormContent = () => {
         switch (step) {
             case 'otp':
@@ -553,6 +557,30 @@ export default function ForgotPassword() {
     
     return (
         <div className="bg-auth min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-indigo-50 via-purple-50 to-blue-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 overflow-hidden">
+            {/* Success Toast Notification */}
+            {showSuccessToast && (
+                <div className="fixed top-4 right-4 max-w-md z-50 animate-slide-in-right">
+                    <div className="bg-white dark:bg-slate-800 rounded-lg shadow-lg border-l-4 border-green-500 p-4 flex items-start">
+                        <div className="flex-shrink-0 bg-green-100 dark:bg-green-900/30 rounded-full p-2 mr-3">
+                            <svg className="w-5 h-5 text-green-600 dark:text-green-400" 
+                                fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
+                                    d="M5 13l4 4L19 7" />
+                            </svg>
+                        </div>
+                        <div>
+                            <h3 className="font-medium text-gray-900 dark:text-white">Success!</h3>
+                            <p className="text-sm text-gray-600 dark:text-gray-300">
+                                Your password has been updated successfully.
+                            </p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                Redirecting to login page...
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             <div ref={cardRef} className="w-full max-w-md relative z-10">
                 <div className="bg-white/90 dark:bg-slate-800/90 rounded-2xl shadow-[0_20px_50px_-15px_rgba(0,0,0,0.15)] dark:shadow-[0_20px_50px_-15px_rgba(0,0,0,0.5)] backdrop-blur-lg border border-white/50 dark:border-slate-700/50">
                     <div className="bg-gradient-to-r from-indigo-600 via-blue-600 to-purple-600 dark:from-indigo-700 dark:via-blue-700 dark:to-purple-700 p-6 rounded-t-2xl relative overflow-hidden">
@@ -588,7 +616,7 @@ export default function ForgotPassword() {
                     
                     <div className="success-message p-8 space-y-6 opacity-0 translate-y-4 hidden">
                         <div className="flex flex-col items-center text-center space-y-4">
-                            <div className="w-16 h-16 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center text-green-600 dark:text-green-400">
+                            <div className="w-16 h-16 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center text-green-600 dark:text-green-400 animate-success-bounce">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                     <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
                                     <polyline points="22 4 12 14.01 9 11.01" />
@@ -627,6 +655,25 @@ export default function ForgotPassword() {
                 
                 .animate-fade-in {
                     animation: fadeIn 0.4s ease-out forwards;
+                }
+
+                @keyframes slide-in-right {
+                    from { transform: translateX(100%); opacity: 0; }
+                    to { transform: translateX(0); opacity: 1; }
+                }
+                
+                .animate-slide-in-right {
+                    animation: slide-in-right 0.4s ease-out forwards;
+                }
+                
+                @keyframes success-bounce {
+                    0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+                    40% { transform: translateY(-20px); }
+                    60% { transform: translateY(-10px); }
+                }
+                
+                .animate-success-bounce {
+                    animation: success-bounce 1s ease-out;
                 }
             `}</style>
         </div>
