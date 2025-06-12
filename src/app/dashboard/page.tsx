@@ -875,7 +875,6 @@ export default function Dashboard() {
     }
   }, [selectedChannel, fetchMessagesFromApi]);
 
-  // Add a function to refresh groups
   const refreshGroups = useCallback(async () => {
     if (!isClient || !user || !user.user_id) return;
     
@@ -975,14 +974,11 @@ export default function Dashboard() {
     };
   }, [user]);
 
-  // Add leave group handler
   const handleLeaveGroup = async (groupId: number) => {
     if (!user?.user_id) return;
     try {
       await groupsAPI.leaveGroup(groupId, user.user_id);
-      // Remove group from state
       setGroups(prev => prev.filter(g => g.group_id !== groupId));
-      // If currently selected, clear selection
       if (selectedGroup === groupId) {
         setSelectedGroup(null);
         setSelectedGroupDetails(null);
@@ -1015,15 +1011,12 @@ export default function Dashboard() {
     
     try {
       console.log('Creating group:', name, description);
-      
-      // Step 1: Create the group via API
+     
       const newGroup = await groupsAPI.createGroup(name, description, user.user_id);
       console.log('Group created successfully:', newGroup);
-      
-      // Step 2: Close the modal immediately
       setIsCreateGroupModalOpen(false);
       
-      // Step 3: Immediately fetch the complete groups list to ensure UI consistency
+
       const groupsList = await groupsAPI.getGroups(user.user_id);
       
       const enhancedGroups: GroupData[] = groupsList.map(group => ({
@@ -1032,28 +1025,20 @@ export default function Dashboard() {
         lastMessageTime: new Date(group.created_at).toLocaleDateString()
       }));
 
-      // Step 4: Update the groups state with fresh data from server
       setGroups(enhancedGroups);
       
-      // Step 5: Find the newly created group in the fetched list
       const freshGroup = groupsList.find(g => g.group_id === newGroup.group_id);
       
       if (freshGroup) {
-        // Step 6: Set the selected group details and navigate to it
         setSelectedGroup(freshGroup.group_id);
         setSelectedContact(null);
         setSelectedGroupDetails(freshGroup);
         setSelectedChannel(freshGroup.pubnub_channel);
         setActiveTab('groups');
         
-        // Step 7: Show the right panel and mark as newly created
         setIsRightPanelVisible(true);
         setIsNewlyCreatedGroup(true);
-        
-        // Show the toast notification
         setShowInviteToast(true);
-        
-        // Reset the new group flag after 5 seconds
         setTimeout(() => {
           setIsNewlyCreatedGroup(false);
           setShowInviteToast(false);
@@ -1068,29 +1053,23 @@ export default function Dashboard() {
     }
   }, [user?.user_id, setActiveTab]);
 
-  // Add state for selected announcement and announcement details
   const [selectedAnnouncement, setSelectedAnnouncement] = useState<number | null>(null);
   const [selectedAnnouncementDetails, setSelectedAnnouncementDetails] = useState<Announcement | null>(null);
   const [loadingAnnouncementDetails, setLoadingAnnouncementDetails] = useState<boolean>(false);
   const [announcementError, setAnnouncementError] = useState<string | null>(null);
-  
-  // Add state for tracking active announcement tab
   const [activeAnnouncementTab, setActiveAnnouncementTab] = useState<'published' | 'incoming'>('incoming');
 
-  // Add a helper function to fetch the unread count
   const fetchUnreadAnnouncementsCount = useCallback(async (silent: boolean = false) => {
     if (!user?.user_id) return;
     
     try {
       if (!silent) {
-        // Let's not update UI state until we have a response to avoid flickering
+      console.log("Fetching unread announcements count for user ID:", user.user_id);
       }
       
-      console.log('Fetching unread announcements count');
       const response = await announcementsAPI.fetchUnreadAnnouncementsCount(user.user_id);
       if (response.success) {
-        // Dispatch an event with the updated count
-        console.log('Dispatching unread count update:', response.unreadCount);
+      
         if (typeof window !== 'undefined') {
           const event = new CustomEvent('updateUnreadAnnouncementsCount', {
             detail: { unreadCount: response.unreadCount }
@@ -1103,63 +1082,45 @@ export default function Dashboard() {
     }
   }, [user?.user_id]);
 
-  // Make sure to call this function on initial load
   useEffect(() => {
     if (user?.user_id) {
       fetchUnreadAnnouncementsCount();
     }
   }, [user?.user_id, fetchUnreadAnnouncementsCount]);
 
-  // Update function to handle announcement selection
+
   const handleAnnouncementSelect = useCallback(async (announcementId: number) => {
     setSelectedAnnouncement(announcementId);
     setSelectedContact(null);
     setSelectedGroup(null);
     
-    // Mark as read and fetch the specific announcement details
     setLoadingAnnouncementDetails(true);
     setAnnouncementError(null);
     
     try {
       if (!user?.user_id) return;
       
-      // Fetch both incoming and published announcements to find the announcement
       const incomingResponse = await announcementsAPI.fetchIncomingAnnouncements(user.user_id);
       const publishedResponse = await announcementsAPI.fetchPublishedAnnouncements(user.user_id);
-      
-      // First look for the announcement in incoming announcements
+  
       let announcement = incomingResponse.announcements.find(a => a.announcement_id === announcementId);
       let isIncoming = !!announcement;
-      
-      // If not found in incoming, check published announcements
+
       if (!announcement) {
         announcement = publishedResponse.announcements.find(a => a.announcement_id === announcementId);
       }
       
       if (announcement) {
         setSelectedAnnouncementDetails(announcement);
-        
-        // Add debug logs to identify the issue
-        console.log("Selected announcement details:", announcement);
-        console.log("Current user ID:", user.user_id);
-        console.log("Announcement creator ID:", announcement.created_by);
-        console.log("Is this an incoming announcement:", isIncoming);
-        console.log("Current announcement tab:", activeAnnouncementTab);
-        
-        // Only mark as read if:
-        // 1. It's found in the incoming announcements
-        // 2. It's currently unread
-        // 3. The user is viewing the "incoming" tab
+
         if (isIncoming && 
             announcement.is_read === 0 && 
             activeAnnouncementTab === 'incoming') {
             
           console.log("Marking announcement as read:", announcementId);
           
-          // Mark the announcement as read
           await announcementsAPI.markAnnouncementRead(user.user_id, announcementId);
-          
-          // Update the sidebar announcements list 
+        
           if (typeof window !== 'undefined') {
             const event = new CustomEvent('announcementMarkedAsRead', { 
               detail: { 
