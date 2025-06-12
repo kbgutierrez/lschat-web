@@ -39,6 +39,7 @@ interface SidebarProps {
   user?: { can_announce?: number; is_admin?: number; user_id?: string | number } | null;
   selectedAnnouncement?: number | null;
   handleAnnouncementSelect?: (id: number) => void;
+  onAnnouncementTabChange?: (tab: 'published' | 'incoming') => void; // Add this prop
 }
 
 export function Sidebar({ 
@@ -67,7 +68,8 @@ export function Sidebar({
   isCreateGroupModalOpen = false,
   user,
   selectedAnnouncement = null,
-  handleAnnouncementSelect
+  handleAnnouncementSelect,
+  onAnnouncementTabChange  // Add this parameter
 }: SidebarProps) {
   const sidebarRef = useRef<HTMLDivElement>(null);
   const navRailRef = useRef<HTMLDivElement>(null);
@@ -665,6 +667,37 @@ export function Sidebar({
     }
   }, [activeTab, fetchUnreadAnnouncementsCount]);
 
+  // Add event listener for published announcements updates
+  useEffect(() => {
+    const handlePublishedAnnouncementsUpdate = (event: CustomEvent) => {
+      const { announcements, updatedAnnouncementId, newStatus } = event.detail;
+      
+      if (activeTab === 'announcements' && activeAnnouncementTab === 'published') {
+        setPublishedAnnouncements(announcements);
+        
+        if (!searchTerm.trim()) {
+          setSearchedAnnouncements(announcements);
+        } else {
+          const searchLower = searchTerm.toLowerCase();
+          const filtered = announcements.filter((announcement: Announcement) => 
+            announcement.title.toLowerCase().includes(searchLower) ||
+            (announcement.content && announcement.content.toLowerCase().includes(searchLower)) ||
+            announcement.creator_name.toLowerCase().includes(searchLower)
+          );
+          setSearchedAnnouncements(filtered);
+        }
+      }
+    };
+    
+    window.addEventListener('publishedAnnouncementsUpdated', 
+      handlePublishedAnnouncementsUpdate as EventListener);
+    
+    return () => {
+      window.removeEventListener('publishedAnnouncementsUpdated', 
+        handlePublishedAnnouncementsUpdate as EventListener);
+    };
+  }, [activeTab, activeAnnouncementTab, searchTerm]);
+
   return (
     <div className="flex h-full">
       <div 
@@ -1076,7 +1109,10 @@ export function Sidebar({
                 <>
                   <div className="bg-white/10 dark:bg-gray-800/40 rounded-lg p-1 flex shadow-inner">
                     <button
-                      onClick={() => setActiveAnnouncementTab('published')}
+                      onClick={() => {
+                        setActiveAnnouncementTab('published');
+                        if (onAnnouncementTabChange) onAnnouncementTabChange('published');
+                      }}
                       className={cn(
                         "flex-1 py-2 px-3 text-xs font-medium rounded-md transition-colors",
                         activeAnnouncementTab === 'published' 
@@ -1092,7 +1128,10 @@ export function Sidebar({
                       </div>
                     </button>
                     <button
-                      onClick={() => setActiveAnnouncementTab('incoming')}
+                      onClick={() => {
+                        setActiveAnnouncementTab('incoming');
+                        if (onAnnouncementTabChange) onAnnouncementTabChange('incoming');
+                      }}
                       className={cn(
                         "flex-1 py-2 px-3 text-xs font-medium rounded-md transition-colors",
                         activeAnnouncementTab === 'incoming' 

@@ -1074,6 +1074,9 @@ export default function Dashboard() {
   const [loadingAnnouncementDetails, setLoadingAnnouncementDetails] = useState<boolean>(false);
   const [announcementError, setAnnouncementError] = useState<string | null>(null);
   
+  // Add state for tracking active announcement tab
+  const [activeAnnouncementTab, setActiveAnnouncementTab] = useState<'published' | 'incoming'>('incoming');
+
   // Add a helper function to fetch the unread count
   const fetchUnreadAnnouncementsCount = useCallback(async (silent: boolean = false) => {
     if (!user?.user_id) return;
@@ -1120,15 +1123,13 @@ export default function Dashboard() {
     try {
       if (!user?.user_id) return;
       
-      // Mark the announcement as read first
-      await announcementsAPI.markAnnouncementRead(user.user_id, announcementId);
-      
-      // Fetch both incoming and published announcements to ensure we can find the announcement
+      // Fetch both incoming and published announcements to find the announcement
       const incomingResponse = await announcementsAPI.fetchIncomingAnnouncements(user.user_id);
       const publishedResponse = await announcementsAPI.fetchPublishedAnnouncements(user.user_id);
       
       // First look for the announcement in incoming announcements
       let announcement = incomingResponse.announcements.find(a => a.announcement_id === announcementId);
+      let isIncoming = !!announcement;
       
       // If not found in incoming, check published announcements
       if (!announcement) {
@@ -1137,27 +1138,53 @@ export default function Dashboard() {
       
       if (announcement) {
         setSelectedAnnouncementDetails(announcement);
+        
+        // Add debug logs to identify the issue
+        console.log("Selected announcement details:", announcement);
+        console.log("Current user ID:", user.user_id);
+        console.log("Announcement creator ID:", announcement.created_by);
+        console.log("Is this an incoming announcement:", isIncoming);
+        console.log("Current announcement tab:", activeAnnouncementTab);
+        
+        // Only mark as read if:
+        // 1. It's found in the incoming announcements
+        // 2. It's currently unread
+        // 3. The user is viewing the "incoming" tab
+        if (isIncoming && 
+            announcement.is_read === 0 && 
+            activeAnnouncementTab === 'incoming') {
+            
+          console.log("Marking announcement as read:", announcementId);
+          
+          // Mark the announcement as read
+          await announcementsAPI.markAnnouncementRead(user.user_id, announcementId);
+          
+          // Update the sidebar announcements list 
+          if (typeof window !== 'undefined') {
+            const event = new CustomEvent('announcementMarkedAsRead', { 
+              detail: { 
+                announcementId, 
+                updatedAnnouncements: incomingResponse.announcements,
+                updatedPublishedAnnouncements: publishedResponse.announcements
+              }
+            });
+            window.dispatchEvent(event);
+          }
+
+          // Add a small delay to avoid UI flickering from rapid state changes
+          setTimeout(() => {
+            // Update the unread count after marking as read
+            fetchUnreadAnnouncementsCount();
+          }, 300);
+        } else {
+          console.log("Not marking as read because:", 
+            !isIncoming ? "not in incoming list" : 
+            announcement.is_read !== 0 ? "already read" : 
+            "not viewing incoming tab");
+        }
       } else {
         setAnnouncementError("Announcement not found");
       }
-
-      // Update the sidebar announcements list 
-      if (typeof window !== 'undefined') {
-        const event = new CustomEvent('announcementMarkedAsRead', { 
-          detail: { 
-            announcementId, 
-            updatedAnnouncements: incomingResponse.announcements,
-            updatedPublishedAnnouncements: publishedResponse.announcements
-          }
-        });
-        window.dispatchEvent(event);
-      }
-
-      // Add a small delay to avoid UI flickering from rapid state changes
-      setTimeout(() => {
-        // Update the unread count after marking as read
-        fetchUnreadAnnouncementsCount();
-      }, 300);
     } catch (error) {
       console.error("Error handling announcement selection:", error);
       setAnnouncementError("Failed to load announcement details");
@@ -1167,7 +1194,37 @@ export default function Dashboard() {
     
     // Close mobile sidebar (if open)
     setIsMobileSidebarOpen(false);
-  }, [user?.user_id, fetchUnreadAnnouncementsCount]);
+  }, [user?.user_id, fetchUnreadAnnouncementsCount, activeAnnouncementTab]); // Add activeAnnouncementTab to dependencies
+
+  // Add function to handle announcement status changes
+  const handleAnnouncementStatusChange = useCallback(async (announcementId: number, newStatus: number) => {
+    if (!user?.user_id) return;
+    
+    try {
+      // After successful update, refresh the announcements in the sidebar
+      const response = await announcementsAPI.fetchPublishedAnnouncements(user.user_id);
+      
+      // Dispatch an event that the Sidebar component is listening for
+      if (typeof window !== 'undefined') {
+        const event = new CustomEvent('publishedAnnouncementsUpdated', {
+          detail: { 
+            announcements: response.announcements,
+            updatedAnnouncementId: announcementId,
+            newStatus: newStatus
+          }
+        });
+        window.dispatchEvent(event);
+      }
+    } catch (error) {
+      console.error('Error updating announcement status:', error);
+    }
+  }, [user?.user_id]);
+
+  // Add handler for announcement tab changes
+  const handleAnnouncementTabChange = useCallback((tab: 'published' | 'incoming') => {
+    console.log(`Announcement tab changed to: ${tab}`);
+    setActiveAnnouncementTab(tab);
+  }, []);
 
   if (!isClient) {
     return <div className="min-h-screen bg-violet-50 dark:bg-gray-950"></div>;
@@ -1212,6 +1269,7 @@ export default function Dashboard() {
         user={user}
         selectedAnnouncement={selectedAnnouncement}
         handleAnnouncementSelect={handleAnnouncementSelect}
+        onAnnouncementTabChange={handleAnnouncementTabChange}
       />
 
       {/* The toggle modal background - increase z-index to be higher than nav rail */}
@@ -1314,6 +1372,13 @@ export default function Dashboard() {
                 announcement={selectedAnnouncementDetails}
                 loading={loadingAnnouncementDetails}
                 error={announcementError}
+                isPublished={
+                  activeTab === 'announcements' && 
+                  activeAnnouncementTab === 'published' &&
+                  selectedAnnouncementDetails?.created_by?.toString() === user.user_id?.toString()
+                }
+                userId={user.user_id}
+                onStatusChange={handleAnnouncementStatusChange}
               />
             ) : (
               <EmptyState />

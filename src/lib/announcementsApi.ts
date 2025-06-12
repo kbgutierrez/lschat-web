@@ -312,6 +312,45 @@ export const announcementsAPI = {
       console.error('Error marking announcement as read:', error);
       throw error;
     }
+  },
+
+  updateAnnouncementStatus: async (
+    announcementId: number,
+    isActive: number,
+    userId: string | number
+  ) => {
+    try {
+      const headers = middleware.addAuthHeader({
+        'Content-Type': 'application/json',
+      });
+      
+      const response = await fetch(`${API_BASE_URL}/api/update/announcement-status`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          announcement_id: announcementId,
+          is_active: isActive,
+          user_id: userId,
+        }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.message || 'Failed to update announcement status');
+      }
+
+      const data = await response.json();
+      return {
+        success: true,
+        data
+      };
+    } catch (error) {
+      console.error('Error updating announcement status:', error);
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : 'Unknown error occurred',
+      };
+    }
   }
 };
 

@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState, useCallback } from 'react';
-import { Announcement } from '@/lib/announcementsApi';
+import React, { useState, useCallback, useEffect } from 'react';
+import { Announcement, announcementsAPI } from '@/lib/announcementsApi';
 import { cn } from '@/lib/utils';
 import { API_BASE_URL } from '@/lib/api';
 
@@ -9,15 +9,37 @@ interface AnnouncementsAreaProps {
   announcement: Announcement | null;
   loading?: boolean;
   error?: string | null;
+  isPublished?: boolean; // Whether this is a published announcement
+  userId?: string | number | null; // Current user ID
+  onStatusChange?: (announcementId: number, newStatus: number) => Promise<void>; // Callback when status changes
 }
 
 export function AnnouncementsArea({
   announcement,
   loading = false,
-  error = null
+  error = null,
+  isPublished = false,
+  userId = null,
+  onStatusChange
 }: AnnouncementsAreaProps) {
   const [imageViewerOpen, setImageViewerOpen] = useState(false);
   const [zoomLevel, setZoomLevel] = useState(1);
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+  const [statusUpdateError, setStatusUpdateError] = useState<string | null>(null);
+  const [localActiveStatus, setLocalActiveStatus] = useState<number | null>(null);
+  const [isConfirmingStatusChange, setIsConfirmingStatusChange] = useState(false);
+  const [pendingNewStatus, setPendingNewStatus] = useState<number | null>(null);
+
+  // Initialize local status from announcement when it loads
+  useEffect(() => {
+    if (announcement) {
+      // Convert boolean to number if needed
+      const activeStatus = typeof announcement.is_active === 'boolean'
+        ? (announcement.is_active ? 1 : 0)
+        : Number(announcement.is_active);
+      setLocalActiveStatus(activeStatus);
+    }
+  }, [announcement]);
 
   // Format date without any ordinal suffixes
   const formatDate = (dateString: string) => {
@@ -46,6 +68,65 @@ export function AnnouncementsArea({
   
   const handleReset = useCallback(() => {
     setZoomLevel(1);
+  }, []);
+
+  // Show confirmation dialog when status toggle is clicked
+  const handleToggleClick = useCallback(() => {
+    if (!announcement || !userId || isUpdatingStatus) return;
+
+    const newStatus = localActiveStatus === 1 ? 0 : 1;
+    setPendingNewStatus(newStatus);
+    setIsConfirmingStatusChange(true);
+  }, [announcement, userId, isUpdatingStatus, localActiveStatus]);
+
+  // Handle the actual status change when confirmed
+  const handleToggleStatus = useCallback(async () => {
+    if (!announcement || !userId || isUpdatingStatus || pendingNewStatus === null) return;
+
+    try {
+      setIsUpdatingStatus(true);
+      setStatusUpdateError(null);
+      setIsConfirmingStatusChange(false);
+      
+      // Update local state optimistically
+      setLocalActiveStatus(pendingNewStatus);
+      
+      // Call the API to update status
+      const result = await announcementsAPI.updateAnnouncementStatus(
+        announcement.announcement_id,
+        pendingNewStatus,
+        userId
+      );
+      
+      if (!result.success) {
+        // Revert on failure
+        setLocalActiveStatus(typeof announcement.is_active === 'boolean'
+          ? (announcement.is_active ? 1 : 0)
+          : Number(announcement.is_active));
+        setStatusUpdateError(result.message || 'Failed to update status');
+        return;
+      }
+      
+      // Notify parent component to refresh announcements list
+      if (onStatusChange) {
+        await onStatusChange(announcement.announcement_id, pendingNewStatus);
+      }
+    } catch (error) {
+      console.error('Error updating announcement status:', error);
+      setLocalActiveStatus(typeof announcement.is_active === 'boolean'
+        ? (announcement.is_active ? 1 : 0)
+        : Number(announcement.is_active));
+      setStatusUpdateError(error instanceof Error ? error.message : 'Failed to update status');
+    } finally {
+      setIsUpdatingStatus(false);
+      setPendingNewStatus(null);
+    }
+  }, [announcement, userId, isUpdatingStatus, pendingNewStatus, onStatusChange]);
+
+  // Handle cancellation of status change
+  const handleCancelStatusChange = useCallback(() => {
+    setIsConfirmingStatusChange(false);
+    setPendingNewStatus(null);
   }, []);
 
   return (
@@ -86,6 +167,81 @@ export function AnnouncementsArea({
           <article className="w-full sm:w-[95%] md:w-[90%] lg:w-[85%] xl:w-[80%] mx-auto px-4">
             {/* Bulletin board style announcement */}
             <div className="bg-white dark:bg-gray-800 rounded-lg overflow-hidden shadow-sm border border-gray-200 dark:border-gray-700">
+              {/* Status toggle for published announcements */}
+              {isPublished && announcement && (
+                <div className="px-5 py-3 bg-gray-50 dark:bg-gray-800/90 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+                  <div className="flex items-center">
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300 mr-3">
+                      Status:
+                    </span>
+                    {statusUpdateError && (
+                      <div className="text-xs text-red-600 dark:text-red-400 mr-3">
+                        {statusUpdateError}
+                      </div>
+                    )}
+                    <span 
+                      className={cn(
+                        "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium",
+                        localActiveStatus === 1 
+                          ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
+                          : "bg-gray-100 text-gray-800 dark:bg-gray-900/50 dark:text-gray-400"
+                      )}
+                    >
+                      {localActiveStatus === 1 ? 'Active' : 'Inactive'}
+                    </span>
+                  </div>
+                  {isConfirmingStatusChange ? (
+                    <div className="flex items-center space-x-2">
+                      <span className="text-xs text-gray-600 dark:text-gray-400">
+                        {pendingNewStatus === 1 ? 'Activate' : 'Deactivate'} announcement?
+                      </span>
+                      <button
+                        onClick={handleCancelStatusChange}
+                        className="px-2 py-1 text-xs rounded bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={handleToggleStatus}
+                        className={cn(
+                          "px-2 py-1 text-xs rounded text-white transition-colors",
+                          pendingNewStatus === 1 
+                            ? "bg-green-500 hover:bg-green-600" 
+                            : "bg-red-500 hover:bg-red-600"
+                        )}
+                      >
+                        Confirm
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={handleToggleClick}
+                      disabled={isUpdatingStatus}
+                      className={cn(
+                        "relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-violet-500 focus:ring-offset-2",
+                        localActiveStatus === 1 ? "bg-green-600" : "bg-gray-400 dark:bg-gray-600"
+                      )}
+                    >
+                      <span className="sr-only">Toggle announcement status</span>
+                      <span
+                        className={cn(
+                          "pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out",
+                          localActiveStatus === 1 ? "translate-x-5" : "translate-x-0"
+                        )}
+                      ></span>
+                      {isUpdatingStatus && (
+                        <span className="absolute inset-0 flex items-center justify-center">
+                          <svg className="animate-spin h-3 w-3 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                        </span>
+                      )}
+                    </button>
+                  )}
+                </div>
+              )}
+
               {/* Colored tag strip based on announcement type */}
               <div className={cn(
                 "h-1.5",
@@ -249,23 +405,23 @@ export function AnnouncementsArea({
           >
             <button onClick={handleZoomIn} className="p-2 text-white/90 hover:bg-white/10" aria-label="Zoom in">
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
               </svg>
             </button>
             <button onClick={handleZoomOut} className="p-2 text-white/90 hover:bg-white/10" aria-label="Zoom out">
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM7 10h10" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM7 10h10" />
               </svg>
             </button>
             <button onClick={handleReset} className="p-2 text-white/90 hover:bg-white/10" aria-label="Reset zoom">
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
               </svg>
             </button>
             <div className="w-px h-4 bg-white/20"></div>
             <button onClick={() => setImageViewerOpen(false)} className="p-2 text-white/90 hover:bg-red-500/50" aria-label="Close">
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 18L18 6M6 6l12 12" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
           </div>
