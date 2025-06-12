@@ -9,9 +9,9 @@ interface AnnouncementsAreaProps {
   announcement: Announcement | null;
   loading?: boolean;
   error?: string | null;
-  isPublished?: boolean; // Whether this is a published announcement
-  userId?: string | number | null; // Current user ID
-  onStatusChange?: (announcementId: number, newStatus: number) => Promise<void>; // Callback when status changes
+  isPublished?: boolean; 
+  userId?: string | number | null;
+  onStatusChange?: (announcementId: number, newStatus: number) => Promise<void>; 
 }
 
 export function AnnouncementsArea({
@@ -30,22 +30,26 @@ export function AnnouncementsArea({
   const [isConfirmingStatusChange, setIsConfirmingStatusChange] = useState(false);
   const [pendingNewStatus, setPendingNewStatus] = useState<number | null>(null);
 
-  // Initialize local status from announcement when it loads
+
   useEffect(() => {
     if (announcement) {
-      // Convert boolean to number if needed
+  
       const activeStatus = typeof announcement.is_active === 'boolean'
         ? (announcement.is_active ? 1 : 0)
         : Number(announcement.is_active);
       setLocalActiveStatus(activeStatus);
     }
   }, [announcement]);
+  
+  useEffect(() => {
+   
+    setIsConfirmingStatusChange(false);
+    setPendingNewStatus(null);
+    setStatusUpdateError(null);
+  }, [announcement?.announcement_id]);
 
-  // Format date without any ordinal suffixes
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
-    
-    // Get formatted date parts
     const year = date.getFullYear();
     const month = date.toLocaleDateString('en-US', { month: 'long' });
     const day = date.getDate();
@@ -54,7 +58,6 @@ export function AnnouncementsArea({
     const ampm = hours >= 12 ? 'PM' : 'AM';
     const hour12 = hours % 12 || 12;
     
-    // Return formatted date without any ordinal suffixes
     return `${month} ${day}, ${year}, ${hour12}:${minutes} ${ampm}`;
   };
 
@@ -70,7 +73,6 @@ export function AnnouncementsArea({
     setZoomLevel(1);
   }, []);
 
-  // Show confirmation dialog when status toggle is clicked
   const handleToggleClick = useCallback(() => {
     if (!announcement || !userId || isUpdatingStatus) return;
 
@@ -79,7 +81,6 @@ export function AnnouncementsArea({
     setIsConfirmingStatusChange(true);
   }, [announcement, userId, isUpdatingStatus, localActiveStatus]);
 
-  // Handle the actual status change when confirmed
   const handleToggleStatus = useCallback(async () => {
     if (!announcement || !userId || isUpdatingStatus || pendingNewStatus === null) return;
 
@@ -88,10 +89,8 @@ export function AnnouncementsArea({
       setStatusUpdateError(null);
       setIsConfirmingStatusChange(false);
       
-      // Update local state optimistically
       setLocalActiveStatus(pendingNewStatus);
-      
-      // Call the API to update status
+ 
       const result = await announcementsAPI.updateAnnouncementStatus(
         announcement.announcement_id,
         pendingNewStatus,
@@ -99,7 +98,6 @@ export function AnnouncementsArea({
       );
       
       if (!result.success) {
-        // Revert on failure
         setLocalActiveStatus(typeof announcement.is_active === 'boolean'
           ? (announcement.is_active ? 1 : 0)
           : Number(announcement.is_active));
@@ -107,7 +105,6 @@ export function AnnouncementsArea({
         return;
       }
       
-      // Notify parent component to refresh announcements list
       if (onStatusChange) {
         await onStatusChange(announcement.announcement_id, pendingNewStatus);
       }
@@ -123,7 +120,6 @@ export function AnnouncementsArea({
     }
   }, [announcement, userId, isUpdatingStatus, pendingNewStatus, onStatusChange]);
 
-  // Handle cancellation of status change
   const handleCancelStatusChange = useCallback(() => {
     setIsConfirmingStatusChange(false);
     setPendingNewStatus(null);
@@ -167,78 +163,144 @@ export function AnnouncementsArea({
           <article className="w-full sm:w-[95%] md:w-[90%] lg:w-[85%] xl:w-[80%] mx-auto px-4">
             {/* Bulletin board style announcement */}
             <div className="bg-white dark:bg-gray-800 rounded-lg overflow-hidden shadow-sm border border-gray-200 dark:border-gray-700">
-              {/* Status toggle for published announcements */}
+              {/* Enhanced Status Panel for published announcements */}
               {isPublished && announcement && (
-                <div className="px-5 py-3 bg-gray-50 dark:bg-gray-800/90 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
-                  <div className="flex items-center">
-                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300 mr-3">
-                      Status:
-                    </span>
-                    {statusUpdateError && (
-                      <div className="text-xs text-red-600 dark:text-red-400 mr-3">
-                        {statusUpdateError}
+                <div className="px-5 py-3 bg-gray-50 dark:bg-gray-800/90 border-b border-gray-200 dark:border-gray-700">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300 mr-3">
+                        Status:
+                      </span>
+                      {statusUpdateError && (
+                        <div className="text-xs text-red-600 dark:text-red-400 mr-3 animate-pulse">
+                          {statusUpdateError}
+                        </div>
+                      )}
+                    </div>
+                    
+                    {isConfirmingStatusChange ? (
+                      <div className="relative bg-white dark:bg-gray-700 rounded-lg p-3 shadow-lg border border-gray-200 dark:border-gray-600 transform transition-all max-w-sm animate-fade-in">
+                        <div className="absolute -top-2 -left-2">
+                          <div className="bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300 p-1 rounded-full">
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                            </svg>
+                          </div>
+                        </div>
+                        
+                        <div className="text-center mb-3 pt-1">
+                          <p className="font-medium text-gray-700 dark:text-gray-200">
+                            {pendingNewStatus === 1 
+                              ? "Publish this announcement?" 
+                              : "Unpublish this announcement?"}
+                          </p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                            {pendingNewStatus === 1 
+                              ? "It will be visible to all recipients" 
+                              : "It will be temporarily hidden from recipients"}
+                          </p>
+                        </div>
+                        
+                        <div className="flex justify-center space-x-3">
+                          <button
+                            onClick={handleCancelStatusChange}
+                            className="px-3 py-1.5 text-sm rounded-md bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 border border-gray-300 dark:border-gray-600 transition-colors shadow-sm"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            onClick={handleToggleStatus}
+                            className={cn(
+                              "px-3 py-1.5 text-sm rounded-md text-white transition-colors shadow-sm flex items-center space-x-1",
+                              pendingNewStatus === 1 
+                                ? "bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700" 
+                                : "bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700"
+                            )}
+                          >
+                            {pendingNewStatus === 1 ? (
+                              <>
+                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                </svg>
+                                <span>Publish</span>
+                              </>
+                            ) : (
+                              <>
+                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12a2 2 0 100 4h14a2 2 0 100-4" />
+                                </svg>
+                                <span>Unpublish</span>
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-center">
+                        <div className={cn(
+                          "relative px-4 py-2 rounded-full transition-all duration-300",
+                          localActiveStatus === 1 
+                            ? "bg-gradient-to-r from-green-100 to-emerald-100 dark:from-green-900/20 dark:to-emerald-900/20" 
+                            : "bg-gradient-to-r from-amber-100 to-orange-100 dark:from-amber-900/20 dark:to-orange-900/20"
+                        )}>
+                          <div className="flex items-center gap-2">
+                            {localActiveStatus === 1 ? (
+                              <>
+                                <div className="flex items-center justify-center w-6 h-6 rounded-full bg-gradient-to-r from-green-500 to-emerald-600 text-white">
+                                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                  </svg>
+                                </div>
+                                <span className={cn(
+                                  "text-sm font-medium",
+                                  "text-green-800 dark:text-green-300"
+                                )}>Published</span>
+                              </>
+                            ) : (
+                              <>
+                                <div className="flex items-center justify-center w-6 h-6 rounded-full bg-gradient-to-r from-amber-500 to-orange-600 text-white">
+                                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12a2 2 0 100 4h14a2 2 0 100-4" />
+                                  </svg>
+                                </div>
+                                <span className={cn(
+                                  "text-sm font-medium",
+                                  "text-amber-800 dark:text-amber-300"
+                                )}>Unpublished</span>
+                              </>
+                            )}
+                          </div>
+                          
+                          <button
+                            onClick={handleToggleClick}
+                            disabled={isUpdatingStatus}
+                            className={cn(
+                              "absolute inset-0 w-full h-full cursor-pointer rounded-full",
+                              "transition-all duration-300 hover:ring-2",
+                              localActiveStatus === 1
+                                ? "hover:ring-green-400 dark:hover:ring-green-500/50"
+                                : "hover:ring-amber-400 dark:hover:ring-amber-500/50",
+                              isUpdatingStatus && "opacity-50 cursor-not-allowed"
+                            )}
+                            aria-label={localActiveStatus === 1 ? "Unpublish announcement" : "Publish announcement"}
+                          >
+                            <span className="sr-only">
+                              {localActiveStatus === 1 ? "Unpublish" : "Publish"} announcement
+                            </span>
+                          </button>
+                          
+                          {isUpdatingStatus && (
+                            <div className="absolute inset-0 flex items-center justify-center bg-white/50 dark:bg-gray-800/50 rounded-full">
+                              <svg className="animate-spin h-4 w-4 text-gray-700 dark:text-gray-300" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                              </svg>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     )}
-                    <span 
-                      className={cn(
-                        "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium",
-                        localActiveStatus === 1 
-                          ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
-                          : "bg-gray-100 text-gray-800 dark:bg-gray-900/50 dark:text-gray-400"
-                      )}
-                    >
-                      {localActiveStatus === 1 ? 'Active' : 'Inactive'}
-                    </span>
                   </div>
-                  {isConfirmingStatusChange ? (
-                    <div className="flex items-center space-x-2">
-                      <span className="text-xs text-gray-600 dark:text-gray-400">
-                        {pendingNewStatus === 1 ? 'Activate' : 'Deactivate'} announcement?
-                      </span>
-                      <button
-                        onClick={handleCancelStatusChange}
-                        className="px-2 py-1 text-xs rounded bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        onClick={handleToggleStatus}
-                        className={cn(
-                          "px-2 py-1 text-xs rounded text-white transition-colors",
-                          pendingNewStatus === 1 
-                            ? "bg-green-500 hover:bg-green-600" 
-                            : "bg-red-500 hover:bg-red-600"
-                        )}
-                      >
-                        Confirm
-                      </button>
-                    </div>
-                  ) : (
-                    <button
-                      onClick={handleToggleClick}
-                      disabled={isUpdatingStatus}
-                      className={cn(
-                        "relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-violet-500 focus:ring-offset-2",
-                        localActiveStatus === 1 ? "bg-green-600" : "bg-gray-400 dark:bg-gray-600"
-                      )}
-                    >
-                      <span className="sr-only">Toggle announcement status</span>
-                      <span
-                        className={cn(
-                          "pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out",
-                          localActiveStatus === 1 ? "translate-x-5" : "translate-x-0"
-                        )}
-                      ></span>
-                      {isUpdatingStatus && (
-                        <span className="absolute inset-0 flex items-center justify-center">
-                          <svg className="animate-spin h-3 w-3 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                          </svg>
-                        </span>
-                      )}
-                    </button>
-                  )}
                 </div>
               )}
 
@@ -351,7 +413,7 @@ export function AnnouncementsArea({
                           </div>
                           <div className="ml-3 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-2.5 py-1.5 rounded-md text-xs font-medium flex items-center space-x-1 group-hover:bg-gray-300 dark:group-hover:bg-gray-600 transition-colors">
                             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v-5a2 2 0 012-2h10a2 2 0 012 2v5m-4-4l-4 4m0 0l-4-4m4 4V8" />
                             </svg>
                             <span>Download</span>
                           </div>

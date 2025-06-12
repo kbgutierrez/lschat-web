@@ -1205,7 +1205,11 @@ export function Sidebar({
                                   ? "bg-violet-600/80 text-white"
                                   : announcement.is_read === 0 
                                     ? "bg-white/20 hover:bg-white/25 text-white/95" 
-                                    : "bg-white/10 hover:bg-white/20 text-white/90"
+                                    : "bg-white/10 hover:bg-white/20 text-white/90",
+                                // Keep opacity styling for unpublished announcements
+                                activeAnnouncementTab === 'published' && 
+                                typeof announcement.is_active !== 'undefined' && 
+                                Number(announcement.is_active) === 0 && "opacity-60"
                               )}
                             >
                               <div className="flex items-center space-x-3">
