@@ -348,7 +348,7 @@ const SpeedDial: React.FC<SpeedDialProps> = ({
             }}
           >
             <svg 
-              className={cn("w-6 h-6 transition-transform", isCollapsed ? "rotate-90 ml-1" : "")} 
+              className={cn("w-10 h-10 transition-transform", isCollapsed ? "rotate-360 ml-5" : "")} 
               fill="none" 
               viewBox="0 0 24 24" 
               stroke="currentColor"

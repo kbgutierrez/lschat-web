@@ -776,7 +776,7 @@ export function Sidebar({
           <h1 className="text-lg font-bold text-white dark:text-white isolate">
             <span 
               ref={logoLSRef} 
-              className='text-amber-200 inline-block cursor-pointer transform-gpu'
+              className='text-amber-200 inline-block cursor-pointer transform-gpu font-bangers'
               style={{ opacity: 0 }}
             >
               LS

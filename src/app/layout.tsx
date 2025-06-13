@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono, Bangers, Rubik_Gemstones, Cabin_Condensed } from "next/font/google";
 import "./globals.css";
 import Script from "next/script";
 
@@ -13,10 +13,30 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const bangers = Bangers({
+  weight: "400",
+  variable: "--font-bangers",
+  subsets: ["latin"],
+});
+
+const rubikGemstones = Rubik_Gemstones({
+  weight: "400",
+  variable: "--font-rubik-gemstones",
+  subsets: ["latin"],
+});
+
+export const cabinCondensed = Cabin_Condensed({
+  weight: "400",
+  variable: "--font-cabin-condensed",
+  subsets: ["latin"],
+  display: "swap",
+});
+
 export const metadata: Metadata = {
   title: "LSChatApp",
   description: "Connect with friends and colleagues securely",
 };
+
 
 export default function RootLayout({children}: Readonly<{children: React.ReactNode;}>) 
 {
@@ -26,7 +46,7 @@ export default function RootLayout({children}: Readonly<{children: React.ReactNo
         <Script src="https://cdn.pubnub.com/sdk/javascript/pubnub.7.4.5.min.js" strategy="afterInteractive" />
       </head>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased hydration-fix`}
+        className={`${geistSans.variable} ${geistMono.variable} ${bangers.variable} ${rubikGemstones.variable} ${cabinCondensed.variable} antialiased hydration-fix`}
         suppressHydrationWarning
       >
         {children}
