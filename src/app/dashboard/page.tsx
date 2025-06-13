@@ -506,16 +506,23 @@ export default function Dashboard() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'instant' });
   }, [selectedContact, isClient]);
 
-  const handleLogout = () => {
+  const handleLogout = useCallback(async () => {
     if (!isClient) return;
+    
     try {
+      // Simulate a short delay to ensure the loading state is visible
+      // This is optional and can be removed if you prefer
+      await new Promise(resolve => setTimeout(resolve, 800));
+      
       localStorage.removeItem('userSession');
       router.push('/auth');
     } catch (error) {
       console.error('Error during logout:', error);
+      // If there's an error, we'll just stay on the page
+      // The ChatHeader component will reset its loading state
     }
-  };
-
+  }, [isClient, router]);
+  
   const handleOpenProfileModal = () => {
     setIsProfileModalOpen(true);
   };
@@ -1249,7 +1256,7 @@ export default function Dashboard() {
           contactDetails={selectedContact ? selectedContactDetails : null}
           groupDetails={selectedGroup ? selectedGroupDetails : null}
           onToggleSidebar={() => setIsMobileSidebarOpen(true)}
-          onLogout={handleLogout}
+          onLogout={handleLogout} 
           onOpenProfileModal={handleOpenProfileModal}
           onOpenUserManagementModal={handleUserManagementModal}
           onToggleRightPanel={() => setIsRightPanelVisible(!isRightPanelVisible)}
