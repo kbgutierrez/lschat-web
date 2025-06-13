@@ -19,6 +19,7 @@
     "pubnub": "^7.6.3",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "react-draggable": "^4.4.5",
     "react-hot-toast": "^2.5.2",
     "superagent": "^7.1.1",
     "uuid": "^9.0.1"

@@ -99,7 +99,8 @@ export default function Dashboard() {
   const [showInviteToast, setShowInviteToast] = useState(false);
   const [isAnnouncementModalOpen, setIsAnnouncementModalOpen] = useState(false);
 
-
+  // Add a new state for SpeedDial position
+  const [speedDialPosition, setSpeedDialPosition] = useState<{ x: number; y: number } | null>(null);
 
   const scrollToBottom = useCallback(() => {
     if (!messagesEndRef.current) return;
@@ -1425,7 +1426,7 @@ export default function Dashboard() {
         </div>
       )}
       
-      <div className="fixed bottom-6 left-3 z-50">
+      <div className="fixed bottom-16 md:bottom-6 left-0 z-50 pointer-events-auto touch-auto">
         <SpeedDial 
           actions={[
             {
@@ -1466,6 +1467,8 @@ export default function Dashboard() {
               show: user?.can_announce === 1
             }
           ]}
+          initialPosition={speedDialPosition}
+          onPositionChange={setSpeedDialPosition}
         />
       </div>
       
