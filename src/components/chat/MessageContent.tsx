@@ -9,11 +9,14 @@ type MessageContentProps = {
   className?: string;
 };
 
-const IMAGE_PATTERN = /\[Image:\s*(https?:\/\/[^\]\s]+)\]/i;
-const IMAGE_FILE_PATTERN = /\[(JPG|PNG|GIF|JPEG) File:\s*([^-\]]+)\s*-\s*(https?:\/\/[^\]\s]+)\]/i;
-const FILE_PATTERN = /\[File:\s*(https?:\/\/[^\|\]\s]+)\|([^\]\s]+)\]/i;
+const IMAGE_PATTERN = /\[Image:\s*((?:https?:\/\/|\/)[^\]\s]+)\]/i;
+const IMAGE_FILE_PATTERN = /\[(JPG|PNG|GIF|JPEG) File:\s*([^-\]]+)\s*-\s*((?:https?:\/\/|\/)[^\]\s]+)\]/i;
+const FILE_PATTERN = /\[File:\s*((?:https?:\/\/|\/)[^\|\]\s]+)\|([^\]\s]+)\]/i;
 
-const FLEXIBLE_IMAGE_PATTERN = /\[(JPG|PNG|GIF|JPEG|Image) (?:File:|Image:)?\s*([^\]]+?)(?:\s+-\s+|\s+-\s*|\s*-\s+|\s*-\s*)(https?:\/\/[^\]\s]+)\]/i;
+// Update pattern to include PowerPoint and Presentation
+const DOCUMENT_FILE_PATTERN = /\[(Excel|Word|PDF|Text|Spreadsheet|Document|PowerPoint|Presentation) (?:File|Spreadsheet|Document|Presentation)?:\s*([^-\]]+)\s*-\s*((?:https?:\/\/|\/)[^\]\s]+)\]/i;
+
+const FLEXIBLE_IMAGE_PATTERN = /\[(JPG|PNG|GIF|JPEG|Image) (?:File:|Image:)?\s*([^\]]+?)(?:\s+-\s+|\s+-\s*|\s*-\s+|\s*-\s*)((?:https?:\/\/|\/)[^\]\s]+)\]/i;
 
 export const MessageContent: React.FC<MessageContentProps> = ({ content, className }) => {
   const [imageLoaded, setImageLoaded] = useState(false);
@@ -26,10 +29,10 @@ export const MessageContent: React.FC<MessageContentProps> = ({ content, classNa
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const imageRef = useRef<HTMLImageElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-
+  const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
   const handleImageClick = (url: string, alt: string) => {
     setModalImage({ url, alt });
-    setScale(0.2); 
+    setScale(0.7); 
     setPosition({ x: 0, y: 0 });
     setShowImageModal(true);
   };
@@ -131,7 +134,8 @@ export const MessageContent: React.FC<MessageContentProps> = ({ content, classNa
       if (FLEXIBLE_IMAGE_PATTERN.test(line) || 
           IMAGE_FILE_PATTERN.test(line) || 
           IMAGE_PATTERN.test(line) || 
-          FILE_PATTERN.test(line)) {
+          FILE_PATTERN.test(line) ||
+          DOCUMENT_FILE_PATTERN.test(line)) {
         // If the line contains media, render it with the existing logic
         return <MessageContent key={index} content={line} className={className} />;
       } else {
@@ -145,10 +149,137 @@ export const MessageContent: React.FC<MessageContentProps> = ({ content, classNa
 
   let contentRender;
 
-  // Try the flexible pattern first, then fall back to specific patterns
+  // Helper function to handle image URLs
+  const getFullImageUrl = (url: string) => {
+    // If the URL already starts with http:// or https://, use it directly
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      return url;
+    }
+    
+    // For server-relative URLs (starting with /)
+    if (url.startsWith('/')) {
+      // Make sure we don't have double slashes by removing trailing slash from API_BASE_URL if present
+      const baseUrl = API_BASE_URL?.endsWith('/') ? API_BASE_URL.slice(0, -1) : API_BASE_URL || '';
+      return `${baseUrl}${url}`;
+    }
+    
+    // For other relative paths, ensure there's a slash between API_BASE_URL and url
+    const baseUrl = API_BASE_URL || '';
+    return baseUrl + (baseUrl.endsWith('/') || url.startsWith('/') ? '' : '/') + url;
+  };
+
+  // Add a debug function to log image URL information
+  const debugImageUrl = (originalUrl: string) => {
+    const fullUrl = getFullImageUrl(originalUrl);
+    console.log('Image URL Debug:', { 
+      original: originalUrl, 
+      processed: fullUrl,
+      apiBase: API_BASE_URL 
+    });
+    return fullUrl;
+  };
+
+  // Check for document file pattern first (Excel, Word, etc.)
+  const documentMatch = content.match(DOCUMENT_FILE_PATTERN);
+  // Define flexibleMatch here, before any conditionals use it
   const flexibleMatch = content.match(FLEXIBLE_IMAGE_PATTERN);
   
-  if (flexibleMatch && flexibleMatch[3]) {
+  if (documentMatch && documentMatch[2] && documentMatch[3]) {
+    const fileType = documentMatch[1].trim(); // Excel, Word, PDF, etc.
+    const fileName = documentMatch[2].trim();
+    const fileUrl = documentMatch[3];
+    const fileExt = fileName.split('.').pop()?.toLowerCase() || '';
+
+    const getFileIcon = () => {
+      switch (fileExt) {
+        case 'pdf':
+          return (
+            <svg className="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"
+              />
+            </svg>
+          );
+        case 'doc':
+        case 'docx':
+          return (
+            <svg className="w-8 h-8 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"
+              />
+            </svg>
+          );
+        case 'xls':
+        case 'xlsx':
+          return (
+            <svg className="w-8 h-8 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"
+              />
+            </svg>
+          );
+        case 'ppt':
+        case 'pptx':
+          // Add PowerPoint specific icon
+          return (
+            <svg className="w-8 h-8 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"
+              />
+            </svg>
+          );
+        default:
+          return (
+            <svg className="w-8 h-8 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"
+              />
+            </svg>
+          );
+      }
+    };
+
+    contentRender = (
+      <div className="flex items-center p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700">
+        <div className="mr-3">{getFileIcon()}</div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium text-gray-900 dark:text-gray-300 truncate">{fileName}</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400">{fileType}</p>
+        </div>
+        <a
+          href={`${API_BASE_URL}${fileUrl}`}
+          download={fileName}
+          className="ml-2 p-2 rounded-full bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400 hover:bg-violet-200 dark:hover:bg-violet-900/50"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+            />
+          </svg>
+        </a>
+      </div>
+    );
+  } 
+  // Try the flexible pattern for images
+  else if (flexibleMatch && flexibleMatch[3]) {
     const imageType = flexibleMatch[1].toLowerCase();
     const fileName = flexibleMatch[2] ? flexibleMatch[2].trim() : 'Image';
     const imageUrl = flexibleMatch[3];
@@ -210,8 +341,9 @@ export const MessageContent: React.FC<MessageContentProps> = ({ content, classNa
           >
             
             <div className="relative" onClick={() => imageLoaded && handleImageClick(imageUrl, fileName)}>
+             
               <Image
-                src={imageUrl}
+                src={debugImageUrl(imageUrl)}
                 alt={fileName}
                 width={500}
                 height={300}
@@ -236,7 +368,6 @@ export const MessageContent: React.FC<MessageContentProps> = ({ content, classNa
       const imageType = imageFileMatch[1].toLowerCase();
       const fileName = imageFileMatch[2].trim();
       const imageUrl = imageFileMatch[3];
-      
       contentRender = (
         <div className={cn('relative', className)}>
           {!imageLoaded && !imageError && (
@@ -252,7 +383,7 @@ export const MessageContent: React.FC<MessageContentProps> = ({ content, classNa
                   strokeLinejoin="round"
                   strokeWidth={2}
                   d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-                />
+              />
               </svg>
               <p className="text-xs text-gray-500 dark:text-gray-400">Loading {fileName}...</p>
             </div>
@@ -271,7 +402,7 @@ export const MessageContent: React.FC<MessageContentProps> = ({ content, classNa
                   strokeLinejoin="round"
                   strokeWidth={2}
                   d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77-1.333.192 3 1.732 3z"
-                />
+              />
               </svg>
               <p className="text-sm text-red-600 dark:text-red-400">Failed to load image</p>
               <p className="text-xs text-gray-600 dark:text-gray-400 mb-2">{fileName}</p>
@@ -295,7 +426,7 @@ export const MessageContent: React.FC<MessageContentProps> = ({ content, classNa
               
               <div className="relative" onClick={() => imageLoaded && handleImageClick(imageUrl, fileName)}>
                 <Image
-                  src={imageUrl}
+                  src={debugImageUrl(imageUrl)}
                   alt={fileName}
                   width={500}
                   height={300}
@@ -372,7 +503,7 @@ export const MessageContent: React.FC<MessageContentProps> = ({ content, classNa
                 onClick={() => imageLoaded && handleImageClick(imageUrl, 'Message attachment')}
               >
                 <Image
-                  src={imageUrl}
+                  src={debugImageUrl(imageUrl)}
                   alt="Message attachment"
                   width={500}
                   height={300}
@@ -433,6 +564,18 @@ export const MessageContent: React.FC<MessageContentProps> = ({ content, classNa
                     />
                   </svg>
                 );
+              case 'ppt':
+              case 'pptx':
+                return (
+                  <svg className="w-8 h-8 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"
+                    />
+                  </svg>
+                );
               default:
                 return (
                   <svg className="w-8 h-8 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -455,7 +598,7 @@ export const MessageContent: React.FC<MessageContentProps> = ({ content, classNa
                 <p className="text-xs text-gray-500 dark:text-gray-400">{fileExt.toUpperCase()} File</p>
               </div>
               <a
-                href={fileUrl}
+                href={`${API_BASE_URL}${fileUrl}`}
                 download={fileName}
                 className="ml-2 p-2 rounded-full bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400 hover:bg-violet-200 dark:hover:bg-violet-900/50"
               >
@@ -501,7 +644,7 @@ export const MessageContent: React.FC<MessageContentProps> = ({ content, classNa
           >
             <img
               ref={imageRef}
-              src={modalImage.url}
+              src={debugImageUrl(modalImage.url)}
               alt={modalImage.alt}
               className="max-w-none max-h-none transition-transform duration-100"
               style={{ 

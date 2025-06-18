@@ -61,7 +61,7 @@ export default function UserManagementModal({
 
     const modalRef = useRef<HTMLDivElement>(null);
     const tabIndicatorRef = useRef<HTMLDivElement>(null);
-
+   const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
     useEffect(() => {
         if (isOpen) {
             setError(null);
@@ -555,7 +555,7 @@ export default function UserManagementModal({
                                                     <div className="flex-shrink-0">
                                                         {user.profile_picture ? (
                                                             <img
-                                                                src={user.profile_picture}
+                                                                src={`${API_BASE_URL}${user.profile_picture}`}
                                                                 alt={`${user.first_name} ${user.last_name}`}
                                                                 className="h-10 w-10 rounded-full object-cover"
                                                             />
@@ -632,7 +632,7 @@ export default function UserManagementModal({
                                         <div className="flex-shrink-0">
                                             {selectedUser.profile_picture ? (
                                                 <img
-                                                    src={selectedUser.profile_picture}
+                                                    src={`${API_BASE_URL}${selectedUser.profile_picture}`}
                                                     alt={`${selectedUser.first_name} ${selectedUser.last_name}`}
                                                     className="h-14 w-14 rounded-full object-cover border-2 border-white dark:border-gray-700 shadow-sm"
                                                 />

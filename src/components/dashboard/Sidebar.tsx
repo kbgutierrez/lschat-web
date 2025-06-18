@@ -103,7 +103,7 @@ export function Sidebar({
 
   const [unreadAnnouncementsCount, setUnreadAnnouncementsCount] = useState<number>(0);
   const [loadingUnreadCount, setLoadingUnreadCount] = useState<boolean>(false);
-
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
   useEffect(() => {
     if (user) {
       console.log('User object for announcements permissions:', user);
@@ -1215,7 +1215,7 @@ export function Sidebar({
                               <div className="flex items-center space-x-3">
                                 {announcement.profile_picture ? (
                                   <img 
-                                    src={announcement.profile_picture} 
+                                    src={`${API_BASE_URL}${announcement.profile_picture}`} 
                                     alt={announcement.creator_name}
                                     className="w-8 h-8 rounded-full object-cover shrink-0"
                                     onError={(e) => {
@@ -1320,7 +1320,7 @@ export function Sidebar({
                               <div className="flex items-center space-x-3">
                                 {announcement.profile_picture ? (
                                   <img 
-                                    src={announcement.profile_picture} 
+                                    src={`${API_BASE_URL}${announcement.profile_picture}`} 
                                     alt={announcement.creator_name}
                                     className="w-8 h-8 rounded-full object-cover shrink-0"
                                     onError={(e) => {
@@ -1427,7 +1427,7 @@ export function Sidebar({
                           <div className="flex items-center space-x-3">
                             {announcement.profile_picture ? (
                               <img 
-                                src={announcement.profile_picture} 
+                                src={`${API_BASE_URL}${announcement.profile_picture}`} 
                                 alt={announcement.creator_name}
                                 className="w-8 h-8 rounded-full object-cover shrink-0"
                                 onError={(e) => {

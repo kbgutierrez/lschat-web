@@ -4,7 +4,7 @@ import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import Image from 'next/image';
-import { announcementsAPI, AnnouncementParticipant } from '@/lib/announcementsApi';
+import { announcementsAPI, AnnouncementParticipant} from '@/lib/announcementsApi';
 import { getUserFromLocalStorage } from '@/lib/clientUtils';
 
 interface CreateAnnouncementModalProps {
@@ -57,7 +57,7 @@ export default function CreateAnnouncementModal({ isOpen, onClose }: CreateAnnou
   const [titleError, setTitleError] = useState(false);
   const [announcementTextError, setAnnouncementTextError] = useState(false);
   const [imageError, setImageError] = useState(false);
-
+   const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
   const filteredParticipants = useMemo(() => {
     if (!searchTerm.trim()) return participants;
     
@@ -385,7 +385,7 @@ export default function CreateAnnouncementModal({ isOpen, onClose }: CreateAnnou
                   <div className="flex justify-center">
                     <div className="relative w-full rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-900">
                       <img 
-                        src={previewUrl} 
+                        src={`${previewUrl}`} 
                         alt="Announcement" 
                         className="w-full h-auto"
                       />
@@ -803,7 +803,7 @@ export default function CreateAnnouncementModal({ isOpen, onClose }: CreateAnnou
                               {/* Thumbnail image */}
                               <div className="h-full w-20 bg-gray-100 dark:bg-gray-900 flex-shrink-0">
                                 <img 
-                                  src={previewUrl} 
+                                  src={`${previewUrl}`} 
                                   alt="Selected image" 
                                   className="h-full w-full object-cover"
                                 />
@@ -1142,7 +1142,7 @@ export default function CreateAnnouncementModal({ isOpen, onClose }: CreateAnnou
                             {participant.image ? (
                               <div className="w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-700 overflow-hidden mr-3">
                                 <img 
-                                  src={participant.image} 
+                                  src={`${API_BASE_URL}${participant.image}`} 
                                   alt={participant.name}
                                   className="w-full h-full object-cover"
                                 />

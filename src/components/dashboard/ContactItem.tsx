@@ -2,7 +2,7 @@
 
 import React, { useRef, useEffect, useMemo } from 'react';
 import { cn } from '@/lib/utils';
-import { ContactListItem } from '@/lib/api';
+import { ContactListItem,API_BASE_URL } from '@/lib/api';
 import { gsap } from 'gsap';
 
 export function getInitials(name?: string): string {
@@ -99,7 +99,24 @@ export function ContactItem({ contact, isSelected, onSelect, lastMessage }: Cont
       return "Sent an image";
     }
     
-    // Check if it's a file
+    // Check for document types
+    const docPatterns = {
+      powerpoint: /\.(pptx?|pps|ppsx|pot|potx)$/i,
+      word: /\.(docx?|rtf|odt|dot|dotx)$/i,
+      excel: /\.(xlsx?|csv|xlsm|xltx?|xlsb)$/i,
+      pdf: /\.(pdf)$/i
+    };
+    
+    // Check for any document file extensions or patterns
+    if (docPatterns.powerpoint.test(lastMessage) || 
+        docPatterns.word.test(lastMessage) || 
+        docPatterns.excel.test(lastMessage) ||
+        docPatterns.pdf.test(lastMessage) ||
+        /PowerPoint|presentation|Word|document|Excel|spreadsheet/i.test(lastMessage)) {
+      return "Sent a file";
+    }
+    
+    // Check if it's a file (keep the existing check)
     const isFile = /\[File:/i.test(lastMessage);
     if (isFile) {
       return "Sent a file";
@@ -125,7 +142,7 @@ export function ContactItem({ contact, isSelected, onSelect, lastMessage }: Cont
       <div className="relative flex-shrink-0">
         {contact.contact_picture ? (
           <img 
-          src={contact.contact_picture} 
+          src={`${API_BASE_URL}${contact.contact_picture}`} 
           alt=""
           className='w-12 h-12 rounded-full object-cover border-2 border-gray-200 dark:border-gray-700'
           />

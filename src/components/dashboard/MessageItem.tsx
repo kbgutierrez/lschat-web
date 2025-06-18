@@ -25,7 +25,7 @@ interface MessageItemProps {
 
 export function MessageItem({ message, contactName,contactPicture, showAvatar, isConsecutive }: MessageItemProps) {
   const { text, time, isOwn } = message;
-
+  const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
   const getUserInitials = () => {
     try {
       const userData = localStorage.getItem('userSession');
@@ -59,7 +59,7 @@ const getUserPicture = () => {
       const parsed = JSON.parse(userData);
       const user = parsed.user || parsed;
       
-      return user.profilePicture || user.profile_picture || '';
+      return `${API_BASE_URL}${user.profilePicture}` || `${API_BASE_URL}${user.profile_picture}` || '';
     }
   } catch (e) {
     console.error("Error parsing user session data:", e);
@@ -75,7 +75,7 @@ const getUserPicture = () => {
       {!isOwn && showAvatar && (
         contactPicture ? (
           <img 
-            src={contactPicture}
+            src={`${API_BASE_URL}${contactPicture}`}
             alt={contactName} 
             className="flex-shrink-0 w-9 h-9 rounded-full object-cover"
           />

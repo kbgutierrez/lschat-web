@@ -24,6 +24,7 @@ export function GroupMessageList({
   endRef,
   currentUserId
 }: GroupMessageListProps) {
+  const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
   const getUserInitials = () => {
     try {
       const userData = localStorage.getItem('userSession');
@@ -212,7 +213,7 @@ export function GroupMessageList({
                 {!isOwn && (
                   message.profile_picture ? (
                     <img 
-                      src={message.profile_picture} 
+                      src={`${API_BASE_URL}${message.profile_picture}`} 
                       alt={message.sender_name} 
                       className="flex-shrink-0 w-9 h-9 rounded-full object-cover"
                     />
@@ -241,7 +242,7 @@ export function GroupMessageList({
                 {isOwn && (
                   message.profile_picture ? (
                     <img 
-                      src={message.profile_picture} 
+                      src={`${API_BASE_URL}${message.profile_picture}`} 
                       alt="User Avatar" 
                       className="flex-shrink-0 w-8 h-8 rounded-full object-cover"
                     />

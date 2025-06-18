@@ -324,7 +324,7 @@ export function AnnouncementsArea({
                     <div className="flex items-center gap-2">
                       {announcement.profile_picture ? (
                         <img 
-                          src={announcement.profile_picture} 
+                          src={`${API_BASE_URL}${announcement.profile_picture}`} 
                           alt={announcement.creator_name}
                           className="h-7 w-7 rounded-full object-cover border border-gray-200 dark:border-gray-600"
                           onError={(e) => {

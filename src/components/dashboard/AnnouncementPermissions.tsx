@@ -65,7 +65,7 @@ export default function AnnouncementPermissions({
   if (!user || !settings) return null;
 
   const userId = user.user_id.toString();
-
+  const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
   // Check if current settings differ from default settings
   const hasChangedFromDefault = defaultSettings && (
     defaultSettings.announceScope !== settings.announceScope ||
@@ -296,7 +296,7 @@ export default function AnnouncementPermissions({
                                         <div className="flex items-center flex-1">
                                             {u.profile_picture ? (
                                                 <img
-                                                    src={u.profile_picture}
+                                                    src={`${API_BASE_URL}${u.profile_picture}`}
                                                     alt=""
                                                     className="w-8 h-8 rounded-full object-cover border border-gray-200 dark:border-gray-600"
                                                 />

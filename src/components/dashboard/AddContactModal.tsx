@@ -42,7 +42,7 @@ export default function AddContactModal({
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [addSuccess, setAddSuccess] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
-
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
   useEffect(() => {
     if (isOpen) {
       setSearchTerm('');
@@ -307,7 +307,7 @@ export default function AddContactModal({
                           <div className="flex-shrink-0">
                             {user.profile_picture ? (
                               <img 
-                                src={user.profile_picture} 
+                                src={`${API_BASE_URL}${user.profile_picture}`} 
                                 alt=""
                                 className="w-11 h-11 rounded-full object-cover border-2 border-white dark:border-gray-700 shadow-sm"
                               />

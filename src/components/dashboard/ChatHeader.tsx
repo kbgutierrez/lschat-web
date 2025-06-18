@@ -89,6 +89,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
   const isClient = useIsClient();
   const fetchErrorCountRef = useRef<number>(0);
   const [profilePicture, setProfilePicture] = useState<string | undefined>(user?.profilePicture);
+   const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 
   // New state for group invitations
   const [groupInvitations, setGroupInvitations] = useState<GroupInvitation[]>([]);
@@ -369,7 +370,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                 <div className="w-10 h-10 rounded-full bg-violet-200 dark:bg-violet-900 flex items-center justify-center text-violet-700 dark:text-violet-300 text-lg font-bold">
                   {contactDetails.contactPicture ? (
                     <img
-                      src={contactDetails.contactPicture}
+                      src={`${API_BASE_URL}${contactDetails.contactPicture}`}
                       alt={contactDetails.name}
                       className="w-10 h-10 rounded-full object-cover border-2 border-gray-200 dark:border-gray-700"
                     />
@@ -522,7 +523,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                               <span className="mr-1">Invited by:</span>
                               {invitation.inviter_profile_picture ? (
                                 <img
-                                  src={invitation.inviter_profile_picture}
+                                  src={`${API_BASE_URL}${invitation.inviter_profile_picture}`}
                                   alt={invitation.inviter_name}
                                   className="w-4 h-4 rounded-full mr-1"
                                 />
@@ -794,7 +795,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                 <div className="w-9 h-9 pt-0.5 rounded-full bg-violet-200 dark:bg-violet-900 flex items-center justify-center text-violet-700 dark:text-violet-300 text-sm font-medium">
                   {profilePicture ? (
                     <img
-                      src={profilePicture}
+                      src={`${API_BASE_URL}${profilePicture}`}
                       alt="Profile"
                       className="w-10 h-10 rounded-full object-cover border-2 border-gray-200 dark:border-gray-700"
                       onError={() => setProfilePicture(undefined)}

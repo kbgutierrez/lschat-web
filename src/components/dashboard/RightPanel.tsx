@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils';
 import Image from 'next/image';
 import { ContactDetails } from '@/app/dashboard/page';
 import { Group } from '@/lib/groupsApi';
-import { messagesAPI, contactsAPI, ContactListItem } from '@/lib/api';
+import { messagesAPI, contactsAPI, ContactListItem, API_BASE_URL } from '@/lib/api';
 import { groupsAPI, GroupMember } from '@/lib/groupsApi';
 import { getInitials } from './ContactItem';
 import { gsap } from 'gsap';
@@ -155,19 +155,26 @@ export function RightPanel({
 
           const IMAGE_REGEX = /\[(?:Image|JPG|JPEG|PNG|GIF)(?:\s*File)?:?\s*(?:[^-\]]+)?(?:-\s*)?([^\]\s]+)\]/i;
           const FILE_IMAGE_REGEX = /\[(JPG|PNG|GIF|JPEG)\s*File:\s*([^-\]]+)\s*-\s*([^\]\s]+)\]/i;
+          // Add regex to identify non-image file types
+          const NON_IMAGE_FILE_REGEX = /\[(Excel|Word|PDF|Spreadsheet|Document|Text)(?:\s*File|\s*Spreadsheet|\s*Document)?:(?:[^-\]]+)?(?:-\s*)?([^\]\s]+)\]/i;
 
           mediaItems = messages
             .filter(msg => {
-              console.log('Checking message:', msg.message_content?.substring(0, 50));
+              const content = msg.message_content || '';
+              
+              // Skip if it matches known non-image file formats
+              if (NON_IMAGE_FILE_REGEX.test(content)) {
+                return false;
+              }
 
-              return msg.message_content?.includes('[Image:') ||
-                msg.message_content?.includes('JPG File:') ||
-                msg.message_content?.includes('PNG File:') ||
-                msg.message_content?.includes('.jpg') ||
-                msg.message_content?.includes('.png') ||
-                msg.message_content?.includes('.gif') ||
-                IMAGE_REGEX.test(msg.message_content || '') ||
-                msg.message_type === 'file' ||
+              // Check for common image extensions in URLs
+              const hasImageExtension = /(\.jpg|\.jpeg|\.png|\.gif|\.webp)($|\?)/i.test(content);
+              
+              return content.includes('[Image:') ||
+                content.includes('JPG File:') ||
+                content.includes('PNG File:') ||
+                hasImageExtension ||
+                IMAGE_REGEX.test(content) ||
                 msg.message_type === 'image';
             })
             .map((msg, index) => {
@@ -177,11 +184,22 @@ export function RightPanel({
 
               const flexMatch = msg.message_content?.match(IMAGE_REGEX);
 
-              const url = imgMatch ? imgMatch[1] :
-                imgFileMatch ? imgFileMatch[3] :
-                  flexMatch ? flexMatch[1] :
-                    plainUrlMatch ? plainUrlMatch[0] :
-                      'https://via.placeholder.com/300/200?text=Image+Not+Found';
+              let url = '';
+              if (imgMatch) url = imgMatch[1];
+              else if (imgFileMatch) url = imgFileMatch[3];
+              else if (flexMatch) url = flexMatch[1];
+              else if (plainUrlMatch) url = plainUrlMatch[0];
+              else url = 'https://via.placeholder.com/300/200?text=Image+Not+Found';
+
+              // Validate URL to avoid Next.js Image component errors
+              try {
+                // Test if URL is valid
+                new URL(url.startsWith('http') ? url : `${API_BASE_URL}${url}`);
+              } catch (e) {
+                // If URL is invalid, use placeholder
+                console.warn('Invalid image URL:', url);
+                url = 'https://via.placeholder.com/300/200?text=Invalid+URL';
+              }
 
               let fileName = imgFileMatch ? imgFileMatch[2] : `Image ${index + 1}`;
 
@@ -190,11 +208,9 @@ export function RightPanel({
                 fileName = urlParts[urlParts.length - 1] || fileName;
               }
 
-              console.log('Found media item:', { url, fileName });
-
               return {
                 id: msg.message_id.toString(),
-                url,
+                url: url.startsWith('http') ? url : `${API_BASE_URL}${url}`,
                 type: 'image',
                 fileName,
                 timestamp: new Date(msg.created_at).toLocaleDateString()
@@ -211,18 +227,26 @@ export function RightPanel({
 
           const IMAGE_REGEX = /\[(?:Image|JPG|JPEG|PNG|GIF)(?:\s*File)?:?\s*(?:[^-\]]+)?(?:-\s*)?([^\]\s]+)\]/i;
           const FILE_IMAGE_REGEX = /\[(JPG|PNG|GIF|JPEG)\s*File:\s*([^-\]]+)\s*-\s*([^\]\s]+)\]/i;
+          // Add regex to identify non-image file types
+          const NON_IMAGE_FILE_REGEX = /\[(Excel|Word|PDF|Spreadsheet|Document|Text)(?:\s*File|\s*Spreadsheet|\s*Document)?:(?:[^-\]]+)?(?:-\s*)?([^\]\s]+)\]/i;
 
           mediaItems = messages
             .filter(msg => {
-              // console.log('Checking group message:', msg.message?.substring(0, 50));
+              const content = msg.message || '';
+              
+              // Skip if it matches known non-image file formats
+              if (NON_IMAGE_FILE_REGEX.test(content)) {
+                return false;
+              }
+              
+              // Check for common image extensions in URLs
+              const hasImageExtension = /(\.jpg|\.jpeg|\.png|\.gif|\.webp)($|\?)/i.test(content);
 
-              return msg.message?.includes('[Image:') ||
-                msg.message?.includes('JPG File:') ||
-                msg.message?.includes('PNG File:') ||
-                msg.message?.includes('.jpg') ||
-                msg.message?.includes('.png') ||
-                msg.message?.includes('.gif') ||
-                IMAGE_REGEX.test(msg.message || '');
+              return content.includes('[Image:') ||
+                content.includes('JPG File:') ||
+                content.includes('PNG File:') ||
+                hasImageExtension ||
+                IMAGE_REGEX.test(content);
             })
             .map((msg, index) => {
               const imgMatch = msg.message?.match(/\[Image:\s*(https?:\/\/[^\]\s]+)\]/i);
@@ -231,16 +255,27 @@ export function RightPanel({
 
               const flexMatch = msg.message?.match(IMAGE_REGEX);
 
-              const url = imgMatch ? imgMatch[1] :
-                imgFileMatch ? imgFileMatch[3] :
-                  flexMatch ? flexMatch[1] :
-                    plainUrlMatch ? plainUrlMatch[0] :
-                      'https://via.placeholder.com/300/200?text=Image+Not+Found';
+              let url = '';
+              if (imgMatch) url = imgMatch[1];
+              else if (imgFileMatch) url = imgFileMatch[3];
+              else if (flexMatch) url = flexMatch[1];
+              else if (plainUrlMatch) url = plainUrlMatch[0];
+              else url = 'https://via.placeholder.com/300/200?text=Image+Not+Found';
+
+              // Validate URL to avoid Next.js Image component errors
+              try {
+                // Test if URL is valid
+                new URL(url.startsWith('http') ? url : `${API_BASE_URL}${url}`);
+              } catch (e) {
+                // If URL is invalid, use placeholder
+                console.warn('Invalid image URL:', url);
+                url = 'https://via.placeholder.com/300/200?text=Invalid+URL';
+              }
 
               const fileName = imgFileMatch ? imgFileMatch[2] : `Image ${index + 1}`;
               return {
                 id: msg.id.toString(),
-                url,
+                url: url.startsWith('http') ? url : `${API_BASE_URL}${url}`,
                 type: 'image',
                 fileName,
                 timestamp: new Date(msg.created_at).toLocaleDateString()
@@ -280,40 +315,117 @@ export function RightPanel({
           console.log('Fetched messages for files:', messages.length);
 
           const FILE_REGEX = /\[File:\s*(https?:\/\/[^\|\]\s]+)(?:\|([^\]\s]+))?\]/i;
+          const GENERIC_FILE_REGEX = /\[([A-Za-z\s]+):\s*([^-\]]+)\s*-\s*((?:https?:\/\/|\/)[^\]\s]+)\]/i;
+          const IMAGE_REGEX = /\[(?:Image|JPG|JPEG|PNG|GIF)(?:\s*File)?:?\s*(?:[^-\]]+)?(?:-\s*)?([^\]\s]+)\]/i;
+          
+          // Helper function to check if content is an image
+          const isImageContent = (content: string) => {
+            // Check for image file patterns
+            if (content.includes('[Image:') || 
+                content.includes('JPG File:') || 
+                content.includes('PNG File:') ||
+                content.includes('GIF File:') ||
+                IMAGE_REGEX.test(content)) {
+              return true;
+            }
+            
+            // Check if the generic file pattern refers to an image
+            const genericMatch = content.match(GENERIC_FILE_REGEX);
+            if (genericMatch) {
+              const fileType = genericMatch[1].toUpperCase().trim();
+              // Make sure PowerPoint/Presentation is not considered an image
+              if (['JPG', 'PNG', 'GIF', 'JPEG', 'IMAGE'].includes(fileType)) {
+                return true;
+              }
+              
+              // Also check for PowerPoint extensions
+              const fileName = genericMatch[2].trim();
+              // Check for image extensions but not PowerPoint extensions
+              if (/(\.jpg|\.jpeg|\.png|\.gif|\.webp)$/i.test(fileName) && !/(\.ppt|\.pptx)$/i.test(fileName)) {
+                return true;
+              }
+            }
+            
+            return false;
+          };
 
           fileItems = messages
             .filter(msg => {
-              const fileMatch = msg.message_content?.match(FILE_REGEX);
-              const hasValidFileUrl = fileMatch && fileMatch[1] && fileMatch[1].startsWith('http');
+              if (!msg.message_content) return false;
+              
+              // Skip if it's an image
+              if (isImageContent(msg.message_content)) {
+                return false;
+              }
+              
+              const fileMatch = msg.message_content.match(FILE_REGEX);
+              const genericFileMatch = msg.message_content.match(GENERIC_FILE_REGEX);
+              
+              // If it's a generic file match, check that it's not an image type
+              const isNonImageGenericFile = genericFileMatch && 
+                !['JPG', 'PNG', 'GIF', 'JPEG', 'IMAGE'].includes(genericFileMatch[1].toUpperCase().trim());
+              
+              // Check for common non-image file extensions
+              const hasNonImageFileExtension = /\.(doc|docx|pdf|txt|zip|rar|xls|xlsx|ppt|pptx)($|\?)/i.test(msg.message_content);
+              
+              const hasValidFileUrl = (fileMatch && fileMatch[1] && fileMatch[1].startsWith('http')) ||
+                isNonImageGenericFile || hasNonImageFileExtension;
 
-              return hasValidFileUrl &&
-                !msg.message_content?.includes('[Image:') &&
-                !msg.message_content?.includes('JPG File:') &&
-                !msg.message_content?.includes('PNG File:');
+              return hasValidFileUrl;
             })
             .map((msg, index) => {
-              const fileMatch = msg.message_content?.match(/\[File:\s*(https?:\/\/[^\|\]\s]+)\|([^\]\s]+)\]/i);
+              const fileMatch = msg.message_content?.match(FILE_REGEX);
+              const genericFileMatch = msg.message_content?.match(GENERIC_FILE_REGEX);
 
-              if (!fileMatch || !fileMatch[1]) return null;
+              if (fileMatch && fileMatch[1]) {
+                const url = fileMatch[1];
+                let fileName = fileMatch[2] || '';
 
-              const url = fileMatch[1];
-              let fileName = fileMatch[2] || '';
+                if (!fileName) {
+                  const urlParts = url.split('/');
+                  fileName = urlParts[urlParts.length - 1] || `File ${index + 1}`;
+                }
 
-              if (!fileName) {
-                const urlParts = url.split('/');
-                fileName = urlParts[urlParts.length - 1] || `File ${index + 1}`;
+                const fileExt = fileName.split('.').pop()?.toUpperCase() || 'FILE';
+
+                return {
+                  id: msg.message_id.toString(),
+                  url,
+                  fileName,
+                  fileType: fileExt,
+                  fileSize: `${((msg.message_content?.length || 0) % 10 + 1) / 2} MB`,
+                  timestamp: new Date(msg.created_at).toLocaleDateString()
+                };
+              } else if (genericFileMatch && !isImageContent(msg.message_content || '')) {
+                // Enhanced handling for generic file types
+                const fileType = genericFileMatch[1].trim();
+                let fileName = genericFileMatch[2].trim();
+                const url = genericFileMatch[3];
+                
+                // Ensure the filename has an extension
+                if (!fileName.includes('.')) {
+                  // Try to extract extension from URL
+                  const urlParts = url.split('/');
+                  const lastPart = urlParts[urlParts.length - 1];
+                  if (lastPart && lastPart.includes('.')) {
+                    const ext = lastPart.split('.').pop();
+                    fileName = `${fileName}.${ext}`;
+                  }
+                }
+                
+                const fileExt = fileName.split('.').pop()?.toUpperCase() || 'FILE';
+                
+                return {
+                  id: msg.message_id.toString(),
+                  url,
+                  fileName,
+                  fileType: fileType,
+                  fileSize: `${((msg.message_content?.length || 0) % 10 + 1) / 2} MB`,
+                  timestamp: new Date(msg.created_at).toLocaleDateString()
+                };
               }
 
-              const fileExt = fileName.split('.').pop()?.toUpperCase() || 'FILE';
-
-              return {
-                id: msg.message_id.toString(),
-                url,
-                fileName,
-                fileType: fileExt,
-                fileSize: `${((msg.message_content?.length || 0) % 10 + 1) / 2} MB`,
-                timestamp: new Date(msg.created_at).toLocaleDateString()
-              };
+              return null;
             })
             .filter(Boolean) as FileItem[];
         } catch (error) {
@@ -326,40 +438,118 @@ export function RightPanel({
           console.log('Fetched group messages for files:', messages.length);
 
           const FILE_REGEX = /\[File:\s*(https?:\/\/[^\|\]\s]+)(?:\|([^\]\s]+))?\]/i;
+          const GENERIC_FILE_REGEX = /\[([A-Za-z\s]+):\s*([^-\]]+)\s*-\s*((?:https?:\/\/|\/)[^\]\s]+)\]/i;
+          const IMAGE_REGEX = /\[(?:Image|JPG|JPEG|PNG|GIF)(?:\s*File)?:?\s*(?:[^-\]]+)?(?:-\s*)?([^\]\s]+)\]/i;
+          
+          // Helper function to check if content is an image
+          const isImageContent = (content: string) => {
+            // Check for image file patterns
+            if (content.includes('[Image:') || 
+                content.includes('JPG File:') || 
+                content.includes('PNG File:') ||
+                content.includes('GIF File:') ||
+                IMAGE_REGEX.test(content)) {
+              return true;
+            }
+            
+            // Check if the generic file pattern refers to an image
+            const genericMatch = content.match(GENERIC_FILE_REGEX);
+            if (genericMatch) {
+              const fileType = genericMatch[1].toUpperCase().trim();
+              // Make sure PowerPoint/Presentation is not considered an image
+              if (['JPG', 'PNG', 'GIF', 'JPEG', 'IMAGE'].includes(fileType)) {
+                return true;
+              }
+              
+              // Also check for PowerPoint extensions
+              const fileName = genericMatch[2].trim();
+              // Check for image extensions but not PowerPoint extensions
+              if (/(\.jpg|\.jpeg|\.png|\.gif|\.webp)$/i.test(fileName) && !/(\.ppt|\.pptx)$/i.test(fileName)) {
+                return true;
+              }
+            }
+            
+            return false;
+          };
 
           fileItems = messages
             .filter(msg => {
-              const fileMatch = msg.message?.match(FILE_REGEX);
-              const hasValidFileUrl = fileMatch && fileMatch[1] && fileMatch[1].startsWith('http');
+              if (!msg.message) return false;
+              
+              // Skip if it's an image
+              if (isImageContent(msg.message)) {
+                return false;
+              }
+              
+              const fileMatch = msg.message.match(FILE_REGEX);
+              const genericFileMatch = msg.message.match(GENERIC_FILE_REGEX);
+              
+              // If it's a generic file match, check that it's not an image type
+              const isNonImageGenericFile = genericFileMatch && 
+                !['JPG', 'PNG', 'GIF', 'JPEG', 'IMAGE'].includes(genericFileMatch[1].toUpperCase().trim());
+              
+              // Check for common non-image file extensions
+              const hasNonImageFileExtension = /\.(doc|docx|pdf|txt|zip|rar|xls|xlsx|ppt|pptx)($|\?)/i.test(msg.message);
+              
+              const hasValidFileUrl = (fileMatch && fileMatch[1] && fileMatch[1].startsWith('http')) ||
+                isNonImageGenericFile || hasNonImageFileExtension;
 
-              return hasValidFileUrl &&
-                !msg.message?.includes('[Image:') &&
-                !msg.message?.includes('JPG File:') &&
-                !msg.message?.includes('PNG File:');
+              return hasValidFileUrl;
             })
             .map((msg, index) => {
-              const fileMatch = msg.message.match(/\[File:\s*(https?:\/\/[^\|\]\s]+)\|([^\]\s]+)\]/i);
+              // Fix the bug: use msg.message instead of msg.message_content for group messages
+              const fileMatch = msg.message?.match(FILE_REGEX);
+              const genericFileMatch = msg.message?.match(GENERIC_FILE_REGEX);
 
-              if (!fileMatch || !fileMatch[1]) return null;
+              if (fileMatch && fileMatch[1]) {
+                const url = fileMatch[1];
+                let fileName = fileMatch[2] || '';
 
-              const url = fileMatch[1];
-              let fileName = fileMatch[2] || '';
+                if (!fileName) {
+                  const urlParts = url.split('/');
+                  fileName = urlParts[urlParts.length - 1] || `File ${index + 1}`;
+                }
 
-              if (!fileName) {
-                const urlParts = url.split('/');
-                fileName = urlParts[urlParts.length - 1] || `File ${index + 1}`;
+                const fileExt = fileName.split('.').pop()?.toUpperCase() || 'FILE';
+
+                return {
+                  id: msg.id.toString(),
+                  url,
+                  fileName,
+                  fileType: fileExt,
+                  fileSize: `${((msg.message.length % 10) + 1) / 2} MB`,
+                  timestamp: new Date(msg.created_at).toLocaleDateString()
+                };
+              } else if (genericFileMatch && !isImageContent(msg.message || '')) {
+                // Enhanced handling for generic file types
+                const fileType = genericFileMatch[1].trim();
+                let fileName = genericFileMatch[2].trim();
+                const url = genericFileMatch[3];
+                
+                // Ensure the filename has an extension
+                if (!fileName.includes('.')) {
+                  // Try to extract extension from URL
+                  const urlParts = url.split('/');
+                  const lastPart = urlParts[urlParts.length - 1];
+                  if (lastPart && lastPart.includes('.')) {
+                    const ext = lastPart.split('.').pop();
+                    fileName = `${fileName}.${ext}`;
+                  }
+                }
+                
+                const fileExt = fileName.split('.').pop()?.toUpperCase() || 'FILE';
+                
+                return {
+                  id: msg.id.toString(),
+                  url,
+                  fileName,
+                  fileType: fileType,
+                  fileSize: `${((msg.message.length % 10) + 1) / 2} MB`,
+                  timestamp: new Date(msg.created_at).toLocaleDateString()
+                };
               }
 
-              const fileExt = fileName.split('.').pop()?.toUpperCase() || 'FILE';
-
-              return {
-                id: msg.id.toString(),
-                url,
-                fileName,
-                fileType: fileExt,
-                fileSize: `${((msg.message.length % 10) + 1) / 2} MB`,
-                timestamp: new Date(msg.created_at).toLocaleDateString()
-              };
+              return null;
             })
             .filter(Boolean) as FileItem[];
         } catch (error) {
@@ -680,7 +870,7 @@ export function RightPanel({
           <div className="px-4 py-6 border-b border-gray-200 dark:border-gray-800 flex flex-col items-center">
             {contactDetails?.contactPicture ? (
               <Image
-                src={contactDetails.contactPicture}
+                src={`${API_BASE_URL}${contactDetails.contactPicture}`}
                 alt={name}
                 width={80}
                 height={80}
@@ -825,7 +1015,7 @@ export function RightPanel({
                               <div className="flex-shrink-0 mr-3">
                                 {member.profile_picture ? (
                                   <Image
-                                    src={member.profile_picture}
+                                    src={`${API_BASE_URL}${member.profile_picture}`}
                                     alt={member.name}
                                     width={40}
                                     height={40}
@@ -943,30 +1133,46 @@ export function RightPanel({
                   </div>
                 ) : (
                   <div className="grid grid-cols-3 gap-2">
-                    {media.map((item) => (
-                      <div key={item.id} className="aspect-square bg-gray-100 dark:bg-gray-800 rounded-md overflow-hidden group relative">
-                        <Image
-                          src={item.url}
-                          alt={item.fileName}
-                          fill
-                          className="object-cover"
-                          unoptimized={true}
-                        />
-                        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 bg-black/60 transition-opacity">
-                          <a
-                            href={item.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="p-2 bg-white/30 rounded-full backdrop-blur-sm"
-                          >
-                            <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                            </svg>
-                          </a>
+                    {media.map((item) => {
+                      // Validate the URL before rendering
+                      let isValidImageUrl = true;
+                      try {
+                        new URL(item.url);
+                      } catch (e) {
+                        isValidImageUrl = false;
+                      }
+                      
+                      return (
+                        <div key={item.id} className="aspect-square bg-gray-100 dark:bg-gray-800 rounded-md overflow-hidden group relative">
+                          {isValidImageUrl ? (
+                            <Image
+                              src={item.url}
+                              alt={item.fileName}
+                              fill
+                              className="object-cover"
+                              unoptimized={true}
+                            />
+                          ) : (
+                            <div className="flex items-center justify-center h-full">
+                              <span className="text-gray-500">Invalid Image</span>
+                            </div>
+                          )}
+                          <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 bg-black/60 transition-opacity">
+                            <a
+                              href={item.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="p-2 bg-white/30 rounded-full backdrop-blur-sm"
+                            >
+                              <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                              </svg>
+                            </a>
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
 
@@ -1011,6 +1217,8 @@ export function RightPanel({
                           case 'docx': return '📘';
                           case 'xlsx':
                           case 'xls': return '📊';
+                          case 'ppt':
+                          case 'pptx': return '📺'; // PowerPoint icon
                           case 'zip':
                           case 'rar': return '📦';
                           case 'txt': return '📝';
@@ -1034,7 +1242,7 @@ export function RightPanel({
                             </div>
                           </div>
                           <a
-                            href={item.url}
+                            href={`${API_BASE_URL}${item.url}`}
                             download={item.fileName}
                             className="p-1 text-gray-400 hover:text-violet-600 dark:hover:text-violet-400 opacity-70 group-hover:opacity-100"
                           >

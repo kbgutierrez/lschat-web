@@ -17,7 +17,7 @@ export default function ProfileManagementModal({ isOpen, onClose }: ProfileManag
   const [isAtBottom, setIsAtBottom] = useState(false);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [showSaveConfirmation, setShowSaveConfirmation] = useState(false);
-  
+  const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
   const [profileData, setProfileData] = useState({
     firstName: '',
     middleName: '',
@@ -534,7 +534,7 @@ export default function ProfileManagementModal({ isOpen, onClose }: ProfileManag
                    
                     {currentUser?.profilePicture ? (
                       <img
-                      src={currentUser.profilePicture}
+                      src={`${API_BASE_URL}${currentUser.profilePicture}`}
                       alt="Profile"
                       className="w-16 h-16 rounded-full object-cover border-2 border-gray-200 dark:border-gray-700"
                       />
