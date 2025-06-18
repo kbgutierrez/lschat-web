@@ -356,7 +356,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
       <header className="h-16 flex items-center justify-between px-4 border-b border-violet-100 dark:border-gray-800 bg-white dark:bg-gray-900 z-10">
         <div className="flex items-center space-x-3">
           <button
-            className="md:hidden p-2 rounded-md hover:bg-violet-50 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300"
+            className="cursor-pointer md:hidden p-2 rounded-md hover:bg-violet-50 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300"
             onClick={onToggleSidebar}
           >
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -430,7 +430,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
               ref={groupInvitesButtonRef}
               onClick={() => setShowGroupInvitesMenu((v) => !v)}
               className={cn(
-                "p-2 rounded-full hover:bg-violet-50 dark:hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-violet-500 transition-all duration-200",
+                "cursor-pointer p-2 rounded-full hover:bg-violet-50 dark:hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-violet-500 transition-all duration-200",
                 groupInvitations.length > 0
                   ? "text-violet-600 dark:text-violet-400"
                   : "text-gray-500"
@@ -553,14 +553,14 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                               </div>
                               <div className="flex justify-center gap-2">
                                 <button
-                                  className="px-2 py-1 text-xs rounded border border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                                  className="cursor-pointer px-2 py-1 text-xs rounded border border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
                                   onClick={cancelGroupAction}
                                 >
                                   Cancel
                                 </button>
                                 <button
                                   className={cn(
-                                    "px-2 py-1 text-xs rounded text-white transition-colors",
+                                    "cursor-pointer px-2 py-1 text-xs rounded text-white transition-colors",
                                     confirmingGroupAction.action === 'accept'
                                       ? "bg-blue-500 hover:bg-blue-600"
                                       : "bg-red-500 hover:bg-red-600"
@@ -574,7 +574,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                           ) : (
                             <div className="flex gap-2">
                               <button
-                                className="flex-1 px-2 py-1 text-xs rounded-md bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors"
+                                className="cursor-pointer flex-1 px-2 py-1 text-xs rounded-md bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors"
                                 onClick={() => handleGroupInvitationAction(invitation.group_id, 'accept')}
                               >
                                 <span className="flex items-center justify-center">
@@ -610,7 +610,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
               ref={bellButtonRef}
               onClick={() => setShowRequestsMenu((v) => !v)}
               className={cn(
-                "p-2 rounded-full hover:bg-violet-50 dark:hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-violet-500 transition-all duration-200",
+                "cursor-pointer p-2 rounded-full hover:bg-violet-50 dark:hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-violet-500 transition-all duration-200",
                 incomingRequests.length > 0
                   ? "text-violet-600 dark:text-violet-400"
                   : "text-gray-500"

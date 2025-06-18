@@ -726,7 +726,7 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
               onMouseEnter={() => handleTabHover(item.tab)}
               onMouseLeave={handleTabLeave}
               className={cn(
-                "w-full py-1 flex flex-col items-center justify-center relative transition-all duration-200",
+                "cursor-pointer w-full py-1 flex flex-col items-center justify-center relative transition-all duration-200",
                 "focus:outline-none hover:bg-violet-700/50 dark:hover:bg-gray-800/70",
                 activeTab === item.tab ? 
                   "text-white bg-violet-700/40 dark:bg-gray-800/50 border-l-4 border-yellow-300 dark:border-yellow-400" : 
@@ -1114,7 +1114,7 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
                         if (onAnnouncementTabChange) onAnnouncementTabChange('published');
                       }}
                       className={cn(
-                        "flex-1 py-2 px-3 text-xs font-medium rounded-md transition-colors",
+                        "cursor-pointer flex-1 py-2 px-3 text-xs font-medium rounded-md transition-colors",
                         activeAnnouncementTab === 'published' 
                           ? "bg-violet-600/80 text-white shadow-sm" 
                           : "text-white/70 hover:text-white hover:bg-white/5"
@@ -1133,7 +1133,7 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
                         if (onAnnouncementTabChange) onAnnouncementTabChange('incoming');
                       }}
                       className={cn(
-                        "flex-1 py-2 px-3 text-xs font-medium rounded-md transition-colors",
+                        "cursor-pointer flex-1 py-2 px-3 text-xs font-medium rounded-md transition-colors",
                         activeAnnouncementTab === 'incoming' 
                           ? "bg-violet-600/80 text-white shadow-sm" 
                           : "text-white/70 hover:text-white hover:bg-white/5"
