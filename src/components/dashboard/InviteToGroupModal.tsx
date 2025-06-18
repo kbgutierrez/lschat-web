@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { ContactListItem } from '@/lib/api';
+import { ContactListItem,API_BASE_URL } from '@/lib/api';
 import { getInitials } from './ContactItem';
 import { NonGroupMember, groupsAPI } from '@/lib/groupsApi';
 
@@ -194,7 +194,7 @@ export default function InviteToGroupModal({
                         <div className="flex-shrink-0">
                           {user.profile_picture ? (
                             <img 
-                              src={user.profile_picture} 
+                              src={`${API_BASE_URL}${user.profile_picture}`} 
                               alt=""
                               className="w-11 h-11 rounded-full object-cover border-2 border-white dark:border-gray-700 shadow-sm"
                             />
