@@ -371,17 +371,17 @@ const SpeedDial: React.FC<SpeedDialProps> = ({
 
         {!isCollapsed && (
           <div className={cn(
-            "cursor-pointer absolute -top-2 -right-2 flex space-x-1",
+            "cursor-pointer absolute -top-2 -right-2 flex space-x-1.5",
             isOpen ? "opacity-100" : "opacity-0",
             isOpen ? "visible" : "invisible",
-            "z-60" /* Increase z-index to ensure buttons are above any overlays */
+            "z-60 transition-opacity duration-200" /* Added transition */
           )}>
             <button
               onClick={(e) => {
                 e.stopPropagation(); /* Explicitly stop propagation */
                 resetPosition(e);
               }}
-              className="cursor-pointer bg-gray-800/70 hover:bg-gray-800/90 text-white w-7 h-7 rounded-full flex items-center justify-center shadow-sm"
+              className="cursor-pointer bg-gray-800/80 hover:bg-gray-800 text-white w-7 h-7 rounded-full flex items-center justify-center shadow-md hover:scale-110 transition-transform"
               title="Reset position"
               style={{ pointerEvents: 'auto' }} /* Ensure clicks are captured */
             >
@@ -395,7 +395,7 @@ const SpeedDial: React.FC<SpeedDialProps> = ({
                 e.stopPropagation(); /* Explicitly stop propagation */
                 toggleCollapse(e);
               }}
-              className="cursor-pointer bg-gray-800/70 hover:bg-gray-800/90 text-white w-7 h-7 rounded-full flex items-center justify-center shadow-sm"
+              className="cursor-pointer bg-gray-800/80 hover:bg-gray-800 text-white w-7 h-7 rounded-full flex items-center justify-center shadow-md hover:scale-110 transition-transform"
               title="Hide to edge"
               style={{ pointerEvents: 'auto' }} /* Ensure clicks are captured */
             >
