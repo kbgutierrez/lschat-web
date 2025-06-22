@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
@@ -8,9 +8,36 @@ import { Login } from '@/components/auth/login';
 import { Signup } from '@/components/auth/signup';
 import gsap from 'gsap';
 
+// Create a separate component for search params logic
+const AuthModeHandler = ({ 
+  setIsLogin, 
+  setSignupSuccess 
+}: { 
+  setIsLogin: (value: boolean) => void;
+  setSignupSuccess: (value: boolean) => void;
+}) => {
+  const searchParams = useSearchParams();
+  
+  useEffect(() => {
+    const mode = searchParams.get('mode');
+    if (mode === 'signup') {
+      setIsLogin(false);
+    }
+
+    const signup = searchParams.get('signup');
+    if (signup === 'success') {
+      setIsLogin(true);
+      setSignupSuccess(true);
+
+      setTimeout(() => setSignupSuccess(false), 5000);
+    }
+  }, [searchParams, setIsLogin, setSignupSuccess]);
+
+  return null; // This component doesn't render anything
+};
+
 export default function AuthPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const [isLogin, setIsLogin] = useState(true);
   const [showPrivacyModal, setShowPrivacyModal] = useState(false);
 
@@ -35,21 +62,6 @@ export default function AuthPage() {
 
     setShowInitialLoader(true);
   }, []);
-
-  useEffect(() => {
-    const mode = searchParams.get('mode');
-    if (mode === 'signup') {
-      setIsLogin(false);
-    }
-
-    const signup = searchParams.get('signup');
-    if (signup === 'success') {
-      setIsLogin(true);
-      setSignupSuccess(true);
-
-      setTimeout(() => setSignupSuccess(false), 5000);
-    }
-  }, [searchParams]);
 
   // GSAP animations
   useEffect(() => {
@@ -181,6 +193,14 @@ export default function AuthPage() {
 
   return (
     <>
+      {/* Wrap the search params logic in Suspense */}
+      <Suspense fallback={null}>
+        <AuthModeHandler 
+          setIsLogin={setIsLogin} 
+          setSignupSuccess={setSignupSuccess} 
+        />
+      </Suspense>
+
       <div className={cn(
         "min-h-screen flex items-stretch bg-auth relative overflow-hidden"
       )}>

@@ -25,7 +25,7 @@ const rubikGemstones = Rubik_Gemstones({
   subsets: ["latin"],
 });
 
-export const cabinCondensed = Cabin_Condensed({
+ const cabinCondensed = Cabin_Condensed({
   weight: "400",
   variable: "--font-cabin-condensed",
   subsets: ["latin"],
