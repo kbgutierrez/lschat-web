@@ -17,6 +17,12 @@ export interface GroupMessage {
   message: string;
   created_at: string;
   profile_picture?: string;
+  reply_to?: number;  
+  replied_message?: {  
+    id: number;
+    sender_name: string;
+    message: string;
+  };
 }
 
 export interface GroupMember {
@@ -105,12 +111,13 @@ export const groupsAPI = {
 
       const url = `${API_BASE_URL}/api/groupMessages/${groupId}`;
       const response = await fetch(url, { headers });
-
+     
       if (!response.ok) {
         const errorText = await response.text();
         throw new Error(`Failed to fetch group messages: ${response.status} - ${errorText}`);
       }
       const messages: GroupMessage[] = await response.json();
+       console.log('getGroupMessages response:', messages);
       return messages;
     } catch (error) {
       console.error('Group messages fetch error:', error);
@@ -118,10 +125,10 @@ export const groupsAPI = {
     }
   },
 
-  sendGroupMessage: async (groupId: number | string, userId: number | string, message: string, file?: File): Promise<GroupMessage> => {
-    if (!groupId) {
-      throw new Error('Group ID is required to send a message');
-    }
+sendGroupMessage: async (groupId: number | string, userId: number | string, message: string, file?: File, replyToId?: number): Promise<GroupMessage> => {
+  if (!groupId) {
+    throw new Error('Group ID is required to send a message');
+  }
 
     if (!userId) {
       throw new Error('User ID is required to send a message');
@@ -138,6 +145,10 @@ export const groupsAPI = {
         formData.append('message_content', message);
         formData.append('message_type', 'text');
         formData.append('file', file);
+
+   if (replyToId) {
+        formData.append('reply_to', replyToId.toString());
+      }
 
         const url = `${API_BASE_URL}/api/sendGroupMessage`;
         const response = await fetch(url, {
@@ -188,7 +199,8 @@ export const groupsAPI = {
           group_id: groupId,
           sender_id: userId,
           message_content: message,
-          message_type: 'text'
+          message_type: 'text',
+          reply_to: replyToId || null
         });
 
         const url = `${API_BASE_URL}/api/sendGroupMessage`;

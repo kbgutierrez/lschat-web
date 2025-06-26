@@ -4,6 +4,7 @@ import React from 'react';
 import { getInitials } from '@/utils/initials';
 import { GroupMessage } from '@/lib/groupsApi';
 import { MessageContent } from '@/components/chat/MessageContent';
+import { ReplyPreview } from '@/components/chat/ReplyPreview';
 
 interface GroupMessageListProps {
   messages: GroupMessage[];
@@ -13,6 +14,7 @@ interface GroupMessageListProps {
   onRetry: () => void;
   endRef?: React.RefObject<HTMLDivElement | null>;
   currentUserId?: string | number;
+  onReplyToMessage?: (messageId: number) => void;
 }
 
 export function GroupMessageList({
@@ -22,7 +24,8 @@ export function GroupMessageList({
   error,
   onRetry,
   endRef,
-  currentUserId
+  currentUserId,
+  onReplyToMessage  // Added this prop
 }: GroupMessageListProps) {
   const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
   const getUserInitials = () => {
@@ -31,14 +34,14 @@ export function GroupMessageList({
       if (userData) {
         const parsed = JSON.parse(userData);
         const user = parsed.user || parsed;
-        
+
         const firstName = user.firstName || user.first_name || '';
         const lastName = user.lastName || user.last_name || '';
-        
+
         if (firstName || lastName) {
           return getInitials(`${firstName} ${lastName}`.trim());
         }
-        
+
         if (user.username) {
           return getInitials(user.username);
         }
@@ -46,7 +49,7 @@ export function GroupMessageList({
     } catch (e) {
       console.error("Error parsing user session data:", e);
     }
-    return "U"; 
+    return "U";
   };
 
   if (isLoading) {
@@ -110,46 +113,46 @@ export function GroupMessageList({
   const formatMessageDate = (dateStr: string) => {
     try {
       const date = new Date(dateStr);
-      
+
       if (isNaN(date.getTime())) {
         return "Invalid date";
       }
-      return new Date(dateStr.replace('Z', '')).toLocaleString('en-PH', { 
+      return new Date(dateStr.replace('Z', '')).toLocaleString('en-PH', {
         timeZone: 'Asia/Manila',
         year: 'numeric',
         month: 'long',
         day: 'numeric',
-        hour: 'numeric', 
-        minute: 'numeric', 
-        hour12: true 
+        hour: 'numeric',
+        minute: 'numeric',
+        hour12: true
       });
     } catch (error) {
       return "Unknown time";
     }
   };
-  
+
   const messagesByDate: Record<string, GroupMessage[]> = {};
-  
+
   messages.forEach(message => {
     try {
       const date = new Date(message.created_at);
-      
+
       if (isNaN(date.getTime())) {
         const fallbackKey = "Invalid Date";
         messagesByDate[fallbackKey] = messagesByDate[fallbackKey] || [];
         messagesByDate[fallbackKey].push(message);
         return;
       }
-      
+
       const year = date.getUTCFullYear();
       const month = date.getUTCMonth() + 1;
       const day = date.getUTCDate();
       const dateKey = `${year}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
-      
+
       if (!messagesByDate[dateKey]) {
         messagesByDate[dateKey] = [];
       }
-      
+
       messagesByDate[dateKey].push(message);
     } catch (error) {
       const fallbackKey = "Unknown Date";
@@ -157,30 +160,30 @@ export function GroupMessageList({
       messagesByDate[fallbackKey].push(message);
     }
   });
-  
+
   const getFormattedDateDisplay = (dateKey: string) => {
     if (dateKey === "Invalid Date" || dateKey === "Unknown Date") {
       return dateKey;
     }
-    
+
     try {
       const [year, month, day] = dateKey.split('-').map(Number);
-      
+
       const today = new Date();
-      const todayKey = `${today.getFullYear()}-${(today.getMonth()+1).toString().padStart(2, '0')}-${today.getDate().toString().padStart(2, '0')}`;
-      
+      const todayKey = `${today.getFullYear()}-${(today.getMonth() + 1).toString().padStart(2, '0')}-${today.getDate().toString().padStart(2, '0')}`;
+
       const yesterday = new Date();
       yesterday.setDate(yesterday.getDate() - 1);
-      const yesterdayKey = `${yesterday.getFullYear()}-${(yesterday.getMonth()+1).toString().padStart(2, '0')}-${yesterday.getDate().toString().padStart(2, '0')}`;
-      
+      const yesterdayKey = `${yesterday.getFullYear()}-${(yesterday.getMonth() + 1).toString().padStart(2, '0')}-${yesterday.getDate().toString().padStart(2, '0')}`;
+
       if (dateKey === todayKey) {
         return 'Today';
       } else if (dateKey === yesterdayKey) {
         return 'Yesterday';
       } else {
-        const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 
-                            'July', 'August', 'September', 'October', 'November', 'December'];
-        return `${monthNames[month-1]} ${day}, ${year}`;
+        const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+          'July', 'August', 'September', 'October', 'November', 'December'];
+        return `${monthNames[month - 1]} ${day}, ${year}`;
       }
     } catch (error) {
       return dateKey;
@@ -188,7 +191,7 @@ export function GroupMessageList({
   };
 
   return (
-    <div className="space-y-6"> 
+    <div className="space-y-6">
       {Object.entries(messagesByDate).map(([dateKey, dateMessages]) => (
         <div key={dateKey} className="space-y-4">
           <div className="flex justify-center my-4">
@@ -198,58 +201,95 @@ export function GroupMessageList({
               </span>
             </div>
           </div>
-          
-          {dateMessages.map((message) => {33
-            const isOwn = currentUserId !== undefined && 
-                          message.sender_id !== undefined && 
-                          message.sender_id.toString() === currentUserId.toString();
+
+          {dateMessages.map((message) => {
+            const isOwn = currentUserId !== undefined &&
+              message.sender_id !== undefined &&
+              message.sender_id.toString() === currentUserId.toString();
             const stableKey = `${message.id || ''}:${message.sender_id}:${message.created_at}`;
-            
+
             return (
-              <div 
+              <div
                 key={stableKey}
                 className={`flex gap-2 ${isOwn ? "justify-end" : "justify-start"}`}
               >
                 {!isOwn && (
                   message.profile_picture ? (
-                    <img 
-                      src={`${API_BASE_URL}${message.profile_picture}`} 
-                      alt={message.sender_name} 
+                    <img
+                      src={`${API_BASE_URL}${message.profile_picture}`}
+                      alt={message.sender_name}
                       className="flex-shrink-0 w-9 h-9 rounded-full object-cover"
                     />
                   ) : (
                     <div className="flex-shrink-0 w-9 h-9 pt-0.5 rounded-full bg-violet-200 dark:bg-violet-900 flex items-center justify-center
-                                     text-violet-700 dark:text-violet-300 text-sm font-medium overflow-hidden">
+                       text-violet-700 dark:text-violet-300 text-sm font-medium overflow-hidden">
                       {getInitials(message.sender_name)}
                     </div>
-                  )                  
+                  )
                 )}
 
                 <div className={`max-w-[75%] flex flex-col ${isOwn ? "items-end" : "items-start"}`}>
                   {!isOwn && (
                     <span className="text-xs text-gray-600 dark:text-gray-400 mb-1">{message.sender_name}</span>
                   )}
-                  <div className={`px-3 py-2 rounded-lg ${
-                    isOwn 
-                      ? "bg-violet-200 dark:bg-violet-600 text-gray-800 dark:text-white" 
-                      : "bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200"
-                  }`}>
+
+                  {/* Add the reply preview if this is a reply */}
+                  {message.reply_to && message.replied_message && (
+                    <ReplyPreview
+                      senderName={message.replied_message.sender_name}
+                      message={message.replied_message.message}
+                      isOwn={currentUserId !== undefined &&
+                        message.replied_message.id !== undefined &&
+                        message.replied_message.id.toString() === currentUserId.toString()}
+                      onClick={() => {
+                        const repliedMessageElement = document.getElementById(`message-${message.reply_to}`);
+                        if (repliedMessageElement) {
+                          repliedMessageElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                          repliedMessageElement.classList.add('highlight-message');
+                          setTimeout(() => repliedMessageElement.classList.remove('highlight-message'), 2000);
+                        }
+                      }}
+                    />
+                  )}
+
+                  <div
+                    id={`message-${message.id}`}
+                    className={`px-3 py-2 rounded-lg ${isOwn
+                        ? "bg-violet-200 dark:bg-violet-600 text-gray-800 dark:text-white"
+                        : "bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200"
+                      }`}
+                  >
                     <MessageContent content={message.message} />
+
+                    {/* Optional: Add reply button */}
+                    {onReplyToMessage && (
+                      <button
+                        onClick={() => onReplyToMessage(message.id)}
+                        className="inline-flex items-center mt-1 p-1 rounded hover:bg-gray-100 cursor-pointer
+                         dark:hover:bg-gray-700 text-gray-500 hover:text-violet-600 dark:hover:text-violet-400"
+                        aria-label="Reply to message"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="w-4 h-4" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="9 14 4 9 9 4" />
+                          <path d="M20 20v-7a4 4 0 0 0-4-4H4" />
+                        </svg>
+                      </button>
+                    )}
                   </div>
                   <span className="text-xs text-gray-500 dark:text-gray-400 mt-1">{formatMessageDate(message.created_at)}</span>
                 </div>
 
                 {isOwn && (
                   message.profile_picture ? (
-                    <img 
-                      src={`${API_BASE_URL}${message.profile_picture}`} 
-                      alt="User Avatar" 
+                    <img
+                      src={`${API_BASE_URL}${message.profile_picture}`}
+                      alt="User Avatar"
                       className="flex-shrink-0 w-8 h-8 rounded-full object-cover"
                     />
-                  ) : ( 
-                  <div className="flex-shrink-0 w-8 h-8 pt-0.5 rounded-full bg-violet-500 flex items-center justify-center text-white text-sm font-medium overflow-hidden">
-                    {getUserInitials()}
-                  </div> 
+                  ) : (
+                    <div className="flex-shrink-0 w-8 h-8 pt-0.5 rounded-full bg-violet-500 flex items-center justify-center text-white text-sm font-medium overflow-hidden">
+                      {getUserInitials()}
+                    </div>
                   )
                 )}
               </div>

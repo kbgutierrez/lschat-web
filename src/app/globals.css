@@ -443,3 +443,12 @@ input, select, textarea {
   }
 }
 
+@keyframes highlight {
+  0% { background-color: rgba(124, 58, 237, 0.1); }
+  50% { background-color: rgba(124, 58, 237, 0.3); }
+  100% { background-color: transparent; }
+}
+
+.highlight-message {
+  animation: highlight 2s ease;
+}

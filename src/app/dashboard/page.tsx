@@ -21,12 +21,12 @@ import { RightPanel } from '@/components/dashboard/RightPanel';
 import AddContactModal from '@/components/dashboard/AddContactModal';
 import InviteToGroupModal from '@/components/dashboard/InviteToGroupModal';
 import CreateGroupModal from '@/components/dashboard/CreateGroupModal';
-import  UserManagementModal  from '@/components/dashboard/UserManagementModal';
+import UserManagementModal from '@/components/dashboard/UserManagementModal';
 import CreateAnnouncementModal from '@/components/dashboard/CreateAnnouncementModal';
 import SpeedDial from '@/components/dashboard/SpeedDial';
 import { AnnouncementsArea } from '@/components/dashboard/AnnouncementsArea';
 import { announcementsAPI, Announcement } from '@/lib/announcementsApi';
-
+import { ReplyingToPreview } from '@/components/chat/ReplyingToPreview';
 type TabType = 'chats' | 'groups' | 'contacts' | 'announcements';
 
 export type ContactDetails = {
@@ -44,7 +44,7 @@ export default function Dashboard() {
   const router = useRouter();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  
+
   const [selectedContact, setSelectedContact] = useState<string | null>(null);
   const [selectedContactDetails, setSelectedContactDetails] = useState<ContactDetails | null>(null);
   const [activeTab, setActiveTab] = useState<TabType>('chats');
@@ -92,6 +92,7 @@ export default function Dashboard() {
   const [groupMessageError, setGroupMessageError] = useState<string | null>(null);
   const [selectedGroupDetails, setSelectedGroupDetails] = useState<Group | null>(null);
   const [isCreateGroupModalOpen, setIsCreateGroupModalOpen] = useState(false);
+  const [replyingToMessage, setReplyingToMessage] = useState<GroupMessage | null>(null);
 
   // Add state to control right panel visibility
   const [isRightPanelVisible, setIsRightPanelVisible] = useState(false);
@@ -101,16 +102,15 @@ export default function Dashboard() {
 
   // Add a new state for SpeedDial position
   const [speedDialPosition, setSpeedDialPosition] = useState<{ x: number; y: number } | null>(null);
-
   const scrollToBottom = useCallback(() => {
     if (!messagesEndRef.current) return;
-    
+
     try {
-      messagesEndRef.current.scrollIntoView({ 
+      messagesEndRef.current.scrollIntoView({
         behavior: "instant",
         block: 'end',
       });
-      
+
       const chatContainer = document.querySelector('.chat-messages-container');
       if (chatContainer) {
         chatContainer.scrollTop = chatContainer.scrollHeight;
@@ -163,7 +163,7 @@ export default function Dashboard() {
         // Separate pending from regular contacts
         const pending = contactList.filter(contact => contact.status === 'pending');
         const regular = contactList.filter(contact => contact.status !== 'pending');
-        
+
         setPendingContacts(pending);
         setContacts(regular);
       } catch (error) {
@@ -175,25 +175,25 @@ export default function Dashboard() {
     };
 
     fetchContacts();
-  }, [user, isClient, selectedContact, selectedGroup, activeTab]); 
+  }, [user, isClient, selectedContact, selectedGroup, activeTab]);
 
   useEffect(() => {
-      if (!isClient || !selectedContact) return;
-  
-      const contactDetails = contacts.find(contact => contact.contact_id.toString() === selectedContact);
-      if (contactDetails) {
-        setSelectedContactDetails({
-          id: contactDetails.contact_id.toString(),
-          name: contactDetails.contact_full_name,
-          status: contactDetails.status || 'offline',  
-          lastSeen: 'Unknown',
-          unread: 0,
-          profilePicture: contactDetails.user_picture || '',
-          contactPicture: contactDetails.contact_picture || ''
-        });
-        setSelectedChannel(contactDetails.pubnub_channel);
-      }
-    }, [selectedContact, contacts, isClient]);
+    if (!isClient || !selectedContact) return;
+
+    const contactDetails = contacts.find(contact => contact.contact_id.toString() === selectedContact);
+    if (contactDetails) {
+      setSelectedContactDetails({
+        id: contactDetails.contact_id.toString(),
+        name: contactDetails.contact_full_name,
+        status: contactDetails.status || 'offline',
+        lastSeen: 'Unknown',
+        unread: 0,
+        profilePicture: contactDetails.user_picture || '',
+        contactPicture: contactDetails.contact_picture || ''
+      });
+      setSelectedChannel(contactDetails.pubnub_channel);
+    }
+  }, [selectedContact, contacts, isClient]);
 
   const fetchMessagesFromApi = useCallback(async (skipCache = false, messageData?: any) => {
     if (!selectedChannel || !user || !isMounted) return;
@@ -201,23 +201,23 @@ export default function Dashboard() {
     const now = Date.now();
     const lastFetch = fetchTimestampRef.current[selectedChannel] || 0;
     const timeSinceLastFetch = now - lastFetch;
-    
-    const isMessageNotification = messageData && 
-      typeof messageData === 'object' && 
-      (messageData.type === 'NEW_MESSAGE' || messageData.type === 'new_message' || 
-       messageData.action === 'new_message');
-    
-    console.log(`[Message Check] Channel: ${selectedChannel}, Is notification: ${isMessageNotification}, ` + 
+
+    const isMessageNotification = messageData &&
+      typeof messageData === 'object' &&
+      (messageData.type === 'NEW_MESSAGE' || messageData.type === 'new_message' ||
+        messageData.action === 'new_message');
+
+    console.log(`[Message Check] Channel: ${selectedChannel}, Is notification: ${isMessageNotification}, ` +
       `Last fetch: ${timeSinceLastFetch}ms ago, Skip cache: ${skipCache}`);
-    
+
     if (isMessageNotification) {
       console.log('Notification received - FORCING message fetch');
-      
+
       if (messagesAPI.invalidateCache) {
         messagesAPI.invalidateCache(selectedChannel);
       }
-      
-    } 
+
+    }
     else if (!skipCache && timeSinceLastFetch < 1000) {
       console.log(`Throttling regular fetch - last fetch was ${timeSinceLastFetch}ms ago`);
       return;
@@ -231,35 +231,35 @@ export default function Dashboard() {
 
     try {
       fetchTimestampRef.current[selectedChannel] = now;
-      
+
       console.log(`📥 Fetching messages for channel: ${selectedChannel}`);
       const chatMessages = await messagesAPI.getChatMessages(selectedChannel);
-      
+
       if (!isMounted) return;
-      
+
       const formattedMessages = chatMessages.map(msg => ({
         id: msg.message_id.toString(),
         sender: msg.user_id.toString(),
         text: msg.message_content,
-        time: new Date(msg.created_at.replace('Z', '')).toLocaleString('en-PH', { 
+        time: new Date(msg.created_at.replace('Z', '')).toLocaleString('en-PH', {
           timeZone: 'Asia/Manila',
           year: 'numeric',
           month: 'long',
           day: 'numeric',
-          hour: 'numeric', 
-          minute: 'numeric', 
-          hour12: true 
+          hour: 'numeric',
+          minute: 'numeric',
+          hour12: true
         }),
         isOwn: msg.user_id.toString() === user.user_id?.toString(),
         type: msg.message_type,
         isRead: msg.is_read
       }));
-      
+
       const currentMessages = messages[selectedChannel] || [];
-      if (currentMessages.length !== formattedMessages.length || 
-          JSON.stringify(currentMessages.map(m => m.id)) !== 
-          JSON.stringify(formattedMessages.map(m => m.id))) {
-        
+      if (currentMessages.length !== formattedMessages.length ||
+        JSON.stringify(currentMessages.map(m => m.id)) !==
+        JSON.stringify(formattedMessages.map(m => m.id))) {
+
         console.log(`📨 Received ${formattedMessages.length} messages, updating state`);
         setMessages(prev => ({
           ...prev,
@@ -273,8 +273,8 @@ export default function Dashboard() {
     } catch (error) {
       if (!isMounted) return;
       setMessageError(
-        error instanceof Error 
-          ? error.message 
+        error instanceof Error
+          ? error.message
           : 'Failed to load messages'
       );
     } finally {
@@ -284,97 +284,128 @@ export default function Dashboard() {
     }
   }, [selectedChannel, user, isMounted, scrollToBottom, messages]);
 
-  // Add fetchGroupMessagesFromApi declaration above the useEffect that uses it
-  const fetchGroupMessagesFromApi = useCallback(async (skipCache = false, messageData?: any) => {
-    if (!selectedGroup || !user || !isMounted) return;
-
-    const now = Date.now();
-    const fetchKey = `group-${selectedGroup}`;
-    const lastFetch = fetchTimestampRef.current[fetchKey] || 0;
-    const timeSinceLastFetch = now - lastFetch;
-    
-    const isMessageNotification = messageData && 
-      typeof messageData === 'object' && 
-      (messageData.type === 'NEW_MESSAGE' || messageData.type === 'new_message' || 
-       messageData.action === 'new_message');
-    
-    console.log(`[Group Message Check] Group: ${selectedGroup}, Is notification: ${!!isMessageNotification}, ` + 
-      `Last fetch: ${timeSinceLastFetch}ms ago, Skip cache: ${skipCache}`);
-    
-    if (isMessageNotification || skipCache) {
-      console.log('🔥 Group notification received or skip cache - FORCING group message fetch');
-    } 
-    else if (timeSinceLastFetch < 1000) {
-      console.log(`Throttling regular group fetch - last fetch was ${timeSinceLastFetch}ms ago`);
-      return;
-    }
-
-    const hasExistingMessages = groupMessages[selectedGroup]?.length > 0;
-    if (!hasExistingMessages) {
-      setLoadingGroupMessages(true);
-    }
-    setGroupMessageError(null);
-
-    try {
-      fetchTimestampRef.current[fetchKey] = now;
+  
+const enhanceMessagesWithReplyInfo = (messages: GroupMessage[]): GroupMessage[] => {
+  return messages.map(message => {
+    // If the message is a reply but doesn't have reply content
+    if (message.reply_to && !message.replied_message) {
+      // Find the original message within our current message set
+      const repliedTo = messages.find(m => m.id === message.reply_to);
       
-      const messages = await groupsAPI.getGroupMessages(selectedGroup);
-      if (!isMounted) return;
-      console.log(`Retrieved ${messages.length} group messages`);
-      const existingMessages = groupMessages[selectedGroup] || [];
-      const hasNewMessages = existingMessages.length !== messages.length ||
-        JSON.stringify(existingMessages.map(m => m.id)) !== 
-        JSON.stringify(messages.map(m => m.id));
-      
-      if (hasNewMessages) {
-        console.log('New group messages detected, updating state');
-        setGroupMessages(prev => ({
-          ...prev,
-          [selectedGroup]: messages
-        }));
-        setTimeout(scrollToBottom, 100);
-      } else {
-        console.log('📊 No new group messages detected, skipping update');
-      }
-    } catch (error) {
-      if (!isMounted) return;
-      setGroupMessageError(
-        error instanceof Error 
-          ? error.message 
-          : 'Failed to load group messages'
-      );
-    } finally {
-      if (isMounted) {
-        setLoadingGroupMessages(false);
+      if (repliedTo) {
+        // Return enhanced message with replied_message info
+        return {
+          ...message,
+          replied_message: {
+            id: repliedTo.id,
+            sender_name: repliedTo.sender_name,
+            message: repliedTo.message
+          }
+        };
       }
     }
-  }, [selectedGroup, user, isMounted, scrollToBottom, groupMessages]);
+    return message;
+  });
+};
+
+
+const fetchGroupMessagesFromApi = useCallback(async (skipCache = false, messageData?: any) => {
+  if (!selectedGroup || !user || !isMounted) return;
+
+  const now = Date.now();
+  const fetchKey = `group-${selectedGroup}`;
+  const lastFetch = fetchTimestampRef.current[fetchKey] || 0;
+  const timeSinceLastFetch = now - lastFetch;
+
+  const isMessageNotification = messageData &&
+    typeof messageData === 'object' &&
+    (messageData.type === 'NEW_MESSAGE' || messageData.type === 'new_message' ||
+      messageData.action === 'new_message');
+
+  console.log(`[Group Message Check] Group: ${selectedGroup}, Is notification: ${!!isMessageNotification}, ` +
+    `Last fetch: ${timeSinceLastFetch}ms ago, Skip cache: ${skipCache}`);
+
+  if (isMessageNotification || skipCache) {
+    console.log('🔥 Group notification received or skip cache - FORCING group message fetch');
+  }
+  else if (timeSinceLastFetch < 1000) {
+    console.log(`Throttling regular group fetch - last fetch was ${timeSinceLastFetch}ms ago`);
+    return;
+  }
+
+  const hasExistingMessages = groupMessages[selectedGroup]?.length > 0;
+  if (!hasExistingMessages) {
+    setLoadingGroupMessages(true);
+  }
+  setGroupMessageError(null);
+
+  try {
+    fetchTimestampRef.current[fetchKey] = now;
+
+    const messages = await groupsAPI.getGroupMessages(selectedGroup);
+    if (!isMounted) return;
+    console.log(`Retrieved ${messages.length} group messages`);
+    
+    const enhancedMessages = enhanceMessagesWithReplyInfo(messages);
+    
+    const existingMessages = groupMessages[selectedGroup] || [];
+    const hasNewMessages = existingMessages.length !== enhancedMessages.length ||
+      JSON.stringify(existingMessages.map(m => m.id)) !==
+      JSON.stringify(enhancedMessages.map(m => m.id));
+
+    if (hasNewMessages) {
+      console.log('New group messages detected, updating state');
+      setGroupMessages(prev => ({
+        ...prev,
+        [selectedGroup]: enhancedMessages // Use enhanced messages instead
+      }));
+      setTimeout(scrollToBottom, 100);
+    } else {
+      console.log('📊 No new group messages detected, skipping update');
+    }
+  } catch (error) {
+    if (!isMounted) return;
+    setGroupMessageError(
+      error instanceof Error
+        ? error.message
+        : 'Failed to load group messages'
+    );
+  } finally {
+    if (isMounted) {
+      setLoadingGroupMessages(false);
+    }
+  }
+}, [selectedGroup, user, isMounted, scrollToBottom, groupMessages]);
+
+
+
+
 
   useEffect(() => {
     if (!selectedChannel || !messages[selectedChannel]) return;
-    
+
     scrollToBottom();
-    
+
     const scrollTimer = setTimeout(() => {
       const chatContainer = document.querySelector('.chat-messages-container');
       if (chatContainer) {
         chatContainer.scrollTop = chatContainer.scrollHeight;
       }
     }, 50);
-    
+
     return () => clearTimeout(scrollTimer);
   }, [selectedChannel, messages, scrollToBottom]);
 
   const handleTypingIndicator = useCallback((typingData: { userId: string, isTyping: boolean, timestamp: number }) => {
     if (typingData.userId === user?.user_id?.toString()) return;
-    
+
     setTypingUserId(typingData.userId);
     setIsContactTyping(typingData.isTyping);
-    
+
     if (typingTimerRef.current) {
       clearTimeout(typingTimerRef.current);
     }
-    
+
     if (typingData.isTyping) {
       typingTimerRef.current = setTimeout(() => {
         setIsContactTyping(false);
@@ -382,11 +413,21 @@ export default function Dashboard() {
     }
   }, [user?.user_id]);
 
-  const { 
-    isSubscribed, 
-    error: pubnubError, 
-    lastMessage, 
-    getContactPresence 
+  const handleReplyToMessage = useCallback((messageId: number) => {
+    if (!selectedGroup) return;
+
+    const message = groupMessages[selectedGroup]?.find(m => m.id === messageId);
+    if (message) {
+      setReplyingToMessage(message);
+      (document.querySelector('.message-input') as HTMLElement)?.focus();
+    }
+  }, [selectedGroup, groupMessages]);
+
+  const {
+    isSubscribed,
+    error: pubnubError,
+    lastMessage,
+    getContactPresence
   } = usePubnubTrigger(
     selectedChannel,
     user?.user_id?.toString(),
@@ -396,14 +437,14 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (lastMessage && selectedChannel) {
-      const isMessageNotification = 
-        typeof lastMessage === 'object' && 
-        (lastMessage.type === 'NEW_MESSAGE' || lastMessage.type === 'new_message' || 
-         lastMessage.action === 'new_message');
-      
-      const isGroupMessage = lastMessage._isGroupMessage === true || 
-                           (isMessageNotification && lastMessage.group_id !== undefined);
-      
+      const isMessageNotification =
+        typeof lastMessage === 'object' &&
+        (lastMessage.type === 'NEW_MESSAGE' || lastMessage.type === 'new_message' ||
+          lastMessage.action === 'new_message');
+
+      const isGroupMessage = lastMessage._isGroupMessage === true ||
+        (isMessageNotification && lastMessage.group_id !== undefined);
+
       if (isMessageNotification) {
         if (isGroupMessage) {
           if (selectedGroup && String(lastMessage.group_id) === String(selectedGroup)) {
@@ -411,7 +452,7 @@ export default function Dashboard() {
               fetchGroupMessagesFromApi(true, lastMessage);
             }
           }
-        } 
+        }
         else if (isMounted) {
           fetchMessagesFromApi(true, lastMessage);
         }
@@ -421,46 +462,46 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (!selectedContact) return;
-    
+
     const presence = getContactPresence(selectedContact);
-    
+
     // Update the selectedContactDetails
     setSelectedContactDetails(prev => {
       if (!prev) return null;
-      
-      if (prev.status === (presence.isOnline ? 'online' : 'offline') && 
-          prev.lastSeen === presence.lastSeen) {
+
+      if (prev.status === (presence.isOnline ? 'online' : 'offline') &&
+        prev.lastSeen === presence.lastSeen) {
         return prev;
       }
-      
+
       return {
         ...prev,
         status: presence.isOnline ? 'online' : 'offline',
         lastSeen: presence.lastSeen
       };
     });
-    
+
     // Also update the contacts array to sync status between sidebar and header
     setContacts(prev => {
       const updatedContacts = [...prev];
       const contactIndex = updatedContacts.findIndex(
         c => c.contact_id.toString() === selectedContact
       );
-      
+
       if (contactIndex !== -1) {
         updatedContacts[contactIndex] = {
           ...updatedContacts[contactIndex],
           status: presence.isOnline ? 'online' : 'offline'
         };
       }
-      
+
       return updatedContacts;
     });
   }, [selectedContact, getContactPresence]);
 
   const handleTypingChange = useCallback((isTyping: boolean) => {
     if (!selectedChannel || !user?.user_id) return;
-    
+
     try {
       publishTypingIndicator(
         selectedChannel,
@@ -483,7 +524,7 @@ export default function Dashboard() {
       console.error('PubNub error:', pubnubError);
     }
   }, [pubnubError]);
-  
+
   const prevSubscribedRef = useRef(isSubscribed);
   useEffect(() => {
     if (selectedChannel && prevSubscribedRef.current !== isSubscribed) {
@@ -493,7 +534,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (!isClient || !selectedChannel) return;
-    
+
     if (messages[selectedChannel] === undefined) {
       fetchMessagesFromApi(false);
     } else {
@@ -508,12 +549,12 @@ export default function Dashboard() {
 
   const handleLogout = useCallback(async () => {
     if (!isClient) return;
-    
+
     try {
       // Simulate a short delay to ensure the loading state is visible
       // This is optional and can be removed if you prefer
       await new Promise(resolve => setTimeout(resolve, 800));
-      
+
       localStorage.removeItem('userSession');
       router.push('/auth');
     } catch (error) {
@@ -522,7 +563,7 @@ export default function Dashboard() {
       // The ChatHeader component will reset its loading state
     }
   }, [isClient, router]);
-  
+
   const handleOpenProfileModal = () => {
     setIsProfileModalOpen(true);
   };
@@ -533,7 +574,7 @@ export default function Dashboard() {
 
   const handleContactSelect = (id: string) => {
     setSelectedContact(id);
-    setSelectedGroup(null); 
+    setSelectedGroup(null);
     const contactDetails = contacts.find(contact => contact.contact_id.toString() === id);
     if (contactDetails) {
       setSelectedContactDetails({
@@ -545,7 +586,7 @@ export default function Dashboard() {
         profilePicture: contactDetails.contact_picture || '',
         contactPicture: contactDetails.contact_picture || ''
       });
-      
+
       // Only set the channel if the contact is not pending
       if (contactDetails.status !== 'pending') {
         setSelectedChannel(contactDetails.pubnub_channel);
@@ -559,12 +600,12 @@ export default function Dashboard() {
 
   const handleGroupSelect = (id: number) => {
     setSelectedGroup(id);
-    setSelectedContact(null); 
-    
+    setSelectedContact(null);
+
     const groupDetails = groups.find(g => g.group_id === id);
     console.log('Selected Group PubNub Channel:', groupDetails?.pubnub_channel);
     console.log('Group Details:', groupDetails);
-    
+
     if (groupDetails?.pubnub_channel) {
       console.log('Setting PubNub channel for group messaging:', groupDetails.pubnub_channel);
       setSelectedChannel(groupDetails.pubnub_channel);
@@ -572,43 +613,43 @@ export default function Dashboard() {
       console.warn('No PubNub channel found for this group, notifications will not work');
       setSelectedChannel(null);
     }
-    
+
     setIsMobileSidebarOpen(false);
   };
 
   const handleNewContact = useCallback(() => {
     setIsAddContactModalOpen(true);
   }, []);
-  
-  
+
+
   const pendingContactsRef = useRef<ContactListItem[]>([]);
   const isRefreshingContactsRef = useRef<boolean>(false);
-  
+
   const refreshPendingContacts = useCallback(async (silent: boolean = false) => {
     if (!user?.user_id || isRefreshingContactsRef.current) return;
-    
+
     try {
       isRefreshingContactsRef.current = true;
-      
+
       if (!silent) {
         setLoadingContacts(true);
       }
-      
+
       const contactList = await contactsAPI.getContactList(user.user_id);
       const pending = contactList.filter(contact => contact.status === 'pending');
       const regular = contactList.filter(contact => contact.status !== 'pending');
-      
+
       const pendingChanged = JSON.stringify(pending) !== JSON.stringify(pendingContactsRef.current);
-      
+
       if (pendingChanged) {
         setPendingContacts(pending);
         pendingContactsRef.current = pending;
       }
-      
+
       if (!silent) {
         setContacts(regular);
       }
-      
+
       return pendingChanged;
     } catch (error) {
       console.error('Error refreshing pending contacts:', error);
@@ -620,20 +661,20 @@ export default function Dashboard() {
       isRefreshingContactsRef.current = false;
     }
   }, [user?.user_id]);
-  
+
   useEffect(() => {
     if (!user?.user_id) return;
-    
+
     const intervalId = setInterval(() => {
       refreshPendingContacts(true);
     }, 15000);
-    
+
     return () => clearInterval(intervalId);
   }, [user?.user_id, refreshPendingContacts]);
 
   const handleAddContact = async (contactId: number) => {
     if (!user?.user_id) return;
-    
+
     try {
       await fetchAPI('/api/add-contact-to-list', {
         method: 'POST',
@@ -642,11 +683,11 @@ export default function Dashboard() {
           contact_id: contactId
         })
       }, true);
-      
+
       await refreshPendingContacts(false);
       const updatedContacts = await contactsAPI.getContactList(user.user_id);
       setContacts(updatedContacts.filter(c => c.status !== 'pending'));
-      
+
       return true;
     } catch (error) {
       console.error('Failed to add contact:', error);
@@ -656,7 +697,7 @@ export default function Dashboard() {
 
   const handleCancelContactRequest = async (contactId: number) => {
     if (!user?.user_id) return;
-    
+
     try {
       await fetchAPI('/api/remove-contact', {
         method: 'POST',
@@ -665,14 +706,14 @@ export default function Dashboard() {
           contact_id: contactId
         })
       }, true);
-      
+
       const updatedContacts = await contactsAPI.getContactList(user.user_id);
       const pending = updatedContacts.filter(contact => contact.status === 'pending');
       const regular = updatedContacts.filter(contact => contact.status !== 'pending');
-      
+
       setPendingContacts(pending);
       setContacts(regular);
-      
+
     } catch (error) {
       console.error('Failed to cancel contact request:', error);
       throw error;
@@ -681,12 +722,12 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (!isClient || !selectedGroup) return;
-    
+
     const groupDetails = groups.find(g => g.group_id === selectedGroup);
     if (groupDetails) {
       setSelectedGroupDetails(groupDetails);
     }
-    
+
     if (groupMessages[selectedGroup] === undefined) {
       fetchGroupMessagesFromApi(false);
     } else {
@@ -703,71 +744,73 @@ export default function Dashboard() {
   const handleSendGroupMessage = useCallback(async (message: string, file?: File) => {
     if ((!message.trim() && !file) || !selectedGroup || !user || !user.user_id) return;
 
-    const optimisticMessage = file 
-      ? `Sending ${file.name}...` 
+    const replyToId = replyingToMessage?.id; // Get the ID of the message being replied to
+
+    const optimisticMessage = file
+      ? `Sending ${file.name}...`
       : message;
-      
+
     const optimisticMsg: GroupMessage = {
-      id: Date.now(), 
+      id: Date.now(),
       sender_id: Number(user.user_id),
       sender_name: `${user.firstName} ${user.lastName}`.trim() || user.username || 'Me',
       message: optimisticMessage,
-      created_at: new Date().toISOString()
+      created_at: new Date().toISOString(),
+      reply_to: replyToId, // Add reply info to optimistic message
+      replied_message: replyingToMessage ? {
+        id: replyingToMessage.id,
+        sender_name: replyingToMessage.sender_name,
+        message: replyingToMessage.message
+      } : undefined
     };
 
     try {
-
       // Add message to UI
       setGroupMessages(prev => ({
         ...prev,
         [selectedGroup]: [...(prev[selectedGroup] || []), optimisticMsg]
       }));
-      
+
       setTimeout(scrollToBottom, 100);
 
-      // Send the actual message
+      // Send the actual message with reply info
       const response = await groupsAPI.sendGroupMessage(
-        selectedGroup, 
-        user.user_id, 
+        selectedGroup,
+        user.user_id,
         message,
-        file
+        file,
+        replyToId // Pass the reply_to ID to the API
       );
-      
+
+      // Clear reply state after sending
+      setReplyingToMessage(null);
+
       // Update with the server response
       setGroupMessages(prev => {
         const messages = [...(prev[selectedGroup] || [])];
         const index = messages.findIndex(m => m.id === optimisticMsg.id);
-        
+
         if (index !== -1) {
           messages[index] = response;
         }
-   
+
         return {
           ...prev,
           [selectedGroup]: messages
         };
       });
-      
+
       // Refetch messages to be sure we have the latest
       fetchGroupMessagesFromApi(true);
-      
+
     } catch (error) {
       console.error('Failed to send group message:', error);
-      setGroupMessages(prev => {
-        const updatedMessages = (prev[selectedGroup] || []).map(msg => 
-          msg.id === optimisticMsg.id ? {
-            ...msg,
-            message: `Failed to send message${file ? ` (${file.name})` : ''}: ${error instanceof Error ? error.message : 'Unknown error'}`
-          } : msg
-        );
-        
-        return {
-          ...prev,
-          [selectedGroup]: updatedMessages
-        };
-      });
+      // Error handling code...
+
+      // Clear reply state even on error
+      setReplyingToMessage(null);
     }
-  }, [selectedGroup, user, scrollToBottom, fetchGroupMessagesFromApi]);
+  }, [selectedGroup, user, scrollToBottom, fetchGroupMessagesFromApi, replyingToMessage]);
 
   const handleSendMessage = useCallback(async (message: string, file?: File) => {
     if ((!message.trim() && !file) || !selectedChannel || !user) return;
@@ -777,10 +820,10 @@ export default function Dashboard() {
         id: `temp-${Date.now()}`,
         sender: user.user_id?.toString() || 'me',
         text: file ? `Sending ${file.name}...` : message,
-        time: new Date().toLocaleTimeString('en-US', { 
-          hour: 'numeric', 
-          minute: 'numeric', 
-          hour12: true 
+        time: new Date().toLocaleTimeString('en-US', {
+          hour: 'numeric',
+          minute: 'numeric',
+          hour12: true
         }),
         isOwn: true,
         type: file ? 'file' : 'text',
@@ -791,47 +834,47 @@ export default function Dashboard() {
         ...prev,
         [selectedChannel]: [...(prev[selectedChannel] || []), optimisticMsg]
       }));
-      
+
       setTimeout(scrollToBottom, 100);
 
       const response = await messagesAPI.sendMessage(selectedChannel, message, file);
-      
+
       setMessages(prev => {
-        const updatedChannelMessages = prev[selectedChannel].map(msg => 
+        const updatedChannelMessages = prev[selectedChannel].map(msg =>
           msg.id === optimisticMsg.id ? {
             id: response.message_id.toString(),
             sender: response.user_id.toString(),
             text: response.message_content,
             time: new Date(response.created_at).toLocaleTimeString('en-US', {
-              hour: 'numeric', 
-              minute: 'numeric', 
-              hour12: true 
+              hour: 'numeric',
+              minute: 'numeric',
+              hour12: true
             }),
             isOwn: true,
             type: response.message_type,
             isRead: response.is_read
           } : msg
         );
-        
+
         return {
           ...prev,
           [selectedChannel]: updatedChannelMessages
         };
       });
-      
+
     } catch (error) {
       console.error('Failed to send message:', error);
-      
+
       if (isClient) {
         setMessages(prev => {
-          const updatedChannelMessages = prev[selectedChannel].map(msg => 
+          const updatedChannelMessages = prev[selectedChannel].map(msg =>
             msg.id.startsWith('temp-') ? {
               ...msg,
               text: `Failed to send message${file ? ` (${file.name})` : ''}: ${error instanceof Error ? error.message : 'Unknown error'}`,
               type: 'error'
             } : msg
           );
-          
+
           return {
             ...prev,
             [selectedChannel]: updatedChannelMessages
@@ -852,12 +895,12 @@ export default function Dashboard() {
     if (tab !== activeTab) {
       console.log(`Tab changing from ${activeTab} to ${tab}`);
       setActiveTab(tab);
-      
+
       if (tab === 'contacts') {
         clearSelection();
         refreshPendingContacts();
       }
-      
+
       if (tab === 'announcements') {
         console.log('Announcements tab selected, clearing other selections');
         // Clear other selections when switching to announcements
@@ -866,7 +909,7 @@ export default function Dashboard() {
         setSelectedAnnouncement(null);
         setSelectedAnnouncementDetails(null);
       }
-      
+
       if (!tabsVisited[tab]) {
         setTabsVisited(prev => ({
           ...prev,
@@ -885,14 +928,14 @@ export default function Dashboard() {
 
   const refreshGroups = useCallback(async () => {
     if (!isClient || !user || !user.user_id) return;
-    
+
     try {
       setLoadingGroups(true);
       setGroupError(null);
-      
+
       console.log("Refreshing groups for user ID:", user.user_id);
       const groupsList = await groupsAPI.getGroups(user.user_id);
-      
+
       const enhancedGroups: GroupData[] = groupsList.map(group => ({
         ...group,
         lastMessage: "",
@@ -927,7 +970,7 @@ export default function Dashboard() {
 
         console.log("Fetching groups for user ID:", userId);
         const groupsList = await groupsAPI.getGroups(userId);
-        
+
         const enhancedGroups: GroupData[] = groupsList.map(group => ({
           ...group,
           lastMessage: "",
@@ -957,7 +1000,7 @@ export default function Dashboard() {
 
     handleTabChange('contacts');
   }, [handleTabChange]);
-  
+
   const handleNewGroup = useCallback(() => {
     console.log('Creating new group');
     setIsCreateGroupModalOpen(true); // Add this line to open the modal
@@ -976,7 +1019,7 @@ export default function Dashboard() {
     };
 
     window.addEventListener('profilePictureUpdated', handleProfilePictureUpdate as EventListener);
-    
+
     return () => {
       window.removeEventListener('profilePictureUpdated', handleProfilePictureUpdate as EventListener);
     };
@@ -1003,9 +1046,9 @@ export default function Dashboard() {
     setIsInviteToGroupModalOpen(true);
   }, []);
 
-  const handleInviteToGroup = useCallback(async (groupId: number, userId: number, role:string): Promise<void> => {
+  const handleInviteToGroup = useCallback(async (groupId: number, userId: number, role: string): Promise<void> => {
     if (!user?.user_id) return;
-    
+
     try {
       await groupsAPI.inviteToGroup(groupId, userId, role);
     } catch (error) {
@@ -1016,17 +1059,17 @@ export default function Dashboard() {
 
   const handleCreateGroup = useCallback(async (name: string, description: string) => {
     if (!user?.user_id) return;
-    
+
     try {
       console.log('Creating group:', name, description);
-     
+
       const newGroup = await groupsAPI.createGroup(name, description, user.user_id);
       console.log('Group created successfully:', newGroup);
       setIsCreateGroupModalOpen(false);
-      
+
 
       const groupsList = await groupsAPI.getGroups(user.user_id);
-      
+
       const enhancedGroups: GroupData[] = groupsList.map(group => ({
         ...group,
         lastMessage: "",
@@ -1034,16 +1077,16 @@ export default function Dashboard() {
       }));
 
       setGroups(enhancedGroups);
-      
+
       const freshGroup = groupsList.find(g => g.group_id === newGroup.group_id);
-      
+
       if (freshGroup) {
         setSelectedGroup(freshGroup.group_id);
         setSelectedContact(null);
         setSelectedGroupDetails(freshGroup);
         setSelectedChannel(freshGroup.pubnub_channel);
         setActiveTab('groups');
-        
+
         setIsRightPanelVisible(true);
         setIsNewlyCreatedGroup(true);
         setShowInviteToast(true);
@@ -1054,7 +1097,7 @@ export default function Dashboard() {
       } else {
         console.error('Created group not found in fetched groups list');
       }
-      
+
     } catch (error) {
       console.error('Failed to create group:', error);
       throw error;
@@ -1069,15 +1112,15 @@ export default function Dashboard() {
 
   const fetchUnreadAnnouncementsCount = useCallback(async (silent: boolean = false) => {
     if (!user?.user_id) return;
-    
+
     try {
       if (!silent) {
-      console.log("Fetching unread announcements count for user ID:", user.user_id);
+        console.log("Fetching unread announcements count for user ID:", user.user_id);
       }
-      
+
       const response = await announcementsAPI.fetchUnreadAnnouncementsCount(user.user_id);
       if (response.success) {
-      
+
         if (typeof window !== 'undefined') {
           const event = new CustomEvent('updateUnreadAnnouncementsCount', {
             detail: { unreadCount: response.unreadCount }
@@ -1101,38 +1144,38 @@ export default function Dashboard() {
     setSelectedAnnouncement(announcementId);
     setSelectedContact(null);
     setSelectedGroup(null);
-    
+
     setLoadingAnnouncementDetails(true);
     setAnnouncementError(null);
-    
+
     try {
       if (!user?.user_id) return;
-      
+
       const incomingResponse = await announcementsAPI.fetchIncomingAnnouncements(user.user_id);
       const publishedResponse = await announcementsAPI.fetchPublishedAnnouncements(user.user_id);
-  
+
       let announcement = incomingResponse.announcements.find(a => a.announcement_id === announcementId);
       let isIncoming = !!announcement;
 
       if (!announcement) {
         announcement = publishedResponse.announcements.find(a => a.announcement_id === announcementId);
       }
-      
+
       if (announcement) {
         setSelectedAnnouncementDetails(announcement);
 
-        if (isIncoming && 
-            announcement.is_read === 0 && 
-            activeAnnouncementTab === 'incoming') {
-            
+        if (isIncoming &&
+          announcement.is_read === 0 &&
+          activeAnnouncementTab === 'incoming') {
+
           console.log("Marking announcement as read:", announcementId);
-          
+
           await announcementsAPI.markAnnouncementRead(user.user_id, announcementId);
-        
+
           if (typeof window !== 'undefined') {
-            const event = new CustomEvent('announcementMarkedAsRead', { 
-              detail: { 
-                announcementId, 
+            const event = new CustomEvent('announcementMarkedAsRead', {
+              detail: {
+                announcementId,
                 updatedAnnouncements: incomingResponse.announcements,
                 updatedPublishedAnnouncements: publishedResponse.announcements
               }
@@ -1146,10 +1189,10 @@ export default function Dashboard() {
             fetchUnreadAnnouncementsCount();
           }, 300);
         } else {
-          console.log("Not marking as read because:", 
-            !isIncoming ? "not in incoming list" : 
-            announcement.is_read !== 0 ? "already read" : 
-            "not viewing incoming tab");
+          console.log("Not marking as read because:",
+            !isIncoming ? "not in incoming list" :
+              announcement.is_read !== 0 ? "already read" :
+                "not viewing incoming tab");
         }
       } else {
         setAnnouncementError("Announcement not found");
@@ -1160,7 +1203,7 @@ export default function Dashboard() {
     } finally {
       setLoadingAnnouncementDetails(false);
     }
-    
+
     // Close mobile sidebar (if open)
     setIsMobileSidebarOpen(false);
   }, [user?.user_id, fetchUnreadAnnouncementsCount, activeAnnouncementTab]); // Add activeAnnouncementTab to dependencies
@@ -1168,15 +1211,15 @@ export default function Dashboard() {
   // Add function to handle announcement status changes
   const handleAnnouncementStatusChange = useCallback(async (announcementId: number, newStatus: number) => {
     if (!user?.user_id) return;
-    
+
     try {
       // After successful update, refresh the announcements in the sidebar
       const response = await announcementsAPI.fetchPublishedAnnouncements(user.user_id);
-      
+
       // Dispatch an event that the Sidebar component is listening for
       if (typeof window !== 'undefined') {
         const event = new CustomEvent('publishedAnnouncementsUpdated', {
-          detail: { 
+          detail: {
             announcements: response.announcements,
             updatedAnnouncementId: announcementId,
             newStatus: newStatus
@@ -1198,20 +1241,20 @@ export default function Dashboard() {
   if (!isClient) {
     return <div className="min-h-screen bg-violet-50 dark:bg-gray-950"></div>;
   }
-  
+
   if (checkingAuth) {
     return <div className="min-h-screen bg-violet-50 dark:bg-gray-950 flex items-center justify-center">
       <div className="animate-spin rounded-full h-12 w-12 border-4 border-violet-400 border-t-transparent"></div>
     </div>;
   }
-  
+
   if (!user) {
     return null;
   }
 
   return (
     <div className="h-screen flex bg-violet-50 dark:bg-gray-950 overflow-hidden relative">
-      <Sidebar 
+      <Sidebar
         contacts={contacts}
         groups={groups}
         isOpen={isMobileSidebarOpen}
@@ -1229,7 +1272,7 @@ export default function Dashboard() {
         clearSelection={clearSelection}
         onNewChat={handleNewChat}
         onNewGroup={handleNewGroup}
-        onNewContact={handleNewContact} 
+        onNewContact={handleNewContact}
         messages={messages}
         onRemoveContact={handleCancelContactRequest}
         onLeaveGroup={handleLeaveGroup}
@@ -1251,21 +1294,21 @@ export default function Dashboard() {
 
       {/* Main content - adjust padding and ensure it's below sidebar in z-index on mobile */}
       <main className="flex-1 flex flex-col h-full w-full z-10">
-        <ChatHeader 
+        <ChatHeader
           user={user}
           contactDetails={selectedContact ? selectedContactDetails : null}
           groupDetails={selectedGroup ? selectedGroupDetails : null}
           onToggleSidebar={() => setIsMobileSidebarOpen(true)}
-          onLogout={handleLogout} 
+          onLogout={handleLogout}
           onOpenProfileModal={handleOpenProfileModal}
           onOpenUserManagementModal={handleUserManagementModal}
           onToggleRightPanel={() => setIsRightPanelVisible(!isRightPanelVisible)}
           channelId={selectedChannel}
           pubnubConnected={isSubscribed}
           lastMessage={lastPubnubMessage}
-          onGroupInvitationAccepted={refreshGroups} 
+          onGroupInvitationAccepted={refreshGroups}
         />
-        
+
         {selectedChannel && (
           <div className="flex justify-center">
             <PubnubStatus
@@ -1280,7 +1323,7 @@ export default function Dashboard() {
         <div className="flex-1 flex overflow-hidden relative">
           <div className="flex-1 flex flex-col overflow-hidden md:pr-0">
             {selectedContact ? (
-              <ChatArea 
+              <ChatArea
                 selectedContact={selectedContact}
                 contactName={selectedContactDetails?.name || ''}
                 contactPicture={selectedContactDetails?.contactPicture || ''}
@@ -1296,17 +1339,17 @@ export default function Dashboard() {
               />
             ) : selectedGroup ? (
               <div className="flex-1 flex flex-col bg-violet-50 dark:bg-gray-950 overflow-hidden">
-                <div 
+                <div
                   ref={containerRef}
-                  className="chat-messages-container flex-1 overflow-y-auto no-scrollbar" 
-                  style={{ 
-                    height: "calc(100% - 80px)", 
+                  className="chat-messages-container flex-1 overflow-y-auto no-scrollbar"
+                  style={{
+                    height: "calc(100% - 80px)",
                     display: "flex",
                     flexDirection: "column",
                     scrollBehavior: "auto"
                   }}
                 >
-                  <div className="p-4 space-y-3 flex-1"> 
+                  <div className="p-4 space-y-3 flex-1">
                     <div className="flex justify-center my-4">
                       <div className="px-3 py-1 bg-violet-100 dark:bg-gray-800 rounded-full">
                         <span className="text-xs text-black dark:text-gray-400">
@@ -1316,7 +1359,7 @@ export default function Dashboard() {
                     </div>
 
                     <div className="relative min-h-[200px]">
-                      <GroupMessageList 
+                      <GroupMessageList
                         messages={groupMessages[selectedGroup] || []}
                         groupName={selectedGroupDetails?.name || 'Group'}
                         isLoading={loadingGroupMessages}
@@ -1324,25 +1367,36 @@ export default function Dashboard() {
                         onRetry={handleRetryLoadGroupMessages}
                         endRef={messagesEndRef}
                         currentUserId={user?.user_id}
+                        onReplyToMessage={handleReplyToMessage}
                       />
                     </div>
-                    
+
                     <div ref={messagesEndRef} className="h-1" />
                   </div>
                 </div>
 
-                <MessageInput 
-                  onSendMessage={handleSendGroupMessage}
-                  disabled={!selectedGroup}
-                />
+                <div className="mt-auto">
+                  {replyingToMessage && (
+                    <ReplyingToPreview
+                      senderName={replyingToMessage.sender_name}
+                      message={replyingToMessage.message}
+                      onCancel={() => setReplyingToMessage(null)}
+                    />
+                  )}
+
+                  <MessageInput
+                    onSendMessage={handleSendGroupMessage}
+                    disabled={!selectedGroup}
+                  />
+                </div>
               </div>
             ) : selectedAnnouncement ? (
-              <AnnouncementsArea 
+              <AnnouncementsArea
                 announcement={selectedAnnouncementDetails}
                 loading={loadingAnnouncementDetails}
                 error={announcementError}
                 isPublished={
-                  activeTab === 'announcements' && 
+                  activeTab === 'announcements' &&
                   activeAnnouncementTab === 'published' &&
                   selectedAnnouncementDetails?.created_by?.toString() === user.user_id?.toString()
                 }
@@ -1353,7 +1407,7 @@ export default function Dashboard() {
               <EmptyState />
             )}
           </div>
-          
+
           <RightPanel
             contactDetails={selectedContact ? selectedContactDetails : null}
             groupDetails={selectedGroup ? selectedGroupDetails : null}
@@ -1370,8 +1424,8 @@ export default function Dashboard() {
           />
         </div>
       </main>
-      
-      <ProfileManagementModal 
+
+      <ProfileManagementModal
         isOpen={isProfileModalOpen}
         onClose={() => setIsProfileModalOpen(false)}
       />
@@ -1386,7 +1440,7 @@ export default function Dashboard() {
         onAddContact={handleAddContact}
         existingContacts={contacts}
         currentUserId={user?.user_id}
-        onContactAdded={refreshPendingContacts}  
+        onContactAdded={refreshPendingContacts}
       />
 
       <InviteToGroupModal
@@ -1394,7 +1448,7 @@ export default function Dashboard() {
         onClose={() => setIsInviteToGroupModalOpen(false)}
         contacts={contacts}
         groupId={inviteToGroupId}
-        onInvite={ handleInviteToGroup }
+        onInvite={handleInviteToGroup}
         groupName={selectedGroupDetails?.name}
       />
       <CreateGroupModal
@@ -1402,7 +1456,7 @@ export default function Dashboard() {
         onClose={() => setIsCreateGroupModalOpen(false)}
         onCreate={handleCreateGroup}
       />
-      <CreateAnnouncementModal 
+      <CreateAnnouncementModal
         isOpen={isAnnouncementModalOpen}
         onClose={() => setIsAnnouncementModalOpen(false)}
       />
@@ -1420,7 +1474,7 @@ export default function Dashboard() {
               <p className="font-medium text-gray-900 dark:text-white">Group created successfully!</p>
               <p className="text-sm text-gray-600 dark:text-gray-300">Add members using the invite button in the right panel</p>
             </div>
-            <button 
+            <button
               onClick={() => setShowInviteToast(false)}
               className="shrink-0 text-gray-400 hover:text-gray-500 dark:hover:text-gray-300"
             >
@@ -1432,14 +1486,14 @@ export default function Dashboard() {
           <div className="h-1 bg-violet-500 dark:bg-violet-600 animate-toast-timer"></div>
         </div>
       )}
-      
+
       <div className="fixed bottom-16 md:bottom-6 left-0 z-50 pointer-events-auto touch-auto">
-        <SpeedDial 
+        <SpeedDial
           actions={[
             {
               icon: (
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                     d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
                 </svg>
               ),
@@ -1451,7 +1505,7 @@ export default function Dashboard() {
             {
               icon: (
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                     d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
                 </svg>
               ),
@@ -1463,7 +1517,7 @@ export default function Dashboard() {
             {
               icon: (
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                     d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" />
                 </svg>
               ),
@@ -1478,7 +1532,7 @@ export default function Dashboard() {
           onPositionChange={setSpeedDialPosition}
         />
       </div>
-      
+
       <style jsx global>{`
         @keyframes slide-in-right {
           from { opacity: 0; transform: translateX(100%); }
