@@ -225,7 +225,7 @@ export const MessageInput = memo(function MessageInput({
   }, []);
 
   return (
-    <div className="h-auto min-h-[80px] shrink-0 bg-white dark:bg-gray-900 border-t border-violet-100 dark:border-gray-800 p-4">
+    <div className="h-auto min-h-[80px] shrink-0 bg-white dark:bg-gray-900 border-t border-l border-violet-100 dark:border-gray-800 p-4">
       {selectedFile && (
         <div className="mb-2 p-2 bg-violet-50 dark:bg-gray-800 rounded-lg flex items-center justify-between">
           <div className="flex items-center overflow-hidden">
