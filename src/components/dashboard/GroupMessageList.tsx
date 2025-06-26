@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useRef } from 'react';
 import { getInitials } from '@/utils/initials';
 import { GroupMessage } from '@/lib/groupsApi';
 import { MessageContent } from '@/components/chat/MessageContent';
@@ -25,9 +25,14 @@ export function GroupMessageList({
   onRetry,
   endRef,
   currentUserId,
-  onReplyToMessage  // Added this prop
+  onReplyToMessage
 }: GroupMessageListProps) {
   const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
+  const [swipingMessageId, setSwipingMessageId] = useState<number | null>(null);
+  const [swipeDistance, setSwipeDistance] = useState(0);
+  const swipeStartX = useRef(0);
+  const swipeThreshold = 60; // Minimum pixels to trigger reply
+
   const getUserInitials = () => {
     try {
       const userData = localStorage.getItem('userSession');
@@ -190,6 +195,45 @@ export function GroupMessageList({
     }
   };
 
+  // Add these handlers for swipe gesture
+  const handleTouchStart = (e: React.TouchEvent, messageId: number) => {
+    swipeStartX.current = e.touches[0].clientX;
+    setSwipingMessageId(messageId);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (swipingMessageId === null) return;
+
+    // Find the message being swiped to determine ownership
+    const message = messages.find(m => m.id === swipingMessageId);
+    if (!message) return;
+
+    // Check if this is the user's own message
+    const isOwn = currentUserId !== undefined &&
+      message.sender_id !== undefined &&
+      message.sender_id.toString() === currentUserId.toString();
+
+    const currentX = e.touches[0].clientX;
+    const diff = currentX - swipeStartX.current;
+
+    // Allow swiping right for others' messages, left for own messages
+    if ((!isOwn && diff > 0) || (isOwn && diff < 0)) {
+      // Use absolute value for the distance to keep consistent behavior
+      setSwipeDistance(Math.min(Math.abs(diff), swipeThreshold * 1.5) * (isOwn ? -1 : 1));
+    }
+  };
+
+  const handleTouchEnd = () => {
+    if (swipingMessageId !== null && Math.abs(swipeDistance) >= swipeThreshold && onReplyToMessage) {
+      // Trigger reply if swipe distance is enough (using absolute value)
+      onReplyToMessage(swipingMessageId);
+    }
+
+    // Reset state
+    setSwipingMessageId(null);
+    setSwipeDistance(0);
+  };
+
   return (
     <div className="space-y-6">
       {Object.entries(messagesByDate).map(([dateKey, dateMessages]) => (
@@ -208,11 +252,17 @@ export function GroupMessageList({
               message.sender_id.toString() === currentUserId.toString();
             const stableKey = `${message.id || ''}:${message.sender_id}:${message.created_at}`;
 
+            // Calculate swipe transform for this message
+            const isBeingSwiped = message.id === swipingMessageId;
+            const swipeStyle = isBeingSwiped
+              ? { transform: `translateX(${swipeDistance}px)` }
+              : {};
+
+            // Add visual swipe indicator when swiping
+            const showReplyIndicator = isBeingSwiped && swipeDistance > swipeThreshold / 2;
+
             return (
-              <div
-                key={stableKey}
-                className={`flex gap-2 ${isOwn ? "justify-end" : "justify-start"}`}
-              >
+              <div key={stableKey} className={`flex gap-2 ${isOwn ? "justify-end" : "justify-start"}`}>
                 {!isOwn && (
                   message.profile_picture ? (
                     <img
@@ -228,12 +278,35 @@ export function GroupMessageList({
                   )
                 )}
 
-                <div className={`max-w-[75%] flex flex-col ${isOwn ? "items-end" : "items-start"}`}>
+                <div
+                  className={`max-w-[75%] flex flex-col ${isOwn ? "items-end" : "items-start"} relative`}
+                  onTouchStart={(e) => handleTouchStart(e, message.id)}
+                  onTouchMove={handleTouchMove}
+                  onTouchEnd={handleTouchEnd}
+                  onTouchCancel={handleTouchEnd}
+                  style={swipeStyle}
+                >
+                  {/* Sender name */}
                   {!isOwn && (
                     <span className="text-xs text-gray-600 dark:text-gray-400 mb-1">{message.sender_name}</span>
                   )}
 
-                  {/* Add the reply preview if this is a reply */}
+                  {/* Reply indicator that shows when swiping */}
+                  {showReplyIndicator && (
+                    <div className={`absolute top-1/2 -translate-y-1/2 text-violet-500 dark:text-violet-400
+                    ${isOwn
+                        ? "right-0 translate-x-8" 
+                        : "left-0 -translate-x-8"  
+                      }`}
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" className="w-6 h-6" strokeWidth="2">
+                        <polyline points={isOwn ? "15 14 20 9 15 4" : "9 14 4 9 9 4"} />
+                        <path d={isOwn ? "M4 20v-7a4 4 0 0 1 4-4h12" : "M20 20v-7a4 4 0 0 0-4-4H4"} />
+                      </svg>
+                    </div>
+                  )}
+                  {/* Reply preview */}
                   {message.reply_to && message.replied_message && (
                     <ReplyPreview
                       senderName={message.replied_message.sender_name}
@@ -252,31 +325,37 @@ export function GroupMessageList({
                     />
                   )}
 
+                  {/* Message bubble */}
                   <div
                     id={`message-${message.id}`}
                     className={`px-3 py-2 rounded-lg ${isOwn
-                        ? "bg-violet-200 dark:bg-violet-600 text-gray-800 dark:text-white"
-                        : "bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200"
+                      ? "bg-violet-200 dark:bg-violet-600 text-gray-800 dark:text-white"
+                      : "bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200"
                       }`}
                   >
                     <MessageContent content={message.message} />
 
-                    {/* Optional: Add reply button */}
+                    {/* Reply button (keep this for desktop) */}
                     {onReplyToMessage && (
                       <button
-                      onClick={() => onReplyToMessage(message.id)}
-                      className="inline-flex items-center mt-1 p-1 rounded hover:bg-gray-100 cursor-pointer
-                       dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400 hover:text-violet-600 dark:hover:text-violet-400"
-                      aria-label="Reply to message"
+                        onClick={() => onReplyToMessage(message.id)}
+                        className="inline-flex items-center mt-1 p-1 rounded hover:bg-gray-100 cursor-pointer
+                        dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400 hover:text-violet-600 dark:hover:text-violet-400"
+                        aria-label="Reply to message"
                       >
-                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="w-4 h-4" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <polyline points="9 14 4 9 9 4" />
-                        <path d="M20 20v-7a4 4 0 0 0-4-4H4" />
-                      </svg>
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                          className="w-4 h-4" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="9 14 4 9 9 4" />
+                          <path d="M20 20v-7a4 4 0 0 0-4-4H4" />
+                        </svg>
                       </button>
                     )}
                   </div>
-                  <span className="text-xs text-gray-500 dark:text-gray-400 mt-1">{formatMessageDate(message.created_at)}</span>
+
+                  {/* Timestamp */}
+                  <span className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    {formatMessageDate(message.created_at)}
+                  </span>
                 </div>
 
                 {isOwn && (
