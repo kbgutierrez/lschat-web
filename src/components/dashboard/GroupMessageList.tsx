@@ -328,7 +328,7 @@ export function GroupMessageList({
                   {/* Message bubble */}
                   <div
                     id={`message-${message.id}`}
-                    className={`px-3 py-2 rounded-lg ${isOwn
+                    className={`px-3 py-2 rounded-lg w-100 ${isOwn
                       ? "bg-violet-200 dark:bg-violet-600 text-gray-800 dark:text-white"
                       : "bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200"
                       }`}
@@ -337,18 +337,18 @@ export function GroupMessageList({
 
                     {/* Reply button (keep this for desktop) */}
                     {onReplyToMessage && (
-                      <button
+                        <button
                         onClick={() => onReplyToMessage(message.id)}
                         className="inline-flex items-center mt-1 p-1 rounded hover:bg-gray-100 cursor-pointer
-                        dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400 hover:text-violet-600 dark:hover:text-violet-400"
+                        dark:hover:bg-gray-700 text-purple-900 dark:text-gray-400 hover:text-blue-800 dark:hover:text-violet-400
+                        shadow-[0_2px_4px_rgba(255,255,255,0.)]"
                         aria-label="Reply to message"
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                          className="w-4 h-4" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <polyline points="9 14 4 9 9 4" />
-                          <path d="M20 20v-7a4 4 0 0 0-4-4H4" />
+                        >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" id="reply">
+                          <path fill="none" d="M0 0h24v24H0V0z"/>
+                          <path fill="currentColor" d="M10 9V5l-7 7 7 7v-4.1c5 0 8.5 1.6 11 5.1-1-5-4-10-11-11z"/>
                         </svg>
-                      </button>
+                        </button>
                     )}
                   </div>
 

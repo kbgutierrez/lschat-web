@@ -22,7 +22,7 @@ export const ReplyPreview: React.FC<ReplyPreviewProps> = ({
     <div 
       onClick={onClick}
       className={cn(
-        "px-3 py-2 rounded-md text-sm mb-1 border-l-2 max-w-[95%] cursor-pointer",
+        "px-3 py-2 rounded-md text-sm mb-1 border-l-2 w-100 max-w-[95%] cursor-pointer",
         isOwn 
           ? "bg-violet-100/50 dark:bg-violet-900/20 border-violet-400 dark:border-violet-600" 
           : "bg-gray-100/70 dark:bg-gray-800/50 border-gray-400 dark:border-gray-600",
