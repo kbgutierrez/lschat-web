@@ -264,15 +264,15 @@ export function GroupMessageList({
                     {/* Optional: Add reply button */}
                     {onReplyToMessage && (
                       <button
-                        onClick={() => onReplyToMessage(message.id)}
-                        className="inline-flex items-center mt-1 p-1 rounded hover:bg-gray-100 cursor-pointer
-                         dark:hover:bg-gray-700 text-gray-500 hover:text-violet-600 dark:hover:text-violet-400"
-                        aria-label="Reply to message"
+                      onClick={() => onReplyToMessage(message.id)}
+                      className="inline-flex items-center mt-1 p-1 rounded hover:bg-gray-100 cursor-pointer
+                       dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400 hover:text-violet-600 dark:hover:text-violet-400"
+                      aria-label="Reply to message"
                       >
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="w-4 h-4" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <polyline points="9 14 4 9 9 4" />
-                          <path d="M20 20v-7a4 4 0 0 0-4-4H4" />
-                        </svg>
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="w-4 h-4" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="9 14 4 9 9 4" />
+                        <path d="M20 20v-7a4 4 0 0 0-4-4H4" />
+                      </svg>
                       </button>
                     )}
                   </div>
