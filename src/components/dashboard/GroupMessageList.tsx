@@ -5,6 +5,7 @@ import { getInitials } from '@/utils/initials';
 import { GroupMessage } from '@/lib/groupsApi';
 import { MessageContent } from '@/components/chat/MessageContent';
 import { ReplyPreview } from '@/components/chat/ReplyPreview';
+import { SearchHighlight } from '@/components/chat/SearchHighlight';
 
 interface GroupMessageListProps {
   messages: GroupMessage[];
@@ -26,13 +27,14 @@ export function GroupMessageList({
   onRetry,
   endRef,
   currentUserId,
-  onReplyToMessage
+  onReplyToMessage,
+  searchQuery = ''
 }: GroupMessageListProps) {
   const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
   const [swipingMessageId, setSwipingMessageId] = useState<number | null>(null);
   const [swipeDistance, setSwipeDistance] = useState(0);
   const swipeStartX = useRef(0);
-  const swipeThreshold = 60; 
+  const swipeThreshold = 60;
 
   const getUserInitials = () => {
     try {
@@ -296,8 +298,8 @@ export function GroupMessageList({
                   {showReplyIndicator && (
                     <div className={`absolute top-1/2 -translate-y-1/2 text-violet-500 dark:text-violet-400
                     ${isOwn
-                        ? "right-0 translate-x-8" 
-                        : "left-0 -translate-x-8"  
+                        ? "right-0 translate-x-8"
+                        : "left-0 -translate-x-8"
                       }`}
                     >
                       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
@@ -335,23 +337,31 @@ export function GroupMessageList({
                         : "bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200"
                         }`}
                     >
-                      <MessageContent content={message.message} />
+                      {searchQuery ? (
+                        <SearchHighlight
+                          text={message.message}
+                          searchQuery={searchQuery}
+                          className="break-words"
+                        />
+                      ) : (
+                        <MessageContent content={message.message} />
+                      )}
                     </div>
 
                     {/* NEW: Actions & timestamp row */}
                     <div className={`flex items-center gap-2 mt-1 ${isOwn ? "justify-end" : ""}`}>
-                        {onReplyToMessage && (
+                      {onReplyToMessage && (
                         <button
                           onClick={() => onReplyToMessage(message.id)}
                           className="cursor-pointer flex items-center text-xs text-violet-500 dark:text-violet-400 hover:text-violet-700 dark:hover:text-violet-300 focus:outline-none"
                           aria-label="Reply to message"
                         >
                           <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" className="mr-1">
-                          <path fill="currentColor" d="M10 9V5l-7 7 7 7v-4.1c5 0 8.5 1.6 11 5.1-1-5-4-10-11-11z"/>
+                            <path fill="currentColor" d="M10 9V5l-7 7 7 7v-4.1c5 0 8.5 1.6 11 5.1-1-5-4-10-11-11z" />
                           </svg>
                           Reply
                         </button>
-                        )}
+                      )}
                       <span className="text-xs text-gray-500 dark:text-gray-400">
                         {formatMessageDate(message.created_at)}
                       </span>
