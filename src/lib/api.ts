@@ -271,17 +271,13 @@ export const messagesAPI = {
     const cachedData = messageCache[channelToken];
     
     if (cachedData && now - cachedData.timestamp < MESSAGE_CACHE_TTL) {
-      // console.log(`Using cached messages for channel ${channelToken} - ` + 
-      //   `cache age: ${Math.round((now - cachedData.timestamp)/1000)}s`);
       return cachedData.data;
     }
     
-    // console.log(`🌐 Fetching chat messages for channel: ${channelToken}`);
-    
+   
     try {
       const response = await fetchAPI<ChatMessage[]>(`/api/chatMessages/${channelToken}`, {}, true);
-      // console.log(`📥 Retrieved ${response.length} messages from channel ${channelToken}`);
-      
+    console.log(`response`, response);
       let hasNewMessages = true;
       if (cachedData) {
         const newMessageIds = new Set(response.map(msg => msg.message_id));
