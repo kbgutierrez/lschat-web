@@ -110,7 +110,7 @@ export function MessageItem({
             {onReplyToMessage && (
               <button
                 onClick={() => onReplyToMessage(id)}
-                className="flex items-center text-xs text-violet-500 dark:text-violet-400 hover:text-violet-700 dark:hover:text-violet-300"
+                className="cursor-pointer flex items-center text-xs text-violet-500 dark:text-violet-400 hover:text-violet-700 dark:hover:text-violet-300"
                 aria-label="Reply to message"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" className="mr-1">
