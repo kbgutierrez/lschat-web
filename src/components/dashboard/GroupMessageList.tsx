@@ -15,6 +15,7 @@ interface GroupMessageListProps {
   endRef?: React.RefObject<HTMLDivElement | null>;
   currentUserId?: string | number;
   onReplyToMessage?: (messageId: number) => void;
+  searchQuery?: string;
 }
 
 export function GroupMessageList({

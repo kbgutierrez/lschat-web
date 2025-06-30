@@ -9,6 +9,7 @@ import { Sidebar } from '@/components/dashboard/Sidebar';
 import { ChatHeader } from '@/components/dashboard/ChatHeader';
 import { EmptyState } from '@/components/dashboard/EmptyState';
 import { ChatArea } from '@/components/dashboard/ChatArea';
+import { GroupChatArea } from '@/components/dashboard/GroupChatArea';
 import { Message } from '@/components/dashboard/MessageItem';
 import { GroupData } from '@/components/dashboard/GroupItem';
 import { usePubnubTrigger } from '@/hooks/usePubnubTrigger';
@@ -1424,59 +1425,77 @@ export default function Dashboard() {
               />
 
             ) : selectedGroup ? (
-              <div className="flex-1 flex flex-col bg-violet-50 dark:bg-gray-950 overflow-hidden">
-                <div
-                  ref={containerRef}
-                  className="chat-messages-container flex-1 overflow-y-auto no-scrollbar"
-                  style={{
-                    height: "calc(100% - 80px)",
-                    display: "flex",
-                    flexDirection: "column",
-                    scrollBehavior: "auto"
-                  }}
-                >
-                  <div className="p-4 space-y-3 flex-1">
-                    <div className="flex justify-center my-4">
-                      <div className="px-3 py-1 bg-violet-100 dark:bg-gray-800 rounded-full">
-                        <span className="text-xs text-black dark:text-gray-400">
-                          {selectedGroupDetails?.name || 'Group Chat'}
-                        </span>
-                      </div>
-                    </div>
+             <GroupChatArea
+              selectedGroup={selectedGroup}
+              groupDetails={selectedGroupDetails}
+              messages={groupMessages[selectedGroup] || []}
+              loadingMessages={loadingGroupMessages}
+              messageError={groupMessageError}
+              handleRetryLoadMessages={handleRetryLoadGroupMessages}
+              handleSendMessage={handleSendGroupMessage}
+              handleTyping={handleTypingChange}
+              isTyping={isContactTyping}
+              typingSenderId={0}
+              typingSenderName=''
+              onReplyToMessage={handleReplyToMessage}
+              currentUserId={user?.user_id}
+              replyingToMessage={replyingToMessage}
+              onCancelReply={() => setReplyingToMessage(null)}
 
-                    <div className="relative min-h-[200px]">
-                      <GroupMessageList
-                        messages={groupMessages[selectedGroup] || []}
-                        groupName={selectedGroupDetails?.name || 'Group'}
-                        isLoading={loadingGroupMessages}
-                        error={groupMessageError}
-                        onRetry={handleRetryLoadGroupMessages}
-                        endRef={messagesEndRef}
-                        currentUserId={user?.user_id}
-                        onReplyToMessage={handleReplyToMessage}
-                      />
-                    </div>
+             />
+              // <div className="flex-1 flex flex-col bg-violet-50 dark:bg-gray-950 overflow-hidden">
+              //   <div
+              //     ref={containerRef}
+              //     className="chat-messages-container flex-1 overflow-y-auto no-scrollbar"
+              //     style={{
+              //       height: "calc(100% - 80px)",
+              //       display: "flex",
+              //       flexDirection: "column",
+              //       scrollBehavior: "auto"
+              //     }}
+              //   >
+              //     <div className="p-4 space-y-3 flex-1">
+              //       <div className="flex justify-center my-4">
+              //         <div className="px-3 py-1 bg-violet-100 dark:bg-gray-800 rounded-full">
+              //           <span className="text-xs text-black dark:text-gray-400">
+              //             {selectedGroupDetails?.name || 'Group Chat'}
+              //           </span>
+              //         </div>
+              //       </div>
 
-                    <div ref={messagesEndRef} className="h-1" />
-                  </div>
-                </div>
+              //       <div className="relative min-h-[200px]">
+              //         <GroupMessageList
+              //           messages={groupMessages[selectedGroup] || []}
+              //           groupName={selectedGroupDetails?.name || 'Group'}
+              //           isLoading={loadingGroupMessages}
+              //           error={groupMessageError}
+              //           onRetry={handleRetryLoadGroupMessages}
+              //           endRef={messagesEndRef}
+              //           currentUserId={user?.user_id}
+              //           onReplyToMessage={handleReplyToMessage}
+              //         />
+              //       </div>
 
-                <div className="mt-auto">
+              //       <div ref={messagesEndRef} className="h-1" />
+              //     </div>
+              //   </div>
 
-                  {replyingToMessage && (
-                    <ReplyingToPreview
-                      senderName={replyingToMessage.sender_name}
-                      message={replyingToMessage.message}
-                      onCancel={() => setReplyingToMessage(null)}
-                    />
-                  )}
+              //   <div className="mt-auto">
 
-                  <MessageInput
-                    onSendMessage={handleSendGroupMessage}
-                    disabled={!selectedGroup}
-                  />
-                </div>
-              </div>
+              //     {replyingToMessage && (
+              //       <ReplyingToPreview
+              //         senderName={replyingToMessage.sender_name}
+              //         message={replyingToMessage.message}
+              //         onCancel={() => setReplyingToMessage(null)}
+              //       />
+              //     )}
+
+              //     <MessageInput
+              //       onSendMessage={handleSendGroupMessage}
+              //       disabled={!selectedGroup}
+              //     />
+              //   </div>
+              // </div>
             ) : selectedAnnouncement ? (
               <AnnouncementsArea
                 announcement={selectedAnnouncementDetails}
