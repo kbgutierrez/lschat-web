@@ -2,9 +2,9 @@
 
 import React from 'react';
 import { cn } from '@/lib/utils';
-import { MessageContent } from '@/components/chat/MessageContent';
 import { getInitials } from './ContactItem';
 import { ReplyPreview } from '@/components/chat/ReplyPreview';
+import { SearchHighlight } from '@/components/chat/SearchHighlight';
 
 export interface Message {
   id: string;
@@ -12,9 +12,10 @@ export interface Message {
   text: string;
   time: string;
   isOwn: boolean;
-  type: string;
-  isRead: boolean;
-  reply_to?: string; 
+  type?: string;
+  isRead?: boolean;
+  isConsecutive?: boolean;
+  reply_to?: string;
   replied_message?: {
     id: string;
     sender_name: string;
@@ -25,50 +26,44 @@ export interface Message {
 interface MessageItemProps {
   message: Message;
   contactName: string;
-  showAvatar: boolean;
-  isConsecutive: boolean;
   contactPicture?: string;
-  onReplyToMessage?: (messageId: string) => void; 
-    currentUserId?: string | number;
+  userInitials: string;
+  currentUserId?: string | number;
+  onReplyToMessage?: (messageId: string) => void;
+  searchQuery?: string; // Add search query prop
 }
 
 export function MessageItem({ 
   message, 
   contactName, 
   contactPicture, 
-  showAvatar, 
-  isConsecutive,
+  userInitials, 
+  currentUserId,
   onReplyToMessage,
-  currentUserId
+  searchQuery = '' // Default empty string
 }: MessageItemProps) {
   const { id, text, time, isOwn, reply_to, replied_message } = message;
   const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 
   return (
-    <div className={cn(
-      "flex gap-2",
-      isOwn ? "justify-end" : "justify-start",
-    )}>
-      {!isOwn && showAvatar && (
-        contactPicture ? (
-          <img
-            src={`${API_BASE_URL}${contactPicture}`}
-            alt={contactName}
-            className="flex-shrink-0 w-9 h-9 rounded-full object-cover"
-          />
-        ) : (
-          <div className="flex-shrink-0 w-9 h-9 pt-0.5 rounded-full bg-violet-200 dark:bg-violet-900 flex items-center justify-center
-             text-violet-700 dark:text-violet-300 text-sm font-medium overflow-hidden">
-            {getInitials(contactName)}
-          </div>
-        )
+    <div className={`flex gap-2 ${message.isOwn ? "justify-end" : "justify-start"}`}>
+      {!message.isOwn && contactPicture && (
+        <img
+          src={`${API_BASE_URL}${contactPicture}`}
+          alt={contactName}
+          className="flex-shrink-0 w-9 h-9 rounded-full object-cover"
+        />
       )}
 
-      <div className={cn(
-        "max-w-[75%] flex flex-col", 
-        isOwn ? "items-end" : "items-start"
-      )}>
-        {!isOwn && !isConsecutive && (
+      {!message.isOwn && !contactPicture && (
+        <div className="flex-shrink-0 w-9 h-9 pt-0.5 rounded-full bg-violet-200 dark:bg-violet-900 flex items-center justify-center
+           text-violet-700 dark:text-violet-300 text-sm font-medium overflow-hidden">
+          {getInitials(contactName)}
+        </div>
+      )}
+
+      <div className={`max-w-[75%] flex flex-col ${message.isOwn ? "items-end" : "items-start"}`}>
+        {!message.isOwn && !message.isConsecutive && (
           <span className="text-xs text-gray-600 dark:text-gray-400 mb-1">{contactName}</span>
         )}
 
@@ -92,21 +87,26 @@ export function MessageItem({
         )}
 
         {/* Message bubble */}
-        <div className="group">
+        <div className="group relative">
           <div
-            id={`message-${id}`}
+            id={`message-${message.id}`}
             className={cn(
-              "px-3 py-2 rounded-lg", 
-              isOwn 
-                ? "bg-violet-200 dark:bg-violet-600 text-gray-800 dark:text-white" 
+              "px-3 py-2 rounded-lg transition-colors duration-200",
+              message.isOwn
+                ? "bg-violet-200 dark:bg-violet-600 text-gray-800 dark:text-white"
                 : "bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200"
             )}
           >
-            <MessageContent content={text} />
+            {/* Use SearchHighlight component for message content */}
+            <SearchHighlight 
+              text={message.text} 
+              searchQuery={searchQuery}
+              className="break-words"
+            />
           </div>
 
           {/* Actions & timestamp row */}
-          <div className={`flex items-center gap-2 mt-1 ${isOwn ? "justify-end" : ""}`}>
+          <div className={`flex items-center gap-2 mt-1 ${message.isOwn ? "justify-end" : ""}`}>
             {onReplyToMessage && (
               <button
                 onClick={() => onReplyToMessage(id)}
@@ -124,18 +124,18 @@ export function MessageItem({
         </div>
       </div>
 
-      {isOwn && showAvatar && (
-        contactPicture ? (
-          <img
-            src={`${API_BASE_URL}${contactPicture}`}
-            alt="User Avatar"
-            className="flex-shrink-0 w-8 h-8 rounded-full object-cover"
-          />
-        ) : (
-          <div className="flex-shrink-0 w-8 h-8 pt-0.5 rounded-full bg-violet-500 flex items-center justify-center text-white text-sm font-medium overflow-hidden">
-            {getInitials(contactName)}
-          </div>
-        )
+      {message.isOwn && contactPicture && (
+        <img
+          src={`${API_BASE_URL}${contactPicture}`}
+          alt="User Avatar"
+          className="flex-shrink-0 w-8 h-8 rounded-full object-cover"
+        />
+      )}
+
+      {message.isOwn && !contactPicture && (
+        <div className="flex-shrink-0 w-8 h-8 pt-0.5 rounded-full bg-violet-500 flex items-center justify-center text-white text-sm font-medium overflow-hidden">
+          {getInitials(contactName)}
+        </div>
       )}
     </div>
   );

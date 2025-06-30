@@ -31,7 +31,7 @@ export function GroupMessageList({
   const [swipingMessageId, setSwipingMessageId] = useState<number | null>(null);
   const [swipeDistance, setSwipeDistance] = useState(0);
   const swipeStartX = useRef(0);
-  const swipeThreshold = 60; // Minimum pixels to trigger reply
+  const swipeThreshold = 60; 
 
   const getUserInitials = () => {
     try {

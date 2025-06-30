@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { MessageItem, Message } from './MessageItem';
+import { getInitials } from '@/utils/initials';
 
 interface MessageListProps {
   messages: Message[];
@@ -11,8 +12,9 @@ interface MessageListProps {
   error: string | null;
   onRetry: () => void;
   endRef?: React.RefObject<HTMLDivElement | null>;
-  onReplyToMessage?: (messageId: string) => void;
   currentUserId?: string | number;
+  onReplyToMessage?: (messageId: string) => void;
+  searchQuery?: string; // Add search query prop
 }
 
 export function MessageList({
@@ -23,9 +25,36 @@ export function MessageList({
   error,
   onRetry,
   endRef,
-  onReplyToMessage,
   currentUserId,
+  onReplyToMessage,
+  searchQuery = '' // Default empty string
 }: MessageListProps) {
+  const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
+
+  const getUserInitials = () => {
+    try {
+      const userData = localStorage.getItem('userSession');
+      if (userData) {
+        const parsed = JSON.parse(userData);
+        const user = parsed.user || parsed;
+
+        const firstName = user.firstName || user.first_name || '';
+        const lastName = user.lastName || user.last_name || '';
+
+        if (firstName || lastName) {
+          return getInitials(`${firstName} ${lastName}`.trim());
+        }
+
+        if (user.username) {
+          return getInitials(user.username);
+        }
+      }
+    } catch (e) {
+      console.error("Error parsing user session data:", e);
+    }
+    return "U";
+  };
+
   if (isLoading) {
     return (
       <div className="flex justify-center items-center h-full">
@@ -73,7 +102,7 @@ export function MessageList({
       <div className="flex justify-center items-center h-full text-center">
         <div className="max-w-xs">
           <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 mx-auto text-gray-400 dark:text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
           </svg>
           <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-gray-100">No messages</h3>
           <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
@@ -85,17 +114,17 @@ export function MessageList({
   }
 
   return (
-    <div className="space-y-4"> 
-      {messages.map((message, index) => (
+    <div className="space-y-4">
+      {messages.map((message) => (
         <MessageItem
-          key={message.id || index}
+          key={message.id}
           message={message}
           contactName={contactName}
           contactPicture={contactPicture}
-          showAvatar={true} 
-          isConsecutive={false}
-          onReplyToMessage={onReplyToMessage}
+          userInitials={getUserInitials()}
           currentUserId={currentUserId}
+          onReplyToMessage={onReplyToMessage}
+          searchQuery={searchQuery} // Pass search query to MessageItem
         />
       ))}
       <div ref={endRef} />
