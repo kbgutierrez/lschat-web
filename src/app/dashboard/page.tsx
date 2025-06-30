@@ -152,7 +152,7 @@ export default function Dashboard() {
         const userId = user.user_id;
 
         if (!userId) {
-          console.error("Cannot fetch contacts: User ID is missing");
+          console.log("Cannot fetch contacts: User ID is missing");
           setApiError("User ID is missing. Please log out and log in again.");
           setLoadingContacts(false);
           return;
@@ -168,7 +168,7 @@ export default function Dashboard() {
         setPendingContacts(pending);
         setContacts(regular);
       } catch (error) {
-        console.error('Error fetching contacts:', error);
+        console.log('Error fetching contacts:', error);
         setApiError(error instanceof Error ? error.message : 'Failed to load contacts');
       } finally {
         setLoadingContacts(false);
@@ -573,7 +573,7 @@ export default function Dashboard() {
         isTyping
       );
     } catch (error) {
-      console.error('Error publishing typing indicator:', error);
+      console.log('Error publishing typing indicator:', error);
     }
   }, [selectedChannel, user?.user_id]);
 
@@ -585,7 +585,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (pubnubError) {
-      console.error('PubNub error:', pubnubError);
+      console.log('PubNub error:', pubnubError);
     }
   }, [pubnubError]);
 
@@ -622,7 +622,7 @@ export default function Dashboard() {
       localStorage.removeItem('userSession');
       router.push('/auth');
     } catch (error) {
-      console.error('Error during logout:', error);
+      console.log('Error during logout:', error);
       // If there's an error, we'll just stay on the page
       // The ChatHeader component will reset its loading state
     }
@@ -716,7 +716,7 @@ export default function Dashboard() {
 
       return pendingChanged;
     } catch (error) {
-      console.error('Error refreshing pending contacts:', error);
+      console.log('Error refreshing pending contacts:', error);
       return false;
     } finally {
       if (!silent) {
@@ -754,7 +754,7 @@ export default function Dashboard() {
 
       return true;
     } catch (error) {
-      console.error('Failed to add contact:', error);
+      console.log('Failed to add contact:', error);
       throw error;
     }
   };
@@ -779,7 +779,7 @@ export default function Dashboard() {
       setContacts(regular);
 
     } catch (error) {
-      console.error('Failed to cancel contact request:', error);
+      console.log('Failed to cancel contact request:', error);
       throw error;
     }
   };
@@ -868,7 +868,7 @@ export default function Dashboard() {
       fetchGroupMessagesFromApi(true);
 
     } catch (error) {
-      console.error('Failed to send group message:', error);
+      console.log('Failed to send group message:', error);
       // Error handling code...
 
       // Clear reply state even on error
@@ -943,7 +943,7 @@ export default function Dashboard() {
       });
 
     } catch (error) {
-      console.error('Failed to send message:', error);
+      console.log('Failed to send message:', error);
       setReplyingToDirectMessage(null);
 
       if (isClient) {
@@ -1025,7 +1025,7 @@ export default function Dashboard() {
 
       setGroups(enhancedGroups);
     } catch (error) {
-      console.error('Error refreshing groups:', error);
+      console.log('Error refreshing groups:', error);
       setGroupError(error instanceof Error ? error.message : 'Failed to refresh groups');
     } finally {
       setLoadingGroups(false);
@@ -1043,7 +1043,7 @@ export default function Dashboard() {
         const userId = user.user_id;
 
         if (!userId) {
-          console.error("Cannot fetch groups: User ID is missing");
+          console.log("Cannot fetch groups: User ID is missing");
           setGroupError("User ID is missing. Please log out and log in again.");
           setLoadingGroups(false);
           return;
@@ -1060,7 +1060,7 @@ export default function Dashboard() {
 
         setGroups(enhancedGroups);
       } catch (error) {
-        console.error('Error fetching groups:', error);
+        console.log('Error fetching groups:', error);
         setGroupError(error instanceof Error ? error.message : 'Failed to load groups');
       } finally {
         setLoadingGroups(false);
@@ -1117,7 +1117,7 @@ export default function Dashboard() {
         setSelectedChannel(null);
       }
     } catch (error) {
-      console.error('Failed to leave group:', error);
+      console.log('Failed to leave group:', error);
       throw error;
     }
   };
@@ -1133,7 +1133,7 @@ export default function Dashboard() {
     try {
       await groupsAPI.inviteToGroup(groupId, userId, role);
     } catch (error) {
-      console.error('Failed to invite user to group:', error);
+      console.log('Failed to invite user to group:', error);
       throw error;
     }
   }, [user?.user_id]);
@@ -1176,11 +1176,11 @@ export default function Dashboard() {
           setShowInviteToast(false);
         }, 5000);
       } else {
-        console.error('Created group not found in fetched groups list');
+        console.log('Created group not found in fetched groups list');
       }
 
     } catch (error) {
-      console.error('Failed to create group:', error);
+      console.log('Failed to create group:', error);
       throw error;
     }
   }, [user?.user_id, setActiveTab]);
@@ -1210,7 +1210,7 @@ export default function Dashboard() {
         }
       }
     } catch (error) {
-      console.error('Error fetching unread announcements count:', error);
+      console.log('Error fetching unread announcements count:', error);
     }
   }, [user?.user_id]);
 
@@ -1279,7 +1279,7 @@ export default function Dashboard() {
         setAnnouncementError("Announcement not found");
       }
     } catch (error) {
-      console.error("Error handling announcement selection:", error);
+      console.log("Error handling announcement selection:", error);
       setAnnouncementError("Failed to load announcement details");
     } finally {
       setLoadingAnnouncementDetails(false);
@@ -1309,7 +1309,7 @@ export default function Dashboard() {
         window.dispatchEvent(event);
       }
     } catch (error) {
-      console.error('Error updating announcement status:', error);
+      console.log('Error updating announcement status:', error);
     }
   }, [user?.user_id]);
 
