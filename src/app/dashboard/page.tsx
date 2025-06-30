@@ -93,6 +93,7 @@ export default function Dashboard() {
   const [selectedGroupDetails, setSelectedGroupDetails] = useState<Group | null>(null);
   const [isCreateGroupModalOpen, setIsCreateGroupModalOpen] = useState(false);
   const [replyingToMessage, setReplyingToMessage] = useState<GroupMessage | null>(null);
+  const [replyingToDirectMessage, setReplyingToDirectMessage] = useState<Message | null>(null);
 
   // Add state to control right panel visibility
   const [isRightPanelVisible, setIsRightPanelVisible] = useState(false);
@@ -252,18 +253,24 @@ export default function Dashboard() {
         }),
         isOwn: msg.user_id.toString() === user.user_id?.toString(),
         type: msg.message_type,
-        isRead: msg.is_read
+        isRead: msg.is_read,
+        reply_to: msg.reply_to ? msg.reply_to.toString() : undefined,
+        replied_message: msg.replied_message ? {
+          id: msg.replied_message.id.toString(),
+          sender_name: msg.replied_message.sender_name,
+          message: msg.replied_message.message
+        } : undefined
       }));
-
+      const enhancedMessages = enhanceDirectMessagesWithReplyInfo(chatMessages);
       const currentMessages = messages[selectedChannel] || [];
       if (currentMessages.length !== formattedMessages.length ||
         JSON.stringify(currentMessages.map(m => m.id)) !==
-        JSON.stringify(formattedMessages.map(m => m.id))) {
+        JSON.stringify(enhancedMessages.map(m => m.id))) {
 
-        console.log(`📨 Received ${formattedMessages.length} messages, updating state`);
+        console.log(`📨 Received ${enhancedMessages.length} messages, updating state`);
         setMessages(prev => ({
           ...prev,
-          [selectedChannel]: formattedMessages
+          [selectedChannel]: enhancedMessages
         }));
 
         setTimeout(scrollToBottom, 100);
@@ -284,98 +291,145 @@ export default function Dashboard() {
     }
   }, [selectedChannel, user, isMounted, scrollToBottom, messages]);
 
-  
-const enhanceMessagesWithReplyInfo = (messages: GroupMessage[]): GroupMessage[] => {
-  return messages.map(message => {
-    // If the message is a reply but doesn't have reply content
-    if (message.reply_to && !message.replied_message) {
-      // Find the original message within our current message set
-      const repliedTo = messages.find(m => m.id === message.reply_to);
-      
-      if (repliedTo) {
-        // Return enhanced message with replied_message info
-        return {
-          ...message,
-          replied_message: {
-            id: repliedTo.id,
-            sender_name: repliedTo.sender_name,
-            message: repliedTo.message
-          }
+  const enhanceDirectMessagesWithReplyInfo = (messages: any[]): Message[] => {
+    return messages.map(msg => {
+      const baseMessage: Message = {
+        id: msg.message_id.toString(),
+        sender: msg.user_id.toString(),
+        text: msg.message_content,
+        time: new Date(msg.created_at.replace('Z', '')).toLocaleString('en-PH', {
+          timeZone: 'Asia/Manila',
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+          hour: 'numeric',
+          minute: 'numeric',
+          hour12: true
+        }),
+        isOwn: msg.user_id.toString() === user?.user_id?.toString(),
+        type: msg.message_type,
+        isRead: msg.is_read,
+        reply_to: msg.reply_to?.toString(),
+        replied_message: undefined // Will be filled below
+      };
+
+      // If this message is a reply but doesn't have reply content
+      if (msg.reply_to && !msg.replied_message) {
+        // Find the original message within our current message set
+        const repliedTo = messages.find(m => m.message_id.toString() === msg.reply_to.toString());
+
+        if (repliedTo) {
+          baseMessage.replied_message = {
+            id: repliedTo.message_id.toString(),
+            sender_name: repliedTo.user_id.toString() === user?.user_id?.toString()
+              ? 'You'
+              : selectedContactDetails?.name || 'Contact',
+            message: repliedTo.message_content
+          };
+        }
+      } else if (msg.replied_message) {
+        // Use server-provided reply info
+        baseMessage.replied_message = {
+          id: msg.replied_message.id.toString(),
+          sender_name: msg.replied_message.sender_name,
+          message: msg.replied_message.message
         };
       }
+
+      return baseMessage;
+    });
+  };
+  const enhanceMessagesWithReplyInfo = (messages: GroupMessage[]): GroupMessage[] => {
+    return messages.map(message => {
+      // If the message is a reply but doesn't have reply content
+      if (message.reply_to && !message.replied_message) {
+        // Find the original message within our current message set
+        const repliedTo = messages.find(m => m.id === message.reply_to);
+
+        if (repliedTo) {
+          // Return enhanced message with replied_message info
+          return {
+            ...message,
+            replied_message: {
+              id: repliedTo.id,
+              sender_name: repliedTo.sender_name,
+              message: repliedTo.message
+            }
+          };
+        }
+      }
+      return message;
+    });
+  };
+
+
+  const fetchGroupMessagesFromApi = useCallback(async (skipCache = false, messageData?: any) => {
+    if (!selectedGroup || !user || !isMounted) return;
+
+    const now = Date.now();
+    const fetchKey = `group-${selectedGroup}`;
+    const lastFetch = fetchTimestampRef.current[fetchKey] || 0;
+    const timeSinceLastFetch = now - lastFetch;
+
+    const isMessageNotification = messageData &&
+      typeof messageData === 'object' &&
+      (messageData.type === 'NEW_MESSAGE' || messageData.type === 'new_message' ||
+        messageData.action === 'new_message');
+
+    console.log(`[Group Message Check] Group: ${selectedGroup}, Is notification: ${!!isMessageNotification}, ` +
+      `Last fetch: ${timeSinceLastFetch}ms ago, Skip cache: ${skipCache}`);
+
+    if (isMessageNotification || skipCache) {
+      console.log('🔥 Group notification received or skip cache - FORCING group message fetch');
     }
-    return message;
-  });
-};
-
-
-const fetchGroupMessagesFromApi = useCallback(async (skipCache = false, messageData?: any) => {
-  if (!selectedGroup || !user || !isMounted) return;
-
-  const now = Date.now();
-  const fetchKey = `group-${selectedGroup}`;
-  const lastFetch = fetchTimestampRef.current[fetchKey] || 0;
-  const timeSinceLastFetch = now - lastFetch;
-
-  const isMessageNotification = messageData &&
-    typeof messageData === 'object' &&
-    (messageData.type === 'NEW_MESSAGE' || messageData.type === 'new_message' ||
-      messageData.action === 'new_message');
-
-  console.log(`[Group Message Check] Group: ${selectedGroup}, Is notification: ${!!isMessageNotification}, ` +
-    `Last fetch: ${timeSinceLastFetch}ms ago, Skip cache: ${skipCache}`);
-
-  if (isMessageNotification || skipCache) {
-    console.log('🔥 Group notification received or skip cache - FORCING group message fetch');
-  }
-  else if (timeSinceLastFetch < 1000) {
-    console.log(`Throttling regular group fetch - last fetch was ${timeSinceLastFetch}ms ago`);
-    return;
-  }
-
-  const hasExistingMessages = groupMessages[selectedGroup]?.length > 0;
-  if (!hasExistingMessages) {
-    setLoadingGroupMessages(true);
-  }
-  setGroupMessageError(null);
-
-  try {
-    fetchTimestampRef.current[fetchKey] = now;
-
-    const messages = await groupsAPI.getGroupMessages(selectedGroup);
-    if (!isMounted) return;
-    console.log(`Retrieved ${messages.length} group messages`);
-    
-    const enhancedMessages = enhanceMessagesWithReplyInfo(messages);
-    
-    const existingMessages = groupMessages[selectedGroup] || [];
-    const hasNewMessages = existingMessages.length !== enhancedMessages.length ||
-      JSON.stringify(existingMessages.map(m => m.id)) !==
-      JSON.stringify(enhancedMessages.map(m => m.id));
-
-    if (hasNewMessages) {
-      console.log('New group messages detected, updating state');
-      setGroupMessages(prev => ({
-        ...prev,
-        [selectedGroup]: enhancedMessages // Use enhanced messages instead
-      }));
-      setTimeout(scrollToBottom, 100);
-    } else {
-      console.log('📊 No new group messages detected, skipping update');
+    else if (timeSinceLastFetch < 1000) {
+      console.log(`Throttling regular group fetch - last fetch was ${timeSinceLastFetch}ms ago`);
+      return;
     }
-  } catch (error) {
-    if (!isMounted) return;
-    setGroupMessageError(
-      error instanceof Error
-        ? error.message
-        : 'Failed to load group messages'
-    );
-  } finally {
-    if (isMounted) {
-      setLoadingGroupMessages(false);
+
+    const hasExistingMessages = groupMessages[selectedGroup]?.length > 0;
+    if (!hasExistingMessages) {
+      setLoadingGroupMessages(true);
     }
-  }
-}, [selectedGroup, user, isMounted, scrollToBottom, groupMessages]);
+    setGroupMessageError(null);
+
+    try {
+      fetchTimestampRef.current[fetchKey] = now;
+
+      const messages = await groupsAPI.getGroupMessages(selectedGroup);
+      if (!isMounted) return;
+      console.log(`Retrieved ${messages.length} group messages`);
+
+      const enhancedMessages = enhanceMessagesWithReplyInfo(messages);
+
+      const existingMessages = groupMessages[selectedGroup] || [];
+      const hasNewMessages = existingMessages.length !== enhancedMessages.length ||
+        JSON.stringify(existingMessages.map(m => m.id)) !==
+        JSON.stringify(enhancedMessages.map(m => m.id));
+
+      if (hasNewMessages) {
+        console.log('New group messages detected, updating state');
+        setGroupMessages(prev => ({
+          ...prev,
+          [selectedGroup]: enhancedMessages // Use enhanced messages instead
+        }));
+        setTimeout(scrollToBottom, 100);
+      } else {
+        console.log('📊 No new group messages detected, skipping update');
+      }
+    } catch (error) {
+      if (!isMounted) return;
+      setGroupMessageError(
+        error instanceof Error
+          ? error.message
+          : 'Failed to load group messages'
+      );
+    } finally {
+      if (isMounted) {
+        setLoadingGroupMessages(false);
+      }
+    }
+  }, [selectedGroup, user, isMounted, scrollToBottom, groupMessages]);
 
 
 
@@ -412,6 +466,16 @@ const fetchGroupMessagesFromApi = useCallback(async (skipCache = false, messageD
       }, 3000);
     }
   }, [user?.user_id]);
+
+  const handleReplyToDirectMessage = useCallback((messageId: string) => {
+    if (!selectedChannel) return;
+
+    const message = messages[selectedChannel]?.find(m => m.id === messageId);
+    if (message) {
+      setReplyingToDirectMessage(message);
+      (document.querySelector('.message-input') as HTMLElement)?.focus();
+    }
+  }, [selectedChannel, messages]);
 
   const handleReplyToMessage = useCallback((messageId: number) => {
     if (!selectedGroup) return;
@@ -815,6 +879,8 @@ const fetchGroupMessagesFromApi = useCallback(async (skipCache = false, messageD
   const handleSendMessage = useCallback(async (message: string, file?: File) => {
     if ((!message.trim() && !file) || !selectedChannel || !user) return;
 
+    const replyToId = replyingToDirectMessage?.id;
+
     try {
       const optimisticMsg: Message = {
         id: `temp-${Date.now()}`,
@@ -827,7 +893,13 @@ const fetchGroupMessagesFromApi = useCallback(async (skipCache = false, messageD
         }),
         isOwn: true,
         type: file ? 'file' : 'text',
-        isRead: false
+        isRead: false,
+        reply_to: replyToId ? replyToId.toString() : undefined,
+        replied_message: replyingToDirectMessage ? {
+          id: replyingToDirectMessage.id,
+          sender_name: replyingToDirectMessage.isOwn ? 'You' : selectedContactDetails?.name || 'Contact',
+          message: replyingToDirectMessage.text
+        } : undefined
       };
 
       setMessages(prev => ({
@@ -837,7 +909,9 @@ const fetchGroupMessagesFromApi = useCallback(async (skipCache = false, messageD
 
       setTimeout(scrollToBottom, 100);
 
-      const response = await messagesAPI.sendMessage(selectedChannel, message, file);
+      const response = await messagesAPI.sendMessage(selectedChannel, message, file, replyToId ? Number(replyToId) : undefined);
+
+      setReplyingToDirectMessage(null);
 
       setMessages(prev => {
         const updatedChannelMessages = prev[selectedChannel].map(msg =>
@@ -852,7 +926,13 @@ const fetchGroupMessagesFromApi = useCallback(async (skipCache = false, messageD
             }),
             isOwn: true,
             type: response.message_type,
-            isRead: response.is_read
+            isRead: response.is_read,
+            reply_to: response.reply_to ? response.reply_to.toString() : undefined,
+            replied_message: response.replied_message ? {
+              id: response.replied_message.id.toString(),
+              sender_name: response.replied_message.sender_name,
+              message: response.replied_message.message
+            } : undefined
           } : msg
         );
 
@@ -864,6 +944,7 @@ const fetchGroupMessagesFromApi = useCallback(async (skipCache = false, messageD
 
     } catch (error) {
       console.error('Failed to send message:', error);
+      setReplyingToDirectMessage(null);
 
       if (isClient) {
         setMessages(prev => {
@@ -882,7 +963,7 @@ const fetchGroupMessagesFromApi = useCallback(async (skipCache = false, messageD
         });
       }
     }
-  }, [selectedChannel, user, scrollToBottom, isClient]);
+  }, [selectedChannel, user, scrollToBottom, isClient, replyingToDirectMessage, selectedContactDetails]);
 
   const clearSelection = useCallback(() => {
     setSelectedContact(null);
@@ -1336,7 +1417,12 @@ const fetchGroupMessagesFromApi = useCallback(async (skipCache = false, messageD
                 selectedChannel={selectedChannel}
                 isTyping={isContactTyping}
                 isPending={selectedContactDetails?.status === 'pending'} // Pass pending status to ChatArea
+                onReplyToMessage={handleReplyToDirectMessage}
+                currentUserId={user?.user_id}
+                replyingToMessage={replyingToDirectMessage}
+                onCancelReply={() => setReplyingToDirectMessage(null)}
               />
+
             ) : selectedGroup ? (
               <div className="flex-1 flex flex-col bg-violet-50 dark:bg-gray-950 overflow-hidden">
                 <div
@@ -1376,6 +1462,7 @@ const fetchGroupMessagesFromApi = useCallback(async (skipCache = false, messageD
                 </div>
 
                 <div className="mt-auto">
+
                   {replyingToMessage && (
                     <ReplyingToPreview
                       senderName={replyingToMessage.sender_name}

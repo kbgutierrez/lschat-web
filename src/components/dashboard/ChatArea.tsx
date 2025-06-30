@@ -5,11 +5,12 @@ import { MessageList } from './MessageList';
 import { Message } from './MessageItem';
 import { MessageInput } from '@/components/chat/MessageInput';
 import { TypingIndicator } from '@/components/chat/TypingIndicator';
+import { ReplyingToPreview } from '@/components/chat/ReplyingToPreview';
 
 interface ChatAreaProps {
   selectedContact: string;
   contactName: string;
-  contactPicture?: string; 
+  contactPicture?: string;
   messages: Message[];
   loadingMessages: boolean;
   messageError: string | null;
@@ -18,7 +19,15 @@ interface ChatAreaProps {
   handleTyping: (isTyping: boolean) => void;
   selectedChannel: string | null;
   isTyping: boolean;
-  isPending?: boolean; 
+  isPending?: boolean;
+  onReplyToMessage?: (messageId: string) => void;
+  currentUserId?: string | number;
+  replyingToMessage?: {
+    id: string;
+    text: string;
+    isOwn: boolean;
+  } | null;
+  onCancelReply?: () => void;
 }
 
 export function ChatArea({
@@ -33,54 +42,58 @@ export function ChatArea({
   handleTyping,
   selectedChannel,
   isTyping,
-  isPending = false 
+  isPending = false,
+  onReplyToMessage,
+  currentUserId,
+  replyingToMessage, // Add this prop
+  onCancelReply, // Add this prop
 }: ChatAreaProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const lastMessagesLengthRef = useRef<number>(0);
-  
+
   useEffect(() => {
     if (!containerRef.current) return;
-    
+
     const shouldScrollToBottom = () => {
       if (!containerRef.current) return true;
-      
+
       const container = containerRef.current;
       const { scrollTop, scrollHeight, clientHeight } = container;
       const scrollPosition = scrollTop + clientHeight;
-      
+
       return (
-        scrollHeight - scrollPosition < 100 || 
+        scrollHeight - scrollPosition < 100 ||
         messages.length > lastMessagesLengthRef.current
       );
     };
-    
+
     lastMessagesLengthRef.current = messages.length;
-    
+
     if (shouldScrollToBottom()) {
       containerRef.current.scrollTop = containerRef.current.scrollHeight;
-      
+
       const timer = setTimeout(() => {
         if (containerRef.current) {
           containerRef.current.scrollTop = containerRef.current.scrollHeight;
         }
       }, 50);
-      
+
       return () => clearTimeout(timer);
     }
   }, [messages]);
 
   return (
     <div className="flex-1 flex flex-col bg-violet-50 dark:bg-gray-950 overflow-hidden">
-      <div className="chat-messages-container flex-1 overflow-y-auto no-scrollbar" 
-        style={{ 
-          height: "calc(100% - 80px)", 
+      <div className="chat-messages-container flex-1 overflow-y-auto no-scrollbar"
+        style={{
+          height: "calc(100% - 80px)",
           display: "flex",
           flexDirection: "column",
           scrollBehavior: "smooth"
         }}
       >
-        <div className="p-4 space-y-3 flex-1"> 
+        <div className="p-4 space-y-3 flex-1">
           <div className="flex justify-center my-4">
             <div className="px-3 py-1 bg-violet-100 dark:bg-gray-800 rounded-full">
               <span className="text-xs text-black dark:text-gray-400">Today</span>
@@ -102,9 +115,9 @@ export function ChatArea({
               </div>
             </div>
           )}
-          
+
           <div className="relative min-h-[200px]">
-            <MessageList 
+            <MessageList
               messages={messages}
               contactName={contactName}
               contactPicture={contactPicture}
@@ -112,26 +125,38 @@ export function ChatArea({
               error={messageError}
               onRetry={handleRetryLoadMessages}
               endRef={messagesEndRef}
+              onReplyToMessage={onReplyToMessage}
+               currentUserId={currentUserId}
             />
           </div>
-          
+
           <div ref={messagesEndRef} className="h-1" />
         </div>
       </div>
 
       {isTyping && selectedChannel && !isPending && (
-        <TypingIndicator 
-          isTyping={isTyping} 
+        <TypingIndicator
+          isTyping={isTyping}
           contactName={contactName}
           className="mx-3 mb-1"
         />
       )}
 
-      <MessageInput 
-        onSendMessage={handleSendMessage}
-        onTypingChange={handleTyping}
-        disabled={!selectedChannel || isPending} // Disable input if pending
-      />
+      <div className="mt-auto">
+        {replyingToMessage && (
+          <ReplyingToPreview
+            senderName={replyingToMessage.isOwn ? 'You' : contactName}
+            message={replyingToMessage.text}
+            onCancel={onCancelReply || (() => { })}
+          />
+        )}
+
+        <MessageInput
+          onSendMessage={handleSendMessage}
+          onTypingChange={handleTyping}
+          disabled={!selectedChannel || isPending} // Disable input if pending
+        />
+      </div>
     </div>
   );
 }

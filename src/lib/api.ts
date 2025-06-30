@@ -53,6 +53,12 @@ export interface ChatMessage {
   message_type: string;
   created_at: string;
   is_read: boolean;
+  reply_to?: any;
+  replied_message?: {
+    id: number;
+    sender_name: string;
+    message: string;
+  };
 }
 
 const middleware = {
@@ -314,7 +320,7 @@ export const messagesAPI = {
     }
   },
   
-  sendMessage: async (channelToken: string, content: string, file?: File): Promise<ChatMessage> => {
+  sendMessage: async (channelToken: string, content: string, file?: File, reply_to?: number): Promise<ChatMessage> => {
     if (!channelToken) {
       throw new Error('Channel token is required to send a message');
     }
@@ -329,6 +335,7 @@ export const messagesAPI = {
       formData.append('user_id', userId.toString());
       formData.append('message_content', content);
       formData.append('token', channelToken);
+      formData.append('reply_to', reply_to ? reply_to.toString() : '');
       
       if (file) {
         formData.append('file', file);

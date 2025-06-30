@@ -11,6 +11,8 @@ interface MessageListProps {
   error: string | null;
   onRetry: () => void;
   endRef?: React.RefObject<HTMLDivElement | null>;
+  onReplyToMessage?: (messageId: string) => void;
+  currentUserId?: string | number;
 }
 
 export function MessageList({
@@ -21,6 +23,8 @@ export function MessageList({
   error,
   onRetry,
   endRef,
+  onReplyToMessage,
+  currentUserId,
 }: MessageListProps) {
   if (isLoading) {
     return (
@@ -90,6 +94,8 @@ export function MessageList({
           contactPicture={contactPicture}
           showAvatar={true} 
           isConsecutive={false}
+          onReplyToMessage={onReplyToMessage}
+          currentUserId={currentUserId}
         />
       ))}
       <div ref={endRef} />
