@@ -393,31 +393,35 @@ export default function Dashboard() {
       setLoadingGroupMessages(true);
     }
     setGroupMessageError(null);
+ try {
+    fetchTimestampRef.current[fetchKey] = now;
 
-    try {
-      fetchTimestampRef.current[fetchKey] = now;
+    const messages = await groupsAPI.getGroupMessages(selectedGroup);
+    if (!isMounted) return;
+    console.log(`Retrieved ${messages.length} group messages`);
 
-      const messages = await groupsAPI.getGroupMessages(selectedGroup);
-      if (!isMounted) return;
-      console.log(`Retrieved ${messages.length} group messages`);
+    const enhancedMessages = enhanceMessagesWithReplyInfo(messages);
 
-      const enhancedMessages = enhanceMessagesWithReplyInfo(messages);
+    const existingMessages = groupMessages[selectedGroup] || [];
+    
+    // Modified comparison to detect changes in pin status
+    const hasNewMessages = existingMessages.length !== enhancedMessages.length || 
+      JSON.stringify(existingMessages.map(m => m.id)) !== JSON.stringify(enhancedMessages.map(m => m.id)) ||
+      // Also check if any pin statuses have changed
+      JSON.stringify(existingMessages.map(m => `${m.id}-${m.is_pinned}`)) !== 
+      JSON.stringify(enhancedMessages.map(m => `${m.id}-${m.is_pinned}`));
 
-      const existingMessages = groupMessages[selectedGroup] || [];
-      const hasNewMessages = existingMessages.length !== enhancedMessages.length ||
-        JSON.stringify(existingMessages.map(m => m.id)) !==
-        JSON.stringify(enhancedMessages.map(m => m.id));
-
-      if (hasNewMessages) {
-        console.log('New group messages detected, updating state');
-        setGroupMessages(prev => ({
-          ...prev,
-          [selectedGroup]: enhancedMessages // Use enhanced messages instead
-        }));
-        setTimeout(scrollToBottom, 100);
-      } else {
-        console.log('📊 No new group messages detected, skipping update');
-      }
+    // For pin operations, always update if skipCache is true
+    if (hasNewMessages || skipCache) {
+      console.log('Messages or pin status changed, updating state');
+      setGroupMessages(prev => ({
+        ...prev,
+        [selectedGroup]: enhancedMessages
+      }));
+      setTimeout(scrollToBottom, 100);
+    } else {
+      console.log('📊 No changes detected, skipping update');
+    }
     } catch (error) {
       if (!isMounted) return;
       setGroupMessageError(
@@ -1441,7 +1445,6 @@ export default function Dashboard() {
               currentUserId={user?.user_id}
               replyingToMessage={replyingToMessage}
               onCancelReply={() => setReplyingToMessage(null)}
-
              />            
             ) : selectedAnnouncement ? (
               <AnnouncementsArea

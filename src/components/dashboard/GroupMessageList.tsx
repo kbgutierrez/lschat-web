@@ -17,6 +17,7 @@ interface GroupMessageListProps {
   currentUserId?: string | number;
   onReplyToMessage?: (messageId: number) => void;
   searchQuery?: string;
+    onPinMessage?: (messageId: number, pinStatus: number) => void;
 }
 
 export function GroupMessageList({
@@ -28,7 +29,8 @@ export function GroupMessageList({
   endRef,
   currentUserId,
   onReplyToMessage,
-  searchQuery = ''
+  searchQuery = '',
+  onPinMessage
 }: GroupMessageListProps) {
   const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
   const [swipingMessageId, setSwipingMessageId] = useState<number | null>(null);
@@ -162,6 +164,7 @@ export function GroupMessageList({
       }
 
       messagesByDate[dateKey].push(message);
+      console.log(`pin status: ${message.is_pinned}`);
     } catch (error) {
       const fallbackKey = "Unknown Date";
       messagesByDate[fallbackKey] = messagesByDate[fallbackKey] || [];
@@ -332,11 +335,12 @@ export function GroupMessageList({
                   <div className="group"> {/* Changed from "group relative" to just "group" */}
                     <div
                       id={`message-${message.id}`}
-                      className={`px-3 py-2 rounded-lg ${isOwn
+                      className={`px-3 py-2 rounded-lg relative ${isOwn
                         ? "bg-violet-200 dark:bg-violet-600 text-gray-800 dark:text-white"
                         : "bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200"
-                        }`}
+                        } ${message.is_pinned === 1 ? "border-2 border-yellow-400" : ""}`}
                     >
+                  
                       {searchQuery ? (
                         <SearchHighlight
                           text={message.message}
@@ -360,6 +364,46 @@ export function GroupMessageList({
                             <path fill="currentColor" d="M10 9V5l-7 7 7 7v-4.1c5 0 8.5 1.6 11 5.1-1-5-4-10-11-11z" />
                           </svg>
                           Reply
+                        </button>
+                      )}
+                      {/* Pin/Unpin button */}
+                      {onPinMessage && (
+                        <button
+                          onClick={() => onPinMessage(message.id, message.is_pinned === 1 ? 0 : 1)}
+                          className={`cursor-pointer flex items-center text-xs ${
+                            message.is_pinned === 1 
+                              ? "text-red-500 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300" 
+                              : "text-yellow-500 dark:text-yellow-300 hover:text-yellow-700 dark:hover:text-yellow-200"
+                          } focus:outline-none`}
+                          aria-label={message.is_pinned === 1 ? "Unpin message" : "Pin message"}
+                          title={message.is_pinned === 1 ? "Unpin message" : "Pin message"}
+                        >
+                          {message.is_pinned === 1 ? (
+                            <>
+                              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" className="mr-1" viewBox="0 0 44.16 43.67" id="unpin">
+                                <g>
+                                  <g>
+                                    <path fill="currentColor" d="M17.25 24.35 0 43.67l19.43-17.15-2.18-2.17z"></path>
+                                    <path fill="currentColor" d="M8.57 15.73 19.6 26.86l8.3 8.48-1.32-7.47 11.26-13.96 6.32.36L30.2 0v5.43L16.9 17.66l-8.33-1.93z"></path>
+                                    <line x1="0" y1="10" x2="30" y2="42" stroke="gray" strokeWidth="" strokeLinecap="round"/>
+                                  </g>
+                                </g>
+                              </svg>
+                              Unpin
+                            </>
+                          ) : (
+                            <>
+                              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" className="mr-1" viewBox="0 0 44.16 43.67" id="pin">
+                                <g>
+                                  <g>
+                                    <path fill="currentColor" d="M17.25 24.35 0 43.67l19.43-17.15-2.18-2.17z"></path>
+                                    <path fill="currentColor" d="M8.57 15.73 19.6 26.86l8.3 8.48-1.32-7.47 11.26-13.96 6.32.36L30.2 0v5.43L16.9 17.66l-8.33-1.93z"></path>
+                                  </g>
+                                </g>
+                              </svg>
+                              Pin
+                            </>
+                          )}
                         </button>
                       )}
                       <span className="text-xs text-gray-500 dark:text-gray-400">

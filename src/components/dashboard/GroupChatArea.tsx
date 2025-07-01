@@ -2,13 +2,14 @@
 
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { GroupMessageList } from './GroupMessageList';
-import { GroupMessage } from '@/lib/groupsApi';
+import { GroupMessage, groupsAPI } from '@/lib/groupsApi';
 import { MessageInput } from '@/components/chat/MessageInput';
 import { TypingIndicator } from '@/components/chat/TypingIndicator';
 import { ReplyingToPreview } from '@/components/chat/ReplyingToPreview';
 import { GroupMessageSearchBar } from '@/components/chat/GroupMessageSearchBar';
 import { Group } from '@/lib/groupsApi';
-
+import { MessageContent } from '@/components/chat/MessageContent';
+import toast, { Toaster } from 'react-hot-toast';
 interface GroupChatAreaProps {
   selectedGroup: number;
   groupDetails: Group | null; 
@@ -64,6 +65,20 @@ export function GroupChatArea({
   const [isSearching, setIsSearching] = useState(false);
   const [currentSearchQuery, setCurrentSearchQuery] = useState('');
   const [lastScrollTop, setLastScrollTop] = useState(0);
+  
+  // Pinned messages state
+  const [showPinnedMessages, setShowPinnedMessages] = useState(false);
+  const [pinnedMessages, setPinnedMessages] = useState<GroupMessage[]>([]);
+
+  // Update pinned messages whenever messages change
+  useEffect(() => {
+    if (messages && messages.length > 0) {
+      const pinned = messages.filter(message => message.is_pinned === 1);
+      setPinnedMessages(pinned);
+    } else {
+      setPinnedMessages([]);
+    }
+  }, [messages]);
 
   // Scroll detection for search bar
   const handleScroll = useCallback(() => {
@@ -206,8 +221,77 @@ export function GroupChatArea({
     }
   }, [messages]);
 
+const handlePinMessage = async (messageId: number, pinStatus: number) => {
+  try {
+    // If trying to pin a message (pinStatus = 1) and we already have 10 pinned messages
+    if (pinStatus === 1 && pinnedMessages.length >= 10) {
+      toast.error(
+        'You can have a maximum of 10 pinned messages. Please unpin some messages before pinning more.',
+        {
+          duration: 5000,
+          icon: '📌',
+          style: {
+            borderRadius: '10px',
+            background: '#333',
+            color: '#fff',
+          },
+        }
+      );
+      return;
+    }
+    
+    console.log(`Toggling pin status for message ${messageId} to ${pinStatus}`);
+    await groupsAPI.pinGroupMessage(messageId, pinStatus);
+    
+    // Show success toast when pinning/unpinning is successful
+    toast.success(
+      pinStatus === 1 ? 'Message pinned successfully!' : 'Message unpinned successfully!',
+      { 
+        duration: 3000,
+        icon: pinStatus === 1 ? '📌' : '✅',
+      }
+    );
+    
+    // Add a small delay to ensure backend has processed the update
+    console.log('Pin status updated, waiting before refreshing...');
+    setTimeout(() => {
+      console.log('Now refreshing messages...');
+      handleRetryLoadMessages();
+    }, 500);
+  } catch (error) {
+    console.error('Failed to update pin status:', error);
+    toast.error('Failed to update pin status', {
+      duration: 4000,
+      icon: '❌',
+    });
+  }
+};
+
   return (
     <div className="flex-1 flex flex-col bg-violet-50 dark:bg-gray-950 overflow-hidden relative">
+         <Toaster position="top-right" toastOptions={{
+      // Default options for all toasts
+      className: '',
+      duration: 5000,
+      style: {
+        background: '#363636',
+        color: '#fff',
+      },
+      // Customize based on toast type
+      success: {
+        duration: 3000,
+        style: {
+          background: 'rgba(72, 187, 120, 0.9)',
+        },
+      },
+      error: {
+        duration: 5000,
+        style: {
+          background: 'rgba(239, 68, 68, 0.9)',
+        },
+      },
+    }} />
+     
       {/* Search Bar */}
       <GroupMessageSearchBar
         isVisible={showSearchBar}
@@ -219,6 +303,72 @@ export function GroupChatArea({
         onNavigateResult={navigateSearchResult}
         isSearching={isSearching}
       />
+
+      {/* Pinned Messages Section */}
+      {pinnedMessages.length > 0 && (
+        <div className="border-b border-violet-100 dark:border-gray-800">
+          <div className="px-4 py-2 bg-violet-100/50 dark:bg-violet-900/20 flex items-center justify-between cursor-pointer"
+               onClick={() => setShowPinnedMessages(!showPinnedMessages)}>
+            <div className="flex items-center space-x-2">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 44.16 43.67" className="text-yellow-500 dark:text-yellow-400">
+                <g>
+                  <g>
+                    <path fill="currentColor" d="M17.25 24.35 0 43.67l19.43-17.15-2.18-2.17z"></path>
+                    <path fill="currentColor" d="M8.57 15.73 19.6 26.86l8.3 8.48-1.32-7.47 11.26-13.96 6.32.36L30.2 0v5.43L16.9 17.66l-8.33-1.93z"></path>
+                  </g>
+                </g>
+              </svg>
+              <span className="font-medium text-sm">Pinned Messages ({pinnedMessages.length})</span>
+            </div>
+            <svg 
+              className={`h-5 w-5 text-gray-500 transform transition-transform ${showPinnedMessages ? 'rotate-180' : ''}`} 
+              fill="none" 
+              viewBox="0 0 24 24" 
+              stroke="currentColor"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </div>
+          
+          {showPinnedMessages && (
+            <div className="max-h-64 overflow-y-auto p-2 bg-violet-50/50 dark:bg-gray-900/50">
+              {pinnedMessages.map(message => (
+                <div 
+                  key={message.id} 
+                  className="p-2 rounded-lg bg-white dark:bg-gray-800 mb-2 shadow-sm hover:shadow transition-shadow cursor-pointer border-l-4 border-yellow-400"
+                  onClick={() => scrollToMessage(message.id)}
+                >
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs font-medium text-gray-700 dark:text-gray-300">{message.sender_name}</span>
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handlePinMessage(message.id, 0);
+                      }}
+                      className="text-xs text-red-500 hover:text-red-700 flex items-center"
+                      title="Unpin message"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" className="mr-1" viewBox="0 0 44.16 43.67">
+                        <g>
+                          <g>
+                            <path fill="currentColor" d="M17.25 24.35 0 43.67l19.43-17.15-2.18-2.17z"></path>
+                            <path fill="currentColor" d="M8.57 15.73 19.6 26.86l8.3 8.48-1.32-7.47 11.26-13.96 6.32.36L30.2 0v5.43L16.9 17.66l-8.33-1.93z"></path>
+                            <line x1="0" y1="10" x2="30" y2="42" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                          </g>
+                        </g>
+                      </svg>
+                      Unpin
+                    </button>
+                  </div>
+                  <div className="text-sm text-gray-800 dark:text-gray-200 line-clamp-2">
+                    <MessageContent content={message.message} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       <div 
         ref={containerRef}
@@ -250,6 +400,7 @@ export function GroupChatArea({
               onReplyToMessage={onReplyToMessage}
               currentUserId={currentUserId}
               searchQuery={currentSearchQuery}
+              onPinMessage={handlePinMessage}
             />
           </div>
 
