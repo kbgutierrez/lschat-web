@@ -12,7 +12,7 @@ import { MessageContent } from '@/components/chat/MessageContent';
 import toast, { Toaster } from 'react-hot-toast';
 interface GroupChatAreaProps {
   selectedGroup: number;
-  groupDetails: Group | null; 
+  groupDetails: Group | null;
   messages: GroupMessage[];
   loadingMessages: boolean;
   messageError: string | null;
@@ -65,7 +65,7 @@ export function GroupChatArea({
   const [isSearching, setIsSearching] = useState(false);
   const [currentSearchQuery, setCurrentSearchQuery] = useState('');
   const [lastScrollTop, setLastScrollTop] = useState(0);
-  
+
   // Pinned messages state
   const [showPinnedMessages, setShowPinnedMessages] = useState(false);
   const [pinnedMessages, setPinnedMessages] = useState<GroupMessage[]>([]);
@@ -80,35 +80,6 @@ export function GroupChatArea({
     }
   }, [messages]);
 
-  // Scroll detection for search bar
-  const handleScroll = useCallback(() => {
-    if (!containerRef.current) return;
-
-    const container = containerRef.current;
-    const { scrollTop, scrollHeight, clientHeight } = container;
-    const isNearBottom = scrollHeight - scrollTop - clientHeight < 100;
-    const scrollingUp = scrollTop < lastScrollTop;
-    
-    setLastScrollTop(scrollTop);
-
-    // Show search bar when scrolling up and not near bottom, and there are enough messages
-    if (scrollingUp && !isNearBottom && messages.length > 10 && !showSearchBar) {
-      setShowSearchBar(true);
-    }
-    // Hide search bar when near bottom
-    else if (isNearBottom && showSearchBar && !currentSearchQuery) {
-      setShowSearchBar(false);
-    }
-  }, [lastScrollTop, messages.length, showSearchBar, currentSearchQuery]);
-
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
-
-    container.addEventListener('scroll', handleScroll, { passive: true });
-    return () => container.removeEventListener('scroll', handleScroll);
-  }, [handleScroll]);
-
   // Search functionality
   const performSearch = useCallback((query: string) => {
     if (!query.trim()) {
@@ -121,7 +92,6 @@ export function GroupChatArea({
     setIsSearching(true);
     setCurrentSearchQuery(query);
 
-    // Simulate search delay for better UX
     const searchTimeout = setTimeout(() => {
       const results: GroupSearchResult[] = [];
       const searchRegex = new RegExp(query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
@@ -155,11 +125,11 @@ export function GroupChatArea({
   const scrollToMessage = useCallback((messageId: number) => {
     const messageElement = document.getElementById(`message-${messageId}`);
     if (messageElement && containerRef.current) {
-      messageElement.scrollIntoView({ 
-        behavior: 'smooth', 
-        block: 'center' 
+      messageElement.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center'
       });
-      
+
       // Highlight the message temporarily
       messageElement.classList.add('search-highlight');
       setTimeout(() => {
@@ -221,96 +191,118 @@ export function GroupChatArea({
     }
   }, [messages]);
 
-const handlePinMessage = async (messageId: number, pinStatus: number) => {
-  try {
-    // If trying to pin a message (pinStatus = 1) and we already have 10 pinned messages
-    if (pinStatus === 1 && pinnedMessages.length >= 10) {
-      toast.error(
-        'You can have a maximum of 10 pinned messages. Please unpin some messages before pinning more.',
+  const handlePinMessage = async (messageId: number, pinStatus: number) => {
+    try {
+      // If trying to pin a message (pinStatus = 1) and we already have 10 pinned messages
+      if (pinStatus === 1 && pinnedMessages.length >= 10) {
+        toast.error(
+          'You can have a maximum of 10 pinned messages. Please unpin some messages before pinning more.',
+          {
+            duration: 5000,
+            icon: '📌',
+            style: {
+              borderRadius: '10px',
+              background: '#333',
+              color: '#fff',
+            },
+          }
+        );
+        return;
+      }
+
+      console.log(`Toggling pin status for message ${messageId} to ${pinStatus}`);
+      await groupsAPI.pinGroupMessage(messageId, pinStatus);
+
+      // Show success toast when pinning/unpinning is successful
+      toast.success(
+        pinStatus === 1 ? 'Message pinned successfully!' : 'Message unpinned successfully!',
         {
-          duration: 5000,
-          icon: '📌',
-          style: {
-            borderRadius: '10px',
-            background: '#333',
-            color: '#fff',
-          },
+          duration: 3000,
+          icon: pinStatus === 1 ? '📌' : '✅',
         }
       );
-      return;
+
+      // Add a small delay to ensure backend has processed the update
+      console.log('Pin status updated, waiting before refreshing...');
+      setTimeout(() => {
+        console.log('Now refreshing messages...');
+        handleRetryLoadMessages();
+      }, 500);
+    } catch (error) {
+      console.error('Failed to update pin status:', error);
+      toast.error('Failed to update pin status', {
+        duration: 4000,
+        icon: '❌',
+      });
     }
-    
-    console.log(`Toggling pin status for message ${messageId} to ${pinStatus}`);
-    await groupsAPI.pinGroupMessage(messageId, pinStatus);
-    
-    // Show success toast when pinning/unpinning is successful
-    toast.success(
-      pinStatus === 1 ? 'Message pinned successfully!' : 'Message unpinned successfully!',
-      { 
-        duration: 3000,
-        icon: pinStatus === 1 ? '📌' : '✅',
+  };
+
+  // Add keyboard shortcut for search
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ctrl+F or Cmd+F to focus search
+      if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+        e.preventDefault();
+        setShowSearchBar(true);
       }
-    );
-    
-    // Add a small delay to ensure backend has processed the update
-    console.log('Pin status updated, waiting before refreshing...');
-    setTimeout(() => {
-      console.log('Now refreshing messages...');
-      handleRetryLoadMessages();
-    }, 500);
-  } catch (error) {
-    console.error('Failed to update pin status:', error);
-    toast.error('Failed to update pin status', {
-      duration: 4000,
-      icon: '❌',
-    });
-  }
-};
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  // Don't automatically show search bar on scroll
+  const handleScroll = useCallback(() => {
+    // Only track scrollTop for other functionality
+    if (!containerRef.current) return;
+
+    const container = containerRef.current;
+    const { scrollTop } = container;
+    setLastScrollTop(scrollTop);
+
+    // Remove the automatic search bar showing on scroll up
+  }, [lastScrollTop]);
 
   return (
     <div className="flex-1 flex flex-col bg-violet-50 dark:bg-gray-950 overflow-hidden relative">
-         <Toaster position="top-right" toastOptions={{
-      // Default options for all toasts
-      className: '',
-      duration: 5000,
-      style: {
-        background: '#363636',
-        color: '#fff',
-      },
-      // Customize based on toast type
-      success: {
-        duration: 3000,
-        style: {
-          background: 'rgba(72, 187, 120, 0.9)',
-        },
-      },
-      error: {
+      <Toaster position="top-right" toastOptions={{
+        // Default options for all toasts
+        className: '',
         duration: 5000,
         style: {
-          background: 'rgba(239, 68, 68, 0.9)',
+          background: '#363636',
+          color: '#fff',
         },
-      },
-    }} />
-     
-      {/* Search Bar */}
-      <GroupMessageSearchBar
-        isVisible={showSearchBar}
-        onClose={handleCloseSearch}
-        onSearchResultSelect={scrollToMessage}
-        searchResults={searchResults}
-        onSearch={performSearch}
-        currentResultIndex={currentSearchIndex}
-        onNavigateResult={navigateSearchResult}
-        isSearching={isSearching}
-      />
+        // Customize based on toast type
+        success: {
+          duration: 3000,
+          style: {
+            background: 'rgba(72, 187, 120, 0.9)',
+          },
+        },
+        error: {
+          duration: 5000,
+          style: {
+            background: 'rgba(239, 68, 68, 0.9)',
+          },
+        },
+      }} />
 
-      {/* Pinned Messages Section */}
-      {pinnedMessages.length > 0 && (
-        <div className="border-b border-violet-100 dark:border-gray-800">
-          <div className="px-4 py-2 bg-violet-100/50 dark:bg-violet-900/20 flex items-center justify-between cursor-pointer"
-               onClick={() => setShowPinnedMessages(!showPinnedMessages)}>
-            <div className="flex items-center space-x-2">
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 44.16 43.67" className="text-yellow-500 dark:text-yellow-400">
+      {/* Simple Action Toolbar - inside GroupChatArea */}
+      {groupDetails && (
+        <div className="flex items-center justify-end px-2 py-1 bg-violet-50/70 dark:bg-gray-900/70 border-b border-violet-100 dark:border-gray-800 backdrop-blur-sm">
+          {pinnedMessages.length > 0 && (
+            <button 
+              onClick={() => setShowPinnedMessages(!showPinnedMessages)}
+              className={`p-2 rounded-md transition-colors relative ${
+                showPinnedMessages 
+                  ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300' 
+                  : 'hover:bg-violet-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400'
+              }`}
+              aria-label="Pinned messages"
+              title="Pinned messages"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 44.16 43.67">
                 <g>
                   <g>
                     <path fill="currentColor" d="M17.25 24.35 0 43.67l19.43-17.15-2.18-2.17z"></path>
@@ -318,59 +310,82 @@ const handlePinMessage = async (messageId: number, pinStatus: number) => {
                   </g>
                 </g>
               </svg>
-              <span className="font-medium text-sm">Pinned Messages ({pinnedMessages.length})</span>
-            </div>
-            <svg 
-              className={`h-5 w-5 text-gray-500 transform transition-transform ${showPinnedMessages ? 'rotate-180' : ''}`} 
-              fill="none" 
-              viewBox="0 0 24 24" 
-              stroke="currentColor"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-            </svg>
-          </div>
-          
-          {showPinnedMessages && (
-            <div className="max-h-64 overflow-y-auto p-2 bg-violet-50/50 dark:bg-gray-900/50">
-              {pinnedMessages.map(message => (
-                <div 
-                  key={message.id} 
-                  className="p-2 rounded-lg bg-white dark:bg-gray-800 mb-2 shadow-sm hover:shadow transition-shadow cursor-pointer border-l-4 border-yellow-400"
-                  onClick={() => scrollToMessage(message.id)}
-                >
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs font-medium text-gray-700 dark:text-gray-300">{message.sender_name}</span>
-                    <button 
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handlePinMessage(message.id, 0);
-                      }}
-                      className="text-xs text-red-500 hover:text-red-700 flex items-center"
-                      title="Unpin message"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" className="mr-1" viewBox="0 0 44.16 43.67">
-                        <g>
-                          <g>
-                            <path fill="currentColor" d="M17.25 24.35 0 43.67l19.43-17.15-2.18-2.17z"></path>
-                            <path fill="currentColor" d="M8.57 15.73 19.6 26.86l8.3 8.48-1.32-7.47 11.26-13.96 6.32.36L30.2 0v5.43L16.9 17.66l-8.33-1.93z"></path>
-                            <line x1="0" y1="10" x2="30" y2="42" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-                          </g>
-                        </g>
-                      </svg>
-                      Unpin
-                    </button>
-                  </div>
-                  <div className="text-sm text-gray-800 dark:text-gray-200 line-clamp-2">
-                    <MessageContent content={message.message} />
-                  </div>
-                </div>
-              ))}
-            </div>
+              {pinnedMessages.length > 0 && (
+                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">
+                  {pinnedMessages.length}
+                </span>
+              )}
+            </button>
           )}
+          
+          <button 
+            onClick={() => setShowSearchBar(!showSearchBar)}
+            className={`p-2 ml-1 rounded-md transition-colors ${
+              showSearchBar 
+                ? 'bg-violet-100 dark:bg-violet-900 text-violet-700 dark:text-violet-300' 
+                : 'hover:bg-violet-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400'
+            }`}
+            aria-label="Search messages"
+            title="Search messages (Ctrl+F)"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          </button>
         </div>
       )}
-
-      <div 
+      
+      {/* Search Bar - Fixed position with higher z-index */}
+      {showSearchBar && (
+        <div className="absolute top-0 left-0 right-0 z-20 border-b border-gray-200 dark:border-gray-800 bg-white/95 dark:bg-gray-900/95 backdrop-blur-md shadow-md">
+          <GroupMessageSearchBar
+            isVisible={true}
+            onClose={handleCloseSearch}
+            onSearchResultSelect={scrollToMessage}
+            searchResults={searchResults}
+            onSearch={performSearch}
+            currentResultIndex={currentSearchIndex}
+            onNavigateResult={navigateSearchResult}
+            isSearching={isSearching}
+          />
+        </div>
+      )}
+      
+      {/* Pinned Messages Panel */}
+      {showPinnedMessages && pinnedMessages.length > 0 && (
+        <div className="border-b border-violet-100 dark:border-gray-800 max-h-64 overflow-y-auto bg-amber-50/80 dark:bg-gray-900/80 backdrop-blur-sm">
+          <div className="p-2">
+            {pinnedMessages.map(message => (
+              <div 
+                key={message.id} 
+                className="p-2 rounded-lg bg-white dark:bg-gray-800 mb-2 shadow-sm hover:shadow transition-shadow cursor-pointer border-l-4 border-yellow-400"
+                onClick={() => scrollToMessage(message.id)}
+              >
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs font-medium text-gray-700 dark:text-gray-300">{message.sender_name}</span>
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handlePinMessage(message.id, 0);
+                    }}
+                    className="text-xs text-gray-500 hover:text-red-500 transition-colors"
+                    title="Unpin message"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M18 6L6 18M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+                <div className="text-sm text-gray-800 dark:text-gray-200 line-clamp-2">
+                  <MessageContent content={message.message} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      
+      <div
         ref={containerRef}
         className="chat-messages-container flex-1 overflow-y-auto no-scrollbar"
         style={{
