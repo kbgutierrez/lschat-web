@@ -23,6 +23,7 @@ export interface GroupMessage {
     sender_name: string;
     message: string;
   };
+  is_pinned?: number;
 }
 
 export interface GroupMember {
@@ -456,6 +457,34 @@ sendGroupMessage: async (groupId: number | string, userId: number | string, mess
       console.log(`User ${userId} successfully responded to group invitation for group ${groupId}`);
     } catch (error) {
       console.error('Respond to group invitation error:', error);
+      throw error;
+    }
+  },
+  pinGroupMessage: async (messageId: number, pin_status: number): Promise<void> => {
+    if (!messageId) {
+      throw new Error('Message ID is required to pin a group message');
+    }
+    if (pin_status === undefined || pin_status === null) {
+      throw new Error('Pin status is required to update pin status');
+    }
+    try {
+      const headers = middleware.addAuthHeader({
+        'Content-Type': 'application/json',
+      });
+
+      const body = JSON.stringify({ message_id: messageId, pin_status });
+
+      const url = `${API_BASE_URL}/api/pin-group-message`;
+      const response = await fetch(url, { method: 'POST', headers, body });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Failed to pin group message: ${response.status} - ${errorText}`);
+      }
+
+      console.log(`Message ${messageId} pin status updated to ${pin_status}`);
+    } catch (error) {
+      console.error('Pin group message error:', error);
       throw error;
     }
   }
