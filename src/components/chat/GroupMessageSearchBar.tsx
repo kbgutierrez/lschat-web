@@ -112,7 +112,7 @@ export const GroupMessageSearchBar: React.FC<GroupMessageSearchBarProps> = ({
             {searchQuery && (
               <button
                 onClick={handleClear}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                className="cursor-pointer absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
               >
                 <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path
@@ -184,7 +184,7 @@ export const GroupMessageSearchBar: React.FC<GroupMessageSearchBarProps> = ({
         {/* Close Button */}
         <button
           onClick={onClose}
-          className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800"
+          className="cursor-pointer p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800"
           title="Close search (Esc)"
         >
           <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

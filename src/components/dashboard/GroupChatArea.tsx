@@ -287,53 +287,54 @@ export function GroupChatArea({
           },
         },
       }} />
-
-      {/* Simple Action Toolbar - inside GroupChatArea */}
-      {groupDetails && (
-        <div className="flex items-center justify-end px-2 py-1 bg-violet-50/70 dark:bg-gray-900/70 border-b border-violet-100 dark:border-gray-800 backdrop-blur-sm">
+      
+      {/* Pill Menu - Top Right */}
+      <div className="absolute top-3 right-3 z-10">
+        <div className="bg-white dark:bg-gray-800 rounded-full shadow-md p-1 flex items-center border border-gray-100 dark:border-gray-700">
+          {/* Search Button */}
+          <button
+            onClick={() => setShowSearchBar(!showSearchBar)}
+            className={`p-1.5 rounded-full transition-colors ${
+              showSearchBar
+                ? 'bg-violet-100 dark:bg-violet-900/50 text-violet-700 dark:text-violet-300'
+                : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+            }`}
+            title="Search messages (Ctrl+F)"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          </button>
+          
+          {/* Divider */}
           {pinnedMessages.length > 0 && (
-            <button 
+            <span className="w-px h-4 bg-gray-200 dark:bg-gray-700 mx-0.5"></span>
+          )}
+          
+          {/* Pinned Messages Button */}
+          {pinnedMessages.length > 0 && (
+            <button
               onClick={() => setShowPinnedMessages(!showPinnedMessages)}
-              className={`p-2 rounded-md transition-colors relative ${
-                showPinnedMessages 
-                  ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300' 
-                  : 'hover:bg-violet-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400'
+              className={`p-1.5 rounded-full transition-colors relative ${
+                showPinnedMessages
+                  ? 'bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300'
+                  : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
               }`}
-              aria-label="Pinned messages"
               title="Pinned messages"
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 44.16 43.67">
-                <g>
-                  <g>
-                    <path fill="currentColor" d="M17.25 24.35 0 43.67l19.43-17.15-2.18-2.17z"></path>
-                    <path fill="currentColor" d="M8.57 15.73 19.6 26.86l8.3 8.48-1.32-7.47 11.26-13.96 6.32.36L30.2 0v5.43L16.9 17.66l-8.33-1.93z"></path>
-                  </g>
-                </g>
+                <g><g>
+                  <path fill="currentColor" d="M17.25 24.35 0 43.67l19.43-17.15-2.18-2.17z"></path>
+                  <path fill="currentColor" d="M8.57 15.73 19.6 26.86l8.3 8.48-1.32-7.47 11.26-13.96 6.32.36L30.2 0v5.43L16.9 17.66l-8.33-1.93z"></path>
+                </g></g>
               </svg>
-              {pinnedMessages.length > 0 && (
-                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">
-                  {pinnedMessages.length}
-                </span>
-              )}
+              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">
+                {pinnedMessages.length}
+              </span>
             </button>
           )}
-          
-          <button 
-            onClick={() => setShowSearchBar(!showSearchBar)}
-            className={`p-2 ml-1 rounded-md transition-colors ${
-              showSearchBar 
-                ? 'bg-violet-100 dark:bg-violet-900 text-violet-700 dark:text-violet-300' 
-                : 'hover:bg-violet-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400'
-            }`}
-            aria-label="Search messages"
-            title="Search messages (Ctrl+F)"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-          </button>
         </div>
-      )}
+      </div>
       
       {/* Search Bar - Fixed position with higher z-index */}
       {showSearchBar && (
@@ -351,10 +352,26 @@ export function GroupChatArea({
         </div>
       )}
       
-      {/* Pinned Messages Panel */}
+      {/* Pinned Messages Panel - Moved down to avoid overlap */}
       {showPinnedMessages && pinnedMessages.length > 0 && (
-        <div className="border-b border-violet-100 dark:border-gray-800 max-h-64 overflow-y-auto bg-amber-50/80 dark:bg-gray-900/80 backdrop-blur-sm">
-          <div className="p-2">
+        <div className="border-b border-violet-100 dark:border-gray-800 max-h-64 overflow-y-auto bg-amber-50/80 dark:bg-gray-900/80 backdrop-blur-sm" style={{ marginTop: "50px" }}>
+          <div className="p-2 pt-3 relative">
+            {/* Header with close button to provide another way to close the panel */}
+            <div className="flex items-center justify-between mb-2 px-2">
+              <h3 className="text-sm font-medium text-amber-800 dark:text-amber-300">
+                Pinned Messages ({pinnedMessages.length}/10)
+              </h3>
+              <button 
+                onClick={() => setShowPinnedMessages(false)}
+                className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M18 6L6 18M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            
+            {/* Pinned message cards with repositioned unpin buttons */}
             {pinnedMessages.map(message => (
               <div 
                 key={message.id} 
@@ -362,19 +379,27 @@ export function GroupChatArea({
                 onClick={() => scrollToMessage(message.id)}
               >
                 <div className="flex items-center justify-between mb-1">
-                  <span className="text-xs font-medium text-gray-700 dark:text-gray-300">{message.sender_name}</span>
-                  <button 
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handlePinMessage(message.id, 0);
-                    }}
-                    className="text-xs text-gray-500 hover:text-red-500 transition-colors"
-                    title="Unpin message"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M18 6L6 18M6 6l12 12" />
-                    </svg>
-                  </button>
+                  <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
+                    {message.sender_name}
+                  </span>
+                  {/* Move unpin button to left side instead of right to avoid overlap */}
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-gray-500">
+                      {new Date(message.created_at).toLocaleDateString()}
+                    </span>
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handlePinMessage(message.id, 0);
+                      }}
+                      className="ml-1 p-1 rounded-full text-xs text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-red-500 transition-colors"
+                      title="Unpin message"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M18 6L6 18M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
                 </div>
                 <div className="text-sm text-gray-800 dark:text-gray-200 line-clamp-2">
                   <MessageContent content={message.message} />
