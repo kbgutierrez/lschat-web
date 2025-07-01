@@ -421,14 +421,7 @@ export function GroupChatArea({
         }}
       >
         <div className="p-4 space-y-3 flex-1">
-          <div className="flex justify-center my-4">
-            <div className="px-3 py-1 bg-violet-100 dark:bg-gray-800 rounded-full">
-              <span className="text-xs text-black dark:text-gray-400">
-                {groupDetails?.name || 'Group Chat'}
-              </span>
-            </div>
-          </div>
-
+      
           <div className="relative min-h-[200px]">
             <GroupMessageList
               messages={messages}
