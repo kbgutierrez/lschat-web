@@ -338,7 +338,7 @@ export function GroupMessageList({
                       className={`px-3 py-2 rounded-lg relative ${isOwn
                         ? "bg-violet-200 dark:bg-violet-600 text-gray-800 dark:text-white"
                         : "bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200"
-                        } ${message.is_pinned === 1 ? "border-2 border-yellow-400" : ""}`}
+                        } ${message.is_pinned === 1 ? "border-2 border-white" : ""}`}
                     >
                   
                       {searchQuery ? (

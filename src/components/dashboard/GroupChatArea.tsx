@@ -289,12 +289,12 @@ export function GroupChatArea({
       }} />
       
       {/* Pill Menu - Top Right */}
-      <div className="absolute top-3 right-3 z-10">
+      <div className="absolute top-1 right-3 z-10">
         <div className="bg-white dark:bg-gray-800 rounded-full shadow-md p-1 flex items-center border border-gray-100 dark:border-gray-700">
           {/* Search Button */}
           <button
             onClick={() => setShowSearchBar(!showSearchBar)}
-            className={`p-1.5 rounded-full transition-colors ${
+            className={`cursor-pointer p-1.5 rounded-full transition-colors ${
               showSearchBar
                 ? 'bg-violet-100 dark:bg-violet-900/50 text-violet-700 dark:text-violet-300'
                 : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
@@ -315,7 +315,7 @@ export function GroupChatArea({
           {pinnedMessages.length > 0 && (
             <button
               onClick={() => setShowPinnedMessages(!showPinnedMessages)}
-              className={`p-1.5 rounded-full transition-colors relative ${
+              className={`cursor-pointer p-1.5 rounded-full transition-colors relative ${
                 showPinnedMessages
                   ? 'bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300'
                   : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
@@ -354,16 +354,16 @@ export function GroupChatArea({
       
       {/* Pinned Messages Panel - Moved down to avoid overlap */}
       {showPinnedMessages && pinnedMessages.length > 0 && (
-        <div className="border-b border-violet-100 dark:border-gray-800 max-h-64 overflow-y-auto bg-amber-50/80 dark:bg-gray-900/80 backdrop-blur-sm" style={{ marginTop: "50px" }}>
+        <div className="border-b border-violet-100 dark:border-gray-800 max-h-60 overflow-y-auto bg-amber-50/80 dark:bg-gray-900/80 backdrop-blur-sm" style={{ marginTop: "2px" }}>
           <div className="p-2 pt-3 relative">
             {/* Header with close button to provide another way to close the panel */}
-            <div className="flex items-center justify-between mb-2 px-2">
+            <div className="flex items-center justify-between mb-2 px-2 ">
               <h3 className="text-sm font-medium text-amber-800 dark:text-amber-300">
                 Pinned Messages ({pinnedMessages.length}/10)
               </h3>
               <button 
                 onClick={() => setShowPinnedMessages(false)}
-                className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+                className="cursor-pointer text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M18 6L6 18M6 6l12 12" />
