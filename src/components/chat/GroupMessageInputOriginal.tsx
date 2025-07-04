@@ -9,7 +9,7 @@ interface MessageInputProps {
   onSendMessage: (message: string, file?: File) => void;
   onTypingChange?: (isTyping: boolean) => void;
   disabled?: boolean;
-  groupMembers?: GroupMember[]; // Add group members prop
+  groupMembers?: GroupMember[]; 
 }
 
 export const MessageInput = memo(function MessageInput({ 
