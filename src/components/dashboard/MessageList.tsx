@@ -27,7 +27,7 @@ export function MessageList({
   endRef,
   currentUserId,
   onReplyToMessage,
-  searchQuery = '' // Default empty string
+  searchQuery = '' 
 }: MessageListProps) {
   const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 
@@ -124,7 +124,7 @@ export function MessageList({
           userInitials={getUserInitials()}
           currentUserId={currentUserId}
           onReplyToMessage={onReplyToMessage}
-          searchQuery={searchQuery} // Pass search query to MessageItem
+          searchQuery={searchQuery} 
         />
       ))}
       <div ref={endRef} />

@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils';
 import { getInitials } from './ContactItem';
 import { ReplyPreview } from '@/components/chat/ReplyPreview';
 import { SearchHighlight } from '@/components/chat/SearchHighlight';
+import { MessageContent } from '@/components/chat/MessageContent';
 
 export interface Message {
   id: string;
@@ -30,7 +31,7 @@ interface MessageItemProps {
   userInitials: string;
   currentUserId?: string | number;
   onReplyToMessage?: (messageId: string) => void;
-  searchQuery?: string; // Add search query prop
+  searchQuery?: string;
 }
 
 export function MessageItem({ 
@@ -40,7 +41,7 @@ export function MessageItem({
   userInitials, 
   currentUserId,
   onReplyToMessage,
-  searchQuery = '' // Default empty string
+  searchQuery = ''
 }: MessageItemProps) {
   const { id, text, time, isOwn, reply_to, replied_message } = message;
   const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
@@ -97,12 +98,16 @@ export function MessageItem({
                 : "bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200"
             )}
           >
-            {/* Use SearchHighlight component for message content */}
-            <SearchHighlight 
-              text={message.text} 
-              searchQuery={searchQuery}
-              className="break-words"
-            />
+            {/* Use MessageContent for images/files or SearchHighlight for search */}
+            {searchQuery ? (
+              <SearchHighlight 
+                text={message.text} 
+                searchQuery={searchQuery}
+                className="break-words"
+              />
+            ) : (
+              <MessageContent content={message.text} />
+            )}
           </div>
 
           {/* Actions & timestamp row */}

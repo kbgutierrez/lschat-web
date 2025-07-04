@@ -49,7 +49,7 @@ interface ChatHeaderProps {
   contactDetails: ContactDetails | null;
   groupDetails: Group | null;
   onToggleSidebar: () => void;
-  onLogout: () => Promise<void>; // Changed to Promise<void> to handle async
+  onLogout: () => Promise<void>; 
   onOpenProfileModal: () => void;
   onOpenUserManagementModal?: () => void;
   onToggleRightPanel: () => void;
