@@ -2,7 +2,6 @@ import { initializeApp, FirebaseApp } from 'firebase/app';
 import { getMessaging, getToken, Messaging } from 'firebase/messaging';
 import type { FirebaseConfig, FirebaseInstance } from '@/types/firebase';
 
-// Your web app's Firebase configuration
 const firebaseConfig: FirebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
   authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
@@ -12,7 +11,6 @@ const firebaseConfig: FirebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
-// Initialize Firebase - use specific types instead of 'any'
 let app: FirebaseApp | undefined;
 let messaging: Messaging | undefined;
 
@@ -39,7 +37,6 @@ export const getMessagingToken = async (): Promise<string> => {
       messaging = newMessaging;
     }
     
-    // Check if permission is granted
     if (!('Notification' in window)) {
       console.log('Notifications not supported in this browser');
       return '';
