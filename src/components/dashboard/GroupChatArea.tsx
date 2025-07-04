@@ -3,7 +3,7 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { GroupMessageList } from './GroupMessageList';
 import { GroupMessage, groupsAPI } from '@/lib/groupsApi';
-import { MessageInput } from '@/components/chat/MessageInput';
+import { MentionInput } from '@/components/chat/MentionInput';
 import { TypingIndicator } from '@/components/chat/TypingIndicator';
 import { ReplyingToPreview } from '@/components/chat/ReplyingToPreview';
 import { GroupMessageSearchBar } from '@/components/chat/GroupMessageSearchBar';
@@ -287,39 +287,37 @@ export function GroupChatArea({
           },
         },
       }} />
-      
+
       {/* Pill Menu - Top Right */}
       <div className="absolute top-1 right-3 z-10">
         <div className="bg-white dark:bg-gray-800 rounded-full shadow-md p-1 flex items-center border border-gray-100 dark:border-gray-700">
           {/* Search Button */}
           <button
             onClick={() => setShowSearchBar(!showSearchBar)}
-            className={`cursor-pointer p-1.5 rounded-full transition-colors ${
-              showSearchBar
-                ? 'bg-violet-100 dark:bg-violet-900/50 text-violet-700 dark:text-violet-300'
-                : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
-            }`}
+            className={`cursor-pointer p-1.5 rounded-full transition-colors ${showSearchBar
+              ? 'bg-violet-100 dark:bg-violet-900/50 text-violet-700 dark:text-violet-300'
+              : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+              }`}
             title="Search messages (Ctrl+F)"
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
           </button>
-          
+
           {/* Divider */}
           {pinnedMessages.length > 0 && (
             <span className="w-px h-4 bg-gray-200 dark:bg-gray-700 mx-0.5"></span>
           )}
-          
+
           {/* Pinned Messages Button */}
           {pinnedMessages.length > 0 && (
             <button
               onClick={() => setShowPinnedMessages(!showPinnedMessages)}
-              className={`cursor-pointer p-1.5 rounded-full transition-colors relative ${
-                showPinnedMessages
-                  ? 'bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300'
-                  : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
-              }`}
+              className={`cursor-pointer p-1.5 rounded-full transition-colors relative ${showPinnedMessages
+                ? 'bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300'
+                : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+                }`}
               title="Pinned messages"
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 44.16 43.67">
@@ -335,7 +333,7 @@ export function GroupChatArea({
           )}
         </div>
       </div>
-      
+
       {/* Search Bar - Fixed position with higher z-index */}
       {showSearchBar && (
         <div className="absolute top-0 left-0 right-0 z-20 border-b border-gray-200 dark:border-gray-800 bg-white/95 dark:bg-gray-900/95 backdrop-blur-md shadow-md">
@@ -351,7 +349,7 @@ export function GroupChatArea({
           />
         </div>
       )}
-      
+
       {/* Pinned Messages Panel - Moved down to avoid overlap */}
       {showPinnedMessages && pinnedMessages.length > 0 && (
         <div className="border-b border-violet-100 dark:border-gray-800 max-h-60 overflow-y-auto bg-amber-50/80 dark:bg-gray-900/80 backdrop-blur-sm" style={{ marginTop: "2px" }}>
@@ -361,7 +359,7 @@ export function GroupChatArea({
               <h3 className="text-sm font-medium text-amber-800 dark:text-amber-300">
                 Pinned Messages ({pinnedMessages.length}/10)
               </h3>
-              <button 
+              <button
                 onClick={() => setShowPinnedMessages(false)}
                 className="cursor-pointer text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
               >
@@ -370,11 +368,11 @@ export function GroupChatArea({
                 </svg>
               </button>
             </div>
-            
+
             {/* Pinned message cards with repositioned unpin buttons */}
             {pinnedMessages.map(message => (
-              <div 
-                key={message.id} 
+              <div
+                key={message.id}
                 className="p-2 rounded-lg bg-white dark:bg-gray-800 mb-2 shadow-sm hover:shadow transition-shadow cursor-pointer border-l-4 border-yellow-400"
                 onClick={() => scrollToMessage(message.id)}
               >
@@ -387,7 +385,7 @@ export function GroupChatArea({
                     <span className="text-xs text-gray-500">
                       {new Date(message.created_at).toLocaleDateString()}
                     </span>
-                    <button 
+                    <button
                       onClick={(e) => {
                         e.stopPropagation();
                         handlePinMessage(message.id, 0);
@@ -409,7 +407,7 @@ export function GroupChatArea({
           </div>
         </div>
       )}
-      
+
       <div
         ref={containerRef}
         className="chat-messages-container flex-1 overflow-y-auto no-scrollbar"
@@ -421,7 +419,7 @@ export function GroupChatArea({
         }}
       >
         <div className="p-4 space-y-3 flex-1">
-      
+
           <div className="relative min-h-[200px]">
             <GroupMessageList
               messages={messages}
@@ -458,10 +456,12 @@ export function GroupChatArea({
           />
         )}
 
-        <MessageInput
+        <MentionInput
           onSendMessage={handleSendMessage}
           onTypingChange={handleTyping}
           disabled={!selectedGroup}
+          groupId={selectedGroup}
+          currentUserId={currentUserId} 
         />
       </div>
     </div>

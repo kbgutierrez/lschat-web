@@ -23,16 +23,59 @@ export const MessageContent: React.FC<MessageContentProps> = ({ content, classNa
   const [imageError, setImageError] = useState(false);
   const [showImageModal, setShowImageModal] = useState(false);
   const [modalImage, setModalImage] = useState<{ url: string; alt: string }>({ url: '', alt: '' });
-  const [scale, setScale] = useState(0.2); 
+  const [scale, setScale] = useState(0.2);
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [dragging, setDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const imageRef = useRef<HTMLImageElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
+
+  // Move the parseMentions function definition here, before it's used
+  // Parse mentions in the format @[Name:id]
+  const parseMentions = (content: string): React.ReactNode[] => {
+    const mentionRegex = /@\[([^\]]+):(\d+)\]/g;
+    const parts: React.ReactNode[] = [];
+    let lastIndex = 0;
+    let match;
+
+    // If no mentions, just return the content
+    if (!content.includes('@[')) {
+      return [content];
+    }
+
+    while ((match = mentionRegex.exec(content)) !== null) {
+      // Add text before the mention
+      if (match.index > lastIndex) {
+        parts.push(content.substring(lastIndex, match.index));
+      }
+
+      // Add the mention as a styled span
+      const [fullMatch, name, id] = match;
+      parts.push(
+        <span
+          key={`mention-${id}-${match.index}`}
+          className="bg-violet-100 dark:bg-violet-900/40 text-violet-700 dark:text-violet-300 rounded px-1 py-0.5 "
+          data-user-id={id}
+        >
+          @{name}
+        </span>
+      );
+
+      lastIndex = match.index + fullMatch.length;
+    }
+
+    // Add remaining text after the last mention
+    if (lastIndex < content.length) {
+      parts.push(content.substring(lastIndex));
+    }
+
+    return parts;
+  };
+
   const handleImageClick = (url: string, alt: string) => {
     setModalImage({ url, alt });
-    setScale(0.7); 
+    setScale(0.7);
     setPosition({ x: 0, y: 0 });
     setShowImageModal(true);
   };
@@ -57,14 +100,14 @@ export const MessageContent: React.FC<MessageContentProps> = ({ content, classNa
   };
 
   const handleMouseDown = (e: React.MouseEvent) => {
-    if (scale > 0.2) { 
+    if (scale > 0.2) {
       setDragging(true);
       setDragStart({ x: e.clientX - position.x, y: e.clientY - position.y });
     }
   };
 
   const handleMouseMove = (e: React.MouseEvent) => {
-    if (dragging && scale > 0.2) { 
+    if (dragging && scale > 0.2) {
       setPosition({
         x: e.clientX - dragStart.x,
         y: e.clientY - dragStart.y
@@ -79,7 +122,7 @@ export const MessageContent: React.FC<MessageContentProps> = ({ content, classNa
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!showImageModal) return;
-      
+
       switch (e.key) {
         case 'Escape':
           setShowImageModal(false);
@@ -107,7 +150,7 @@ export const MessageContent: React.FC<MessageContentProps> = ({ content, classNa
   useEffect(() => {
     const container = containerRef.current;
     if (!container || !showImageModal) return;
-    
+
     const handleWheel = (e: WheelEvent) => {
       e.preventDefault();
       if (e.deltaY < 0) {
@@ -116,9 +159,9 @@ export const MessageContent: React.FC<MessageContentProps> = ({ content, classNa
         setScale(prev => Math.max(prev - 0.1, 0.1));
       }
     };
-    
+
     container.addEventListener('wheel', handleWheel, { passive: false });
-    
+
     return () => {
       container.removeEventListener('wheel', handleWheel);
     };
@@ -131,11 +174,11 @@ export const MessageContent: React.FC<MessageContentProps> = ({ content, classNa
   if (hasMultipleLines) {
     const lines = content.split('\n');
     const renderedLines = lines.map((line, index) => {
-      if (FLEXIBLE_IMAGE_PATTERN.test(line) || 
-          IMAGE_FILE_PATTERN.test(line) || 
-          IMAGE_PATTERN.test(line) || 
-          FILE_PATTERN.test(line) ||
-          DOCUMENT_FILE_PATTERN.test(line)) {
+      if (FLEXIBLE_IMAGE_PATTERN.test(line) ||
+        IMAGE_FILE_PATTERN.test(line) ||
+        IMAGE_PATTERN.test(line) ||
+        FILE_PATTERN.test(line) ||
+        DOCUMENT_FILE_PATTERN.test(line)) {
         // If the line contains media, render it with the existing logic
         return <MessageContent key={index} content={line} className={className} />;
       } else {
@@ -155,14 +198,14 @@ export const MessageContent: React.FC<MessageContentProps> = ({ content, classNa
     if (url.startsWith('http://') || url.startsWith('https://')) {
       return url;
     }
-    
+
     // For server-relative URLs (starting with /)
     if (url.startsWith('/')) {
       // Make sure we don't have double slashes by removing trailing slash from API_BASE_URL if present
       const baseUrl = API_BASE_URL?.endsWith('/') ? API_BASE_URL.slice(0, -1) : API_BASE_URL || '';
       return `${baseUrl}${url}`;
     }
-    
+
     // For other relative paths, ensure there's a slash between API_BASE_URL and url
     const baseUrl = API_BASE_URL || '';
     return baseUrl + (baseUrl.endsWith('/') || url.startsWith('/') ? '' : '/') + url;
@@ -171,10 +214,10 @@ export const MessageContent: React.FC<MessageContentProps> = ({ content, classNa
   // Add a debug function to log image URL information
   const debugImageUrl = (originalUrl: string) => {
     const fullUrl = getFullImageUrl(originalUrl);
-    console.log('Image URL Debug:', { 
-      original: originalUrl, 
+    console.log('Image URL Debug:', {
+      original: originalUrl,
       processed: fullUrl,
-      apiBase: API_BASE_URL 
+      apiBase: API_BASE_URL
     });
     return fullUrl;
   };
@@ -183,7 +226,7 @@ export const MessageContent: React.FC<MessageContentProps> = ({ content, classNa
   const documentMatch = content.match(DOCUMENT_FILE_PATTERN);
   // Define flexibleMatch here, before any conditionals use it
   const flexibleMatch = content.match(FLEXIBLE_IMAGE_PATTERN);
-  
+
   if (documentMatch && documentMatch[2] && documentMatch[3]) {
     const fileType = documentMatch[1].trim(); // Excel, Word, PDF, etc.
     const fileName = documentMatch[2].trim();
@@ -277,7 +320,7 @@ export const MessageContent: React.FC<MessageContentProps> = ({ content, classNa
         </a>
       </div>
     );
-  } 
+  }
   // Try the flexible pattern for images
   else if (flexibleMatch && flexibleMatch[3]) {
     const imageType = flexibleMatch[1].toLowerCase();
@@ -339,9 +382,9 @@ export const MessageContent: React.FC<MessageContentProps> = ({ content, classNa
               imageLoaded && 'opacity-100'
             )}
           >
-            
+
             <div className="relative" onClick={() => imageLoaded && handleImageClick(imageUrl, fileName)}>
-             
+
               <Image
                 src={debugImageUrl(imageUrl)}
                 alt={fileName}
@@ -423,7 +466,7 @@ export const MessageContent: React.FC<MessageContentProps> = ({ content, classNa
                 imageLoaded && 'opacity-100'
               )}
             >
-              
+
               <div className="relative" onClick={() => imageLoaded && handleImageClick(imageUrl, fileName)}>
                 <Image
                   src={debugImageUrl(imageUrl)}
@@ -615,7 +658,17 @@ export const MessageContent: React.FC<MessageContentProps> = ({ content, classNa
           );
         } else {
           // Default case: regular text
-          contentRender = <p className={cn('whitespace-pre-wrap break-words', className)}>{content}</p>;
+          if (content.includes('@[') && content.includes(':')) {
+            // Use parseMentions function for text containing mentions
+            contentRender = (
+              <p className={cn('whitespace-pre-wrap break-words', className)}>
+                {parseMentions(content)}
+              </p>
+            );
+          } else {
+            // Regular text without mentions
+            contentRender = <p className={cn('whitespace-pre-wrap break-words', className)}>{content}</p>;
+          }
         }
       }
     }
@@ -632,7 +685,7 @@ export const MessageContent: React.FC<MessageContentProps> = ({ content, classNa
           onClick={() => setShowImageModal(false)}
           style={{ backdropFilter: 'blur(5px)' }}
         >
-          <div 
+          <div
             ref={containerRef}
             className="relative w-full h-full flex items-center justify-center overflow-hidden"
             onClick={(e) => e.stopPropagation()}
@@ -647,13 +700,13 @@ export const MessageContent: React.FC<MessageContentProps> = ({ content, classNa
               src={debugImageUrl(modalImage.url)}
               alt={modalImage.alt}
               className="max-w-none max-h-none transition-transform duration-100"
-              style={{ 
+              style={{
                 transform: `scale(${scale}) translate(${position.x / scale}px, ${position.y / scale}px)`,
                 objectFit: 'contain',
               }}
               draggable={false}
             />
-            
+
             <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex items-center gap-2 bg-black/50 rounded-full px-4 py-2 backdrop-blur-sm">
               <button
                 className="p-2 text-white hover:bg-white/20 rounded-full"
@@ -664,11 +717,11 @@ export const MessageContent: React.FC<MessageContentProps> = ({ content, classNa
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
                 </svg>
               </button>
-              
+
               <div className="text-white text-sm min-w-[40px] text-center">
                 {Math.round(scale * 100)}%
               </div>
-              
+
               <button
                 className="p-2 text-white hover:bg-white/20 rounded-full"
                 onClick={handleZoomIn}
@@ -678,7 +731,7 @@ export const MessageContent: React.FC<MessageContentProps> = ({ content, classNa
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                 </svg>
               </button>
-              
+
               <button
                 className="p-2 text-white hover:bg-white/20 rounded-full"
                 onClick={handleResetZoom}
@@ -688,7 +741,7 @@ export const MessageContent: React.FC<MessageContentProps> = ({ content, classNa
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5v-4m0 4h-4m4 0l-5-5" />
                 </svg>
               </button>
-              
+
               <button
                 className="p-2 text-white hover:bg-white/20 rounded-full"
                 onClick={handleFullScreen}
@@ -699,7 +752,7 @@ export const MessageContent: React.FC<MessageContentProps> = ({ content, classNa
                 </svg>
               </button>
             </div>
-            
+
             <button
               className="absolute cursor-pointer top-4 right-4 p-2 bg-black/50 text-white rounded-full hover:bg-black/70"
               onClick={() => setShowImageModal(false)}
@@ -709,7 +762,7 @@ export const MessageContent: React.FC<MessageContentProps> = ({ content, classNa
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
-            
+
             {modalImage.alt && (
               <div className="absolute top-4 left-4 max-w-[50%] bg-black/50 text-white text-sm px-3 py-1 rounded-md backdrop-blur-sm truncate">
                 {modalImage.alt}
